@@ -26,6 +26,7 @@ jobs:
       # push لـ tag زي v3.6.1: بيبني وبينشر Release على GitHub (الـ Installer + latest.yml بتاع التحديث التلقائي)
       - name: Build and publish GitHub Release
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: bash   # PowerShell بيقطّع -c.publish.* غلط، فبنستخدم bash
         run: npx electron-builder --publish always -c.publish.provider=github -c.publish.owner=${{ github.repository_owner }} -c.publish.repo=${{ github.event.repository.name }} -c.publish.releaseType=release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
