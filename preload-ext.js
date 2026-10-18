@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('wzx', {
   // النسخ الاحتياطي + الختمة
   backupList: () => ipcRenderer.invoke('backup:list'),
   backupNow: () => ipcRenderer.invoke('backup:now'),
+  backupPath: () => ipcRenderer.invoke('backup:path'),
+  backupOpenDir: () => ipcRenderer.invoke('backup:open-dir'),
+  backupCopyPath: () => ipcRenderer.invoke('backup:copy-path'),
   backupRestore: name => ipcRenderer.invoke('backup:restore', String(name), true),   // التأكيد بيتم جوه البرنامج قبل النداء ده
   backupExport: () => ipcRenderer.invoke('backup:export'),
   backupImport: () => ipcRenderer.invoke('backup:import'),

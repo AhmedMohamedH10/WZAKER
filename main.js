@@ -1681,6 +1681,12 @@ async function confirmRestore(o, confirmed) {         // confirmed = المست�
   return true;
 }
 ipcMain.handle('backup:list', e => (fromSettings(e) ? backupList() : []));
+ipcMain.handle('backup:path', e => (fromSettings(e) ? backupDir() : ''));
+ipcMain.handle('backup:open-dir', async e => {   // فتح مجلد النسخ (بنعمله لو لسه مش موجود)
+  if (!fromSettings(e)) return false;
+  try { fs.mkdirSync(backupDir(), { recursive: true }); return (await shell.openPath(backupDir())) === ''; } catch (_) { return false; }
+});
+ipcMain.handle('backup:copy-path', e => { if (!fromSettings(e)) return false; try { clipboard.writeText(backupDir()); return true; } catch (_) { return false; } });
 ipcMain.handle('backup:now', e => { if (!fromSettings(e)) return []; autoBackup(true); return backupList(); });
 ipcMain.handle('backup:restore', (e, name, confirmed) => {
   if (!fromSettings(e) || !BK_RE.test(String(name))) return false;

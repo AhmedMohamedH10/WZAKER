@@ -150,8 +150,15 @@
   .prbar .pc.next { background: rgba(var(--accent-rgb), .1); }
   .prbar .pc.next::before, .prbar .pc.next + .pc::before { opacity: 0; }
   .prbar .pc.next .n, .prbar .pc.next .t { color: var(--accent); }
-  .prbar .pc .n svg { display: none; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-inline-end: 5px; vertical-align: -2px; }
-  .prbar .pc.next .n svg { display: inline-block; }
+  .prbar .pc .n svg { display: inline-block; width: 0; height: 15px; margin-inline-end: 0; opacity: 0; transform: scale(.35) rotate(-35deg); color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; overflow: visible;
+    transition: width .34s cubic-bezier(.34, 1.3, .64, 1), margin-inline-end .34s cubic-bezier(.34, 1.3, .64, 1), opacity .22s ease, transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+  .prbar:hover .pc .n svg, .prbar .pc.next .n svg { width: 15px; margin-inline-end: 5px; opacity: 1; transform: none; }
+  .prbar:hover .pc:nth-child(2) .n svg { transition-delay: .05s; }
+  .prbar:hover .pc:nth-child(3) .n svg { transition-delay: .10s; }
+  .prbar:hover .pc:nth-child(4) .n svg { transition-delay: .15s; }
+  .prbar:hover .pc:nth-child(5) .n svg { transition-delay: .20s; }
+  .prbar .pc:not(.next):hover { background: rgba(var(--accent-rgb), .05); }
+  @media (prefers-reduced-motion: reduce) { .prbar .pc .n svg { transition: none; } }
   .prbar .pe { display: none; grid-column: 1 / -1; padding: 14px 12px; font-size: 12.5px; color: var(--dim); }
   .prbar.empty .pc { display: none; }
   .prbar.empty .pe { display: block; }
@@ -255,6 +262,28 @@
   .bklist { display: flex; flex-direction: column; gap: 6px; }
   .bkrow { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px; color: var(--dim); }
   .bkrow span { flex: 1; min-width: 0; }
+  .bkn { display: flex; flex-direction: column; }
+  .bknote { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .bknote .note { flex: 1; min-width: 0; }
+  .bki { flex: none; display: grid; place-items: center; width: 26px; height: 26px; margin-top: -1px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; transition: color .2s, border-color .2s, background .2s, transform .25s; }
+  .bki svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .bki:hover, .bki[aria-expanded="true"] { color: var(--accent); border-color: rgba(var(--accent-rgb), .5); background: rgba(var(--accent-rgb), .08); }
+  .bki[aria-expanded="true"] { transform: rotate(180deg); }
+  .bkpath { display: grid; grid-template-rows: 0fr; opacity: 0; visibility: hidden; transition: grid-template-rows .32s cubic-bezier(.4, 0, .2, 1), opacity .25s ease, visibility 0s linear .32s; }
+  .bkpath.on { grid-template-rows: 1fr; opacity: 1; visibility: visible; transition-delay: 0s; }
+  .bkp-in { overflow: hidden; min-height: 0; }
+  .bkp-card { margin-top: 9px; padding: 10px 11px; display: flex; flex-direction: column; gap: 8px; border: 1px solid rgba(var(--accent-rgb), .28); border-radius: 14px; background: rgba(var(--accent-rgb), .04); }
+  .bkp-l { font-size: 12px; color: var(--text); }
+  .bkp-l em { font-style: normal; color: var(--dim); font-size: 11px; }
+  .bkp-row { display: flex; align-items: stretch; gap: 6px; }
+  .bkp-p { flex: 1; min-width: 0; text-align: left; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); color: var(--text); cursor: pointer; font: 11.5px/1.55 Consolas, 'Cascadia Mono', monospace; word-break: break-all; transition: color .2s, border-color .2s, background .2s; }
+  .bkp-p:hover { color: var(--accent); border-color: rgba(var(--accent-rgb), .5); background: rgba(var(--accent-rgb), .06); }
+  .bkp-b { flex: none; display: grid; place-items: center; width: 32px; padding: 0; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--dim); cursor: pointer; transition: color .2s, border-color .2s, background .2s, transform .15s; }
+  .bkp-b svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .bkp-b:hover { color: var(--accent); border-color: rgba(var(--accent-rgb), .5); background: rgba(var(--accent-rgb), .08); }
+  .bkp-b:active { transform: scale(.93); }
+  .bkp-b.ok { color: var(--accent); border-color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) { .bkpath, .bki { transition: none; } }
   .prgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .prcard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 6px 8px; border: 1px solid var(--line); border-radius: 14px; cursor: pointer; transition: border-color .15s, opacity .15s; }
   .prcard:hover { border-color: rgba(var(--accent-rgb), .45); }
@@ -414,7 +443,6 @@
   .pbtns .pill.sug { color: var(--accent); border-color: rgba(var(--accent-rgb), .45); gap: 6px; }
   .pbtns .pill.sug:hover { background: rgba(var(--accent-rgb), .10); }
   .pbtns .pill.sug svg { width: 14px; height: 14px; }
-  .pbtns #back:hover { color: #ff6b5e; border-color: rgba(255,107,94,.55); background: rgba(255,107,94,.08); }
 
   /* صف الصوت: العنوان + المستوى + تشغيل/إيقاف + السلايدر */
   .snd-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -1577,7 +1605,17 @@
       <details class="grp acc" id="bkCard">
         <summary><span class="acc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4"/><path d="M8 20v-6h8v6"/></svg></span><span class="acc-t">النسخ الاحتياطي</span><span class="acc-st" data-sw="bkAuto"></span><svg class="acc-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
         <div class="acc-body">
-          <div class="note">النسخة بتحفظ إعداداتك وإحصائياتك وشاراتك وختمتك وعلامات ومحفوظات المصحف.</div>
+          <div class="bkn">
+            <div class="bknote"><span class="note">النسخة بتحفظ إعداداتك وإحصائياتك وشاراتك وختمتك وعلامات ومحفوظات المصحف.</span><button class="bki" id="bkInfo" aria-label="مكان النسخ الاحتياطي" aria-expanded="false" title="مكان النسخ الاحتياطي"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.8v5.2"/><path d="M12 16.4h.01"/></svg></button></div>
+            <div class="bkpath" id="bkPath" aria-hidden="true"><div class="bkp-in"><div class="bkp-card">
+              <div class="bkp-l">مكان حفظ النسخ <em>· اضغط على المسار لفتح المجلد</em></div>
+              <div class="bkp-row">
+                <button class="bkp-p" id="bkPathOpen" dir="ltr"><span id="bkPathTxt">...</span></button>
+                <button class="bkp-b" id="bkPathCopy" aria-label="نسخ المسار" title="نسخ المسار"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5 15V6.2A2.2 2.2 0 017.2 4H16"/></svg></button>
+                <button class="bkp-b" id="bkPathGo" aria-label="فتح المجلد" title="فتح المجلد"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5A2.5 2.5 0 015.5 5H9l2 2.2h7.5A2.5 2.5 0 0121 9.7v7.8a2.5 2.5 0 01-2.5 2.5h-13A2.5 2.5 0 013 17.5z"/></svg></button>
+              </div>
+            </div></div></div>
+          </div>
           <label class="chk"><input type="checkbox" id="bkAuto"> نسخة احتياطية تلقائية (آخر 10 أيام)</label>
           <div class="bklist" id="bkList"></div>
           <div class="prow" style="flex-wrap:wrap;gap:10px"><button class="pill" id="bkNow">احفظ نسخة الآن</button><button class="pill" id="bkExport">تصدير نسخة</button><button class="pill" id="bkImport">استيراد نسخة</button></div>
@@ -1643,7 +1681,6 @@
   </div>
 
   <div class="pbtns">
-    <button class="pill" id="back">إغلاق</button>
     <button class="pill sug" id="sgBtn" aria-label="اقتراحات"><svg viewBox="0 0 24 24"><path d="M5 5.5h14a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5H11l-4.5 3.5V16.5H5A1.5 1.5 0 013.5 15V7A1.5 1.5 0 015 5.5z"/><path d="M8 10h8M8 13h5"/></svg>اقتراحات</button>
     <button class="pill sug" id="sugBtn" aria-label="تواصل مع المطور" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12"/></svg>تواصل مع المطور</button>
   </div>
@@ -1670,7 +1707,6 @@
     if (id === 'pStats') { donutIntro = true; renderStats(); }          // ظهور القسم: الدونات تتحرّك من الأول
     document.body.classList.toggle('in-page', id !== 'hub');
     $('ptitle').textContent = id === 'hub' ? 'الإعدادات' : $(id).dataset.title;
-    $('back').textContent = id === 'hub' ? 'إغلاق' : 'رجوع';
     $('scroll').scrollTop = 0;
     if (id === 'pLayout' && S && typeof lxPaintAll === 'function') lxPaintAll();
     if (id !== 'pAlerts' && typeof closeForm === 'function') closeForm();   // مفيش نموذج مفتوح يفضل وراك
@@ -3204,6 +3240,23 @@
       { run: async () => { const ok = await window.wzx.backupImportApply(); if (!ok) bkMsg('تعذّر الاستيراد'); }, cancel: () => window.wzx.backupImportCancel() });
   };
   $('bkCard').addEventListener('toggle', () => { if ($('bkCard').open) bkRefresh(); });
+  // ───── مكان النسخ الاحتياطي: أيقونة التعجب (نسخ المسار / فتح المجلد) ─────
+  async function bkLoadPath() {
+    let pth = ''; try { pth = await window.wzx.backupPath(); } catch (_) {}
+    $('bkPathTxt').textContent = pth || 'غير متاح'; $('bkPathOpen').title = pth || '';
+  }
+  $('bkInfo').onclick = () => {
+    const on = !$('bkPath').classList.contains('on');
+    $('bkPath').classList.toggle('on', on); $('bkPath').setAttribute('aria-hidden', String(!on)); $('bkInfo').setAttribute('aria-expanded', String(on));
+    if (on) bkLoadPath();
+  };
+  const bkOpenDir = async () => { let ok = false; try { ok = await window.wzx.backupOpenDir(); } catch (_) {} if (!ok) bkMsg('تعذّر فتح المجلد'); };
+  $('bkPathOpen').onclick = bkOpenDir; $('bkPathGo').onclick = bkOpenDir;
+  $('bkPathCopy').onclick = async () => {
+    let ok = false; try { ok = await window.wzx.backupCopyPath(); } catch (_) {}
+    bkMsg(ok ? 'تم نسخ المسار' : 'تعذّر النسخ');
+    if (ok) { const b = $('bkPathCopy'); b.classList.add('ok'); setTimeout(() => b.classList.remove('ok'), 1400); }
+  };
   $('khDays').onchange = () => { khDirty = true; };
   let khRead = 0;
   const khAsk = on => { $('khCfm').hidden = !on; $('khAct').hidden = on; };
@@ -3637,7 +3690,6 @@
   // ───── إغلاق / رجوع ─────
   const close = () => window.azkar.closeSettings();
   $('x').onclick = close;
-  $('back').onclick = goBack;
   $('backTop').onclick = () => go('hub');
   window.addEventListener('keydown', e => { if (e.key === 'Escape') { if (form) closeForm(); else goBack(); } });
 
