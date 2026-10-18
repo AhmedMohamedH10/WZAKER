@@ -50,9 +50,10 @@
     const p = nextPrayer(S), sig = p ? p.name + '|' + p.min : '-';
     if (n.dataset.sig === sig) return;
     n.dataset.sig = sig; n.textContent = ''; n.insertAdjacentHTML('afterbegin', MOSQUE_SVG);
-    const box = document.createElement('span'), l = document.createElement('small'), v = document.createElement('b');
-    box.className = 'xp'; l.textContent = 'الصلاة القادمة'; v.textContent = p ? p.name + ' ' + fmt12(p.min) : '—';
-    box.append(l, v); n.appendChild(box);
+    const box = document.createElement('span'), t = document.createElement('b'), l = document.createElement('small');
+    box.className = 'xp';
+    t.textContent = p ? fmt12(p.min) : '—'; l.textContent = p ? p.name : '';   // الأيقونة فوق، الوقت كبير في النص، واسم الصلاة تحته
+    box.append(t, l); n.appendChild(box);
   }
   function extraText(x, S) {
     S = S || {};
