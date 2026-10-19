@@ -25,6 +25,7 @@
 | универсальный | `.tar` / `.zip` | استخراج وتشغيل `/usr/bin/wzaker` |
 
 > vendor/copyright = AhmedMohamedH10 (المطور الأصلي).
+> نسخة لينكس (Tauri + Rust) من إعداد **Mohamed Zaitoon** — مبنية على نسخة Windows الأصلية بإذن المطور.
 
 ## البناء من السورس
 
@@ -59,6 +60,7 @@ tauri build
 ## الشكر
 
 - **AhmedMohamedH10** — المطور الأصلي لتطبيق WZAKER (ويندوز).
+- **Mohamed Zaitoon** — نسخة لينكس (Tauri + Rust).
 - بيانات الأذكار من «حصن المسلم».
 
 ## الترخيص
