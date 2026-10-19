@@ -6,7 +6,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 export GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg}"
-KEY="${SIGNING_KEY:-mohamedzaitoon}"
+KEY="${SIGNING_KEY:-Mohamed Zaitoon}"
+KEY_ID="${SIGNING_KEY_ID:-EC5E1EC44ED65B7AFD33F17018A7EB1880C9F89E}"
 DIST="$ROOT/dist"
 APPIMAGETOOL="$ROOT/tools/appimagetool"
 
@@ -18,14 +19,9 @@ else
 fi
 
 echo "=== RPM (توقيع مدمج عبر rpmsign) ==="
-if command -v rpmsign >/dev/null 2>&1; then
-  rpmsign --define "_gpg_name $KEY" --define "_gpg_path $GNUPGHOME" \
-    --addsign "$DIST/WZAKER-3.6.4-linux-x86_64.rpm"
-  rpm -Kv "$DIST/WZAKER-3.6.4-linux-x86_64.rpm" | head -4
-else
-  echo "! rpmsign غير مثبّت — للتوقيع المدمج: sudo dnf install rpm-sign"
-  echo "  (التوقيع المنفصل .asc تم إنشاؤه)"
-fi
+# توقيع مدمج بدون rpmsign (سكربت داخلي)
+python3 "$ROOT/scripts/rpm-sign.py" "$DIST/WZAKER-3.6.4-linux-x86_64.rpm" "$KEY_ID"
+rpm -Kv "$DIST/WZAKER-3.6.4-linux-x86_64.rpm" | head -5
 
 echo "=== توقيعات منفصلة (.asc) لكل الحزم ==="
 cd "$DIST"
