@@ -29,3 +29,6 @@ build/
 *.p12
 *.jks
 *.keystore
+
+# Tauri updater signing private key
+src-tauri/keys/updater.key
