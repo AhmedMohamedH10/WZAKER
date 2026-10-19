@@ -12,8 +12,9 @@ DIST="$ROOT/dist"
 APPIMAGETOOL="$ROOT/tools/appimagetool"
 
 echo "=== AppImage (توقيع مدمج) ==="
-if [ -x "$APPIMAGETOOL" ] && [ -d "$ROOT/build/appimage-work/AppDir" ]; then
-  (cd "$ROOT/build/appimage-work" && "$APPIMAGETOOL" --sign AppDir "$DIST/WZAKER-3.6.4-linux-x86_64.AppImage")
+APPDIR="${APPDIR:-$ROOT/build/appimage-work/AppDir}"
+if [ -x "$APPIMAGETOOL" ] && [ -d "$APPDIR" ]; then
+  (cd "$APPDIR/.." && "$APPIMAGETOOL" --sign AppDir "$DIST/WZAKER-3.6.4-linux-x86_64.AppImage")
 else
   echo "! AppDir غير موجود — AppImage لن يُوقّع"
 fi

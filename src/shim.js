@@ -184,11 +184,6 @@
     khatmaNew: () => {},
   };
 
-  // ── Global scroll (event من Rust/rdev) ──────────────────────────────────
-  try {
-    window.__TAURI__?.event?.listen('global_tick', () => api.tick());
-  } catch (_) {}
-
   // ── Backup / Restore ─────────────────────────────────────────────────────
   api.backupExport = () => {
     try { return window.__TAURI__?.core?.invoke('backup_export'); } catch (_) { return Promise.resolve(''); }
@@ -216,8 +211,23 @@
     if (e.code === 'Space' && state.spaceKey) { e.preventDefault(); api.tick(); }
   });
 
-  // wheel → tick (إذا مفعّل) — handled by Rust global shortcut ideally; here fallback
-  // (global scroll is handled by Rust side; this is a no-op fallback)
+  // ── عجلة الماوس داخل نافذة السبحة (تعمل على Wayland أيضاً) ──────────────
+  let lastWheel = 0;
+  document.addEventListener('wheel', () => {
+    if (state.scrollOn === false) return;
+    const now = performance.now();
+    if (now - lastWheel < 200) return;   // كل "حركة" تمرير = تسبيحة واحدة
+    lastWheel = now;
+    api.tick();
+  }, { passive: true, capture: true });
+
+  // ── عجلة الماوس globally (X11 / XWayland) — Rust rdev ───────────────────
+  try {
+    window.__TAURI__?.event?.listen('global_tick', () => {
+      if (state.scrollOn === false) return;
+      api.tick();
+    });
+  } catch (_) {}
 
   console.log('WZAKER Tauri shim loaded');
 })();
