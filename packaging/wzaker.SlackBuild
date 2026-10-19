@@ -1,0 +1,20 @@
+#!/bin/sh
+PRGNAM=wzaker
+VERSION=3.6.4-alpha01
+ARCH=x86_64
+BUILD=${BUILD:-1}
+TAG=${TAG:-_SBo}
+CWD=$(pwd)
+TMP=${TMP:-/tmp/SBo}
+PKG=$TMP/package-$PRGNAM
+OUTPUT=${OUTPUT:-/tmp}
+
+rm -rf $PKG && mkdir -p $PKG/usr/bin
+cp WZAKER-3.6.4-alpha01-linux-x86_64.AppImage $PKG/usr/bin/wzaker
+chmod 755 $PKG/usr/bin/wzaker
+mkdir -p $PKG/install
+cat > $PKG/install/slack-desc <<'DESC'
+wzaker: wzaker (وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة)
+wzaker: Linux port (Tauri + Rust). AppImage binary.
+DESC
+cd $PKG && /sbin/makepkg -l y -c n $OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.tgz

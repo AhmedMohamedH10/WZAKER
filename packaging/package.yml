@@ -1,0 +1,17 @@
+name       : wzaker
+version    : 3.6.4
+release    : 1
+source     :
+    - https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.4-alpha01/WZAKER-3.6.4-alpha01-linux-x86_64.AppImage : skip
+license    : MIT
+component  : office
+summary    : وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة (Linux)
+description: |
+  Linux port (Tauri + Rust) of WZAKER.
+builddeps  :
+    - webkit2gtk-4.1
+    - gtk3
+build      : |
+  # Binary package: install the AppImage as /usr/bin/wzaker
+install    : |
+  install -Dm755 WZAKER-3.6.4-alpha01-linux-x86_64.AppImage $installdir/usr/bin/wzaker
