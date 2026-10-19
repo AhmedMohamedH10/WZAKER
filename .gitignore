@@ -1,4 +1,34 @@
+# Tauri / Rust
+target/
+src-tauri/target/
 node_modules/
 dist/
 dist-*/
+build/
+*.AppImage
+*.deb
+*.rpm
+*.pkg.tar.zst
+*.apk
+*.txz
+*.pet
+*.tar
+*.zip
+# IDE
+.idea/
+.vscode/
+*.swp
 *.log
+*.tmp
+*.bak
+*.orig
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Tauri updater signing private key
+src-tauri/keys/updater.key

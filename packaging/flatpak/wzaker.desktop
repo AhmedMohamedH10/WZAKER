@@ -1,0 +1,12 @@
+# WZAKER (وذكر) — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
+# Linux port (Tauri + Rust).
+[Desktop Entry]
+Type=Application
+Name=وذكر
+GenericName=Tasbih
+Comment=سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
+Exec=wzaker
+Icon=io.github.ahmedmohamedh10.wzaker
+Categories=Utility;Spirituality;
+Terminal=false
+StartupNotify=true
