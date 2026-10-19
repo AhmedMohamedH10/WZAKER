@@ -1,0 +1,36 @@
+name: wzaker
+version: 3.6.4-alpha01
+summary: وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
+description: |
+  وذكر (WZAKER) — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة.
+  Linux port (Tauri + Rust).
+base: core24
+confinement: strict
+grade: stable
+
+parts:
+  wzaker:
+    plugin: rust
+    source: .
+    source-type: git
+    build-packages:
+      - libwebkit2gtk-4.1-dev
+      - libgtk-3-dev
+      - librsvg2-dev
+      - patchelf
+      - build-essential
+    rust-path: ["src-tauri"]
+
+apps:
+  wzaker:
+    command: bin/wzaker
+    plugs:
+      - home
+      - x11
+      - wayland
+      - desktop
+      - desktop-legacy
+      - opengl
+      - network
+      - network-bind
+      - unity7
