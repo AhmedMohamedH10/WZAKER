@@ -1,0 +1,14 @@
+# Template file for 'wzaker'
+pkgname=wzaker
+version=3.6.4
+revision=1
+archs="x86_64"
+short_desc="وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة (Linux)"
+maintainer="ZaitXCode <info@zaitxcode.com>"
+license="MIT"
+homepage="https://github.com/AhmedMohamedH10/WZAKER"
+distfiles="https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.4-alpha01/WZAKER-3.6.4-alpha01-linux-x86_64.AppImage"
+checksum=skip
+do_install() {
+    vinstall WZAKER-3.6.4-alpha01-linux-x86_64.AppImage 755 usr/bin wzaker
+}

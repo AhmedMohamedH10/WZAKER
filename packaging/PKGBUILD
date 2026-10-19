@@ -1,0 +1,15 @@
+# Maintainer: ZaitXCode <info@zaitxcode.com>
+pkgname=wzaker
+pkgver=3.6.4
+pkgrel=1
+pkgdesc="وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة (Linux)"
+arch=('x86_64')
+url="https://github.com/AhmedMohamedH10/WZAKER"
+license=('MIT')
+depends=('webkit2gtk-4.1' 'gtk3')
+source=("https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.4-alpha01/WZAKER-3.6.4-alpha01-linux-x86_64.AppImage")
+sha256sums=('SKIP')
+
+package() {
+  install -Dm755 "$srcdir/WZAKER-3.6.4-alpha01-linux-x86_64.AppImage" "$pkgdir/usr/bin/wzaker"
+}
