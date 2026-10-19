@@ -11,7 +11,7 @@ use tauri::{
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
-const CURRENT_VERSION: &str = "3.6.4-alpha01";
+const CURRENT_VERSION: &str = "3.6.4";
 const REPO: &str = "AhmedMohamedH10/WZAKER";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +110,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
