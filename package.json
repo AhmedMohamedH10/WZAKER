@@ -1,0 +1,89 @@
+{
+  "name": "wzaker",
+  "version": "3.6.4",
+  "description": "WZAKER - سبحة عائمة للأذكار على سطح المكتب بعدّ Global Scroll",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "test": "node --test test/logic.test.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "uiohook-napi": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.wzaker.app",
+    "productName": "WZAKER",
+    "asarUnpack": [
+      "**/node_modules/uiohook-napi/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "executableName": "WZAKER"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WZAKER",
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp",
+      "language": "1025",
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": false,
+      "packElevateHelper": false
+    },
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!build/**",
+      "!.github/**",
+      "!build.bat",
+      "!package-lock.json",
+      "!assets/audio/README.txt",
+      "!**/*.map",
+      "!**/*.md",
+      "!**/*.ts",
+      "!**/*.d.ts",
+      "!**/{test,tests,__tests__,docs,example,examples}/**",
+      "!node_modules/uiohook-napi/prebuilds/{darwin,linux}-*/**",
+      "!node_modules/uiohook-napi/prebuilds/win32-ia32/**",
+      "!node_modules/uiohook-napi/prebuilds/win32-arm64/**",
+      "!node_modules/uiohook-napi/{src,libuiohook}/**",
+      "!node_modules/**/{CHANGELOG,README,LICENSE}*"
+    ],
+    "artifactName": "WZAKER-Setup-${version}.${ext}",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "compression": "maximum",
+    "electronLanguages": [
+      "ar",
+      "en-US"
+    ]
+  },
+  "author": "WZAKER",
+  "productName": "WZAKER"
+}

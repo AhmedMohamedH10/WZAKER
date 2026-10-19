@@ -3,10 +3,17 @@ target/
 src-tauri/target/
 node_modules/
 dist/
+dist-*/
 build/
 *.AppImage
 *.deb
 *.rpm
+*.pkg.tar.zst
+*.apk
+*.txz
+*.pet
+*.tar
+*.zip
 # IDE
 .idea/
 .vscode/
