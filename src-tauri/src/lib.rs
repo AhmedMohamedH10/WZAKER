@@ -3,7 +3,11 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Emitter, Manager};
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager,
+};
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +40,31 @@ fn quit_app(app: tauri::AppHandle) {
 #[tauri::command]
 fn open_url(url: String) {
     let _ = open::that(url);
+}
+
+#[tauri::command]
+fn trigger_tick() { /* frontend handles via event */ }
+
+fn start_global_scroll(app: &tauri::AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        use rdev::{listen, Event, EventType};
+        let mut last: i64 = 0;
+        if let Err(e) = listen(move |event: Event| {
+            if let EventType::Wheel { .. } = event.event_type {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0);
+                if now - last > 200 {
+                    let _ = app.emit("global_tick", ());
+                    last = now;
+                }
+            }
+        }) {
+            eprintln!("rdev listen error: {:?}", e);
+        }
+    });
 }
 
 pub struct AppState {
@@ -98,12 +127,40 @@ pub fn run() {
             }
             let _ = shortcut;
         }).build())
-        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update])
+        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick])
         .setup(|app| {
             // Tray icon
             // Global shortcut Ctrl+Alt+W
             let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::KeyW);
             let _ = app.global_shortcut().register(shortcut);
+
+            // Tray icon
+            let show_i = MenuItem::with_id(app, "show", "إظهار السبحة", true, None::<&str>)?;
+            let hide_i = MenuItem::with_id(app, "hide", "إخفاء", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "خروج", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &hide_i, &quit_i])?;
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "show" => { if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); } }
+                    "hide" => { if let Some(w) = app.get_webview_window("main") { let _ = w.hide(); } }
+                    "quit" => { app.exit(0); }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(w) = app.get_webview_window("main") {
+                            if w.is_visible().unwrap_or(false) { let _ = w.hide(); } else { let _ = w.show(); let _ = w.set_focus(); }
+                        }
+                    }
+                })
+                .build(app)?;
+
+            // Global scroll (X11/XWayland via rdev)
+            start_global_scroll(app.handle());
 
             // Autostart: register (default off; controlled by settings)
             Ok(())
