@@ -55,7 +55,29 @@
     getState: () => Promise.resolve({ ...state }),
     getStats: () => Promise.resolve({}),
     patch: (p) => {
-      if (p && typeof p === 'object') Object.assign(state, p);
+      if (p && typeof p === 'object') {
+        if (p.updCheck) {
+          state.upd = state.upd || { status: 'idle', version: '', percent: 0, error: '' };
+          state.upd.status = 'checking'; save(); emit('state', { ...state });
+          try {
+            window.__TAURI__?.core?.invoke('check_update').then(u => {
+              state.upd = Object.assign(state.upd || {}, u);
+              save(); emit('state', { ...state });
+            }).catch(e => { state.upd.status = 'error'; state.upd.error = String(e); save(); emit('state', { ...state }); });
+          } catch (e) { state.upd.status = 'error'; save(); emit('state', { ...state }); }
+          delete p.updCheck;
+        }
+        if (p.updInstall) {
+          try { window.__TAURI__?.core?.invoke('install_update'); } catch (_) {}
+          delete p.updInstall;
+        }
+        if (typeof p.autoUpdateOn === 'boolean') {
+          state.autoUpdateOn = p.autoUpdateOn;
+          if (p.autoUpdateOn) { api._updTimer = setInterval(() => { try { window.__TAURI__?.core?.invoke('check_update').then(u => { state.upd = Object.assign(state.upd || {}, u); save(); emit('state', { ...state }); }); } catch (_) {} }, 6 * 3600_000); setTimeout(() => { try { window.__TAURI__?.core?.invoke('check_update').then(u => { state.upd = Object.assign(state.upd || {}, u); save(); emit('state', { ...state }); }); } catch (_) {} }, 20000); }
+          else { if (api._updTimer) { clearInterval(api._updTimer); api._updTimer = null; } }
+        }
+        Object.assign(state, p);
+      }
       save();
       emit('state', { ...state });
       return Promise.resolve();
