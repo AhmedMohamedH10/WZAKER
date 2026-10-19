@@ -11,3 +11,14 @@ build/
 .idea/
 .vscode/
 *.swp
+*.log
+*.tmp
+*.bak
+*.orig
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
