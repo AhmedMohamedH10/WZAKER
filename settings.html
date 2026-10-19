@@ -436,7 +436,7 @@
   .ddbtn:hover, .ddbtn[aria-expanded="true"] { border-color: rgba(var(--accent-rgb), .45); background: rgba(var(--accent-rgb), .05); }
   .ddbtn span { flex: 1; }
   .ddbtn b { font-weight: normal; color: var(--accent); font-size: 12.5px; }
-  .ddbtn svg { width: 16px; height: 16px; flex: none; stroke: var(--dim); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .25s ease; }
+  .ddbtn svg { width: 16px; height: 16px; flex: none; stroke: var(--dim); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .4s cubic-bezier(.34, 1.5, .5, 1); }
   .ddbtn[aria-expanded="true"] svg { transform: rotate(180deg); stroke: var(--accent); }
   .pbtns { margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(var(--accent-rgb), .10); display: flex; gap: 6px; justify-content: flex-start; align-items: center; }
   .pbtns .pill { height: 28px; padding: 0 13px; font-size: 13px; }
@@ -449,10 +449,10 @@
   .snd-h .pc { font-size: 13px; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 40px; text-align: left; }
 
   /* قايمة التنبيه: بتتفتح لتحت لما الزر يتفعّل */
-  .fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .32s ease, opacity .25s ease; }
+  .fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .42s cubic-bezier(.22, 1, .36, 1), opacity .22s ease; }
   .fold.open { grid-template-rows: 1fr; opacity: 1; }
-  .fold-in { overflow: hidden; min-height: 0; display: flex; flex-direction: column; gap: 7px; visibility: hidden; transition: visibility 0s .32s; }
-  .fold.open > .fold-in { visibility: visible; transition-delay: 0s; }
+  .fold-in { overflow: hidden; min-height: 0; display: flex; flex-direction: column; gap: 7px; visibility: hidden; transform-origin: top center; transform: translateY(-8px) scale(.97); transition: visibility 0s .42s, transform .26s ease; }
+  .fold.open > .fold-in { visibility: visible; transform: none; transition: visibility 0s 0s, transform .5s cubic-bezier(.34, 1.4, .64, 1); }
   .fold .fold-in > .plabel:first-child { margin-top: 8px; }
   .sub { padding-inline-start: 10px; border-inline-start: 1px solid var(--line); margin-inline-start: 4px; }
   .sel {
@@ -881,7 +881,7 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 26px 50px -16px rgba(0, 0, 0, .92), 0 0 34px -12px rgba(var(--accent-rgb), .5);
     animation: qodrop2 .5s cubic-bezier(.16, 1, .3, 1); }
   .qopts.out { animation: qoout .17s cubic-bezier(.4, 0, 1, 1) forwards; pointer-events: none; }
-  @keyframes qodrop2 { from { opacity: 0; transform: translateY(-14px) scale(.96, .88); } to { opacity: 1; transform: none; } }
+  @keyframes qodrop2 { from { opacity: 0; transform: translateY(-16px) scale(.9, .8); } 40% { opacity: 1; } to { transform: none; } }
   @keyframes qoout { to { opacity: 0; transform: translateY(-10px) scale(.97, .92); } }
   .qopts > :nth-child(1) { --qi: 0; } .qopts > :nth-child(2) { --qi: 1; } .qopts > :nth-child(3) { --qi: 2; } .qopts > :nth-child(4) { --qi: 3; } .qopts > :nth-child(5) { --qi: 4; } .qopts > :nth-child(6) { --qi: 5; }
   .qopts:not(.out) > .qo, .qopts:not(.out) > .qfs { animation: qoitem .6s cubic-bezier(.16, 1, .3, 1) backwards; animation-delay: calc(var(--qi, 0) * 55ms + 80ms); }
@@ -953,6 +953,137 @@
   .qsb .mi b { font-weight: normal; color: var(--accent); font-size: 12.5px; white-space: nowrap; }
   .qsb .mi span { font-size: 13px; color: var(--soft); line-height: 1.8; }
   .ntip { position: fixed; z-index: 40; max-width: 250px; padding: 8px 12px; font-size: 13px; line-height: 1.8; color: var(--text); background: rgba(9, 15, 11, .97); border: 1px solid rgba(var(--accent-rgb), .55); border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, .5); pointer-events: none; white-space: pre-wrap; }
+
+  /* ═════ أنيميشن الـ Hover ═════ */
+  @media (prefers-reduced-motion: no-preference) {
+
+    /* ── مواقيت الصلاة: كل خلية لوحدها تصحى: إضاءة من تحت + خط بيتفتح من النص + الوقت بيكبر وبيلمع + الأيقونة بتنط ── */
+    .prbar .pc { transition: background .3s, transform .4s cubic-bezier(.34, 1.4, .64, 1); }
+    .prbar .pc:not(.next):hover, .prbar .pc.next:hover { background: radial-gradient(ellipse 85% 75% at 50% 115%, rgba(var(--accent-rgb), .26), rgba(var(--accent-rgb), .05) 70%, transparent); transform: translateY(-2px); }
+    .prbar .pc::after { content: ''; position: absolute; bottom: 0; inset-inline: 16%; height: 2px; border-radius: 2px; pointer-events: none;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 10px rgba(var(--accent-rgb), .8);
+      transform: scaleX(0); opacity: 0; transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .3s; }
+    .prbar .pc:hover::after { transform: scaleX(1); opacity: 1; }
+    .prbar .pc .t { transition: transform .4s cubic-bezier(.34, 1.56, .64, 1), color .25s, text-shadow .3s; }
+    .prbar .pc:hover .t { transform: scale(1.14); color: var(--accent); text-shadow: 0 0 14px rgba(var(--accent-rgb), .6); }
+    .prbar .pc .n { transition: color .25s, letter-spacing .35s; }
+    .prbar .pc:hover .n { color: var(--accent); letter-spacing: .4px; }
+    .prbar .pc:hover .n svg { animation: prIco .65s cubic-bezier(.3, 1.4, .5, 1); }
+    @keyframes prIco { 0% { transform: scale(.55) rotate(-30deg); } 55% { transform: scale(1.4) rotate(14deg); } 100% { transform: scale(1) rotate(0); } }
+
+    /* ── أقسام القائمة الرئيسية: بتطلع لفوق + لمعة قُطرية بتعدّي + الأيقونة بتكبر وتتميّل ── */
+    .tile { overflow: hidden; transition: transform .4s cubic-bezier(.2, .8, .2, 1), border-color .2s, background .2s, box-shadow .4s; }
+    .tile::after { content: ''; position: absolute; top: -10%; bottom: -10%; width: 40%; inset-inline-start: -55%; pointer-events: none;
+      background: linear-gradient(100deg, transparent, rgba(var(--accent-rgb), .20), transparent); transform: skewX(-18deg); }
+    .tile:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -14px rgba(var(--accent-rgb), .75), 0 0 10px rgba(var(--accent-rgb), .14); }
+    .tile:hover::after { animation: tileShine .95s ease-out; }
+    @keyframes tileShine { from { inset-inline-start: -55%; } to { inset-inline-start: 125%; } }
+    .tile:active { transform: translateY(-1px) scale(.985); transition-duration: .1s; }
+    .tile svg { transition: scale .45s cubic-bezier(.34, 1.56, .64, 1), rotate .45s cubic-bezier(.34, 1.56, .64, 1), filter .3s; }
+    .tile:hover svg { scale: 1.2; rotate: -8deg; filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), .65)); }
+    .tile .t { transition: color .2s, translate .35s cubic-bezier(.2, .8, .2, 1); }
+    .tile:hover .t { color: var(--accent); translate: -3px 0; }
+
+    /* ── العناوين القابلة للفتح (الأكورديون): الخلفية بتتمدّد من الجنب + الأيقونة بتلف + السهم بينزل ── */
+    details.acc > summary { background-image: linear-gradient(90deg, rgba(var(--accent-rgb), .10), rgba(var(--accent-rgb), .02)); background-repeat: no-repeat; background-position: right center; background-size: 0% 100%; transition: background-size .5s cubic-bezier(.2, .8, .2, 1); }
+    details.acc > summary:hover { background-size: 100% 100%; }
+    .acc-ico { transition: rotate .45s cubic-bezier(.34, 1.56, .64, 1), scale .45s cubic-bezier(.34, 1.56, .64, 1), background .25s, box-shadow .3s; }
+    details.acc > summary:hover .acc-ico { rotate: 12deg; scale: 1.12; background: rgba(var(--accent-rgb), .22); box-shadow: 0 0 12px rgba(var(--accent-rgb), .35); }
+    .acc-chev { transition: transform .2s, translate .3s cubic-bezier(.34, 1.56, .64, 1), stroke .2s; }
+    details.acc > summary:hover .acc-chev { translate: 0 3px; stroke: var(--accent); }
+    details.acc[open] > summary:hover .acc-chev { translate: 0 -3px; }
+
+    /* ── مجموعات الإعدادات: إطار بيصحى بنعومة ── */
+    .grp { transition: border-color .35s, box-shadow .35s, background .35s; }
+    .grp:hover { border-color: rgba(var(--accent-rgb), .30); background: rgba(var(--accent-rgb), .035); box-shadow: 0 8px 22px -16px rgba(var(--accent-rgb), .7); }
+
+    /* ── الأزرار: رفعة صغيرة + توهج، والضغط بيكبسها ── */
+    .pill, .chip { transition: color .15s, border-color .15s, background .15s, translate .25s cubic-bezier(.34, 1.56, .64, 1), box-shadow .25s, scale .12s; }
+    .pill:hover, .chip:hover { translate: 0 -2px; box-shadow: 0 6px 14px -8px rgba(var(--accent-rgb), .8); }
+    .pill:active, .chip:active { translate: 0 0; scale: .95; box-shadow: none; }
+
+    /* ── خيارات التفعيل (الصناديق والمفاتيح): الصف كله بينزاح ناحية الإيد ويتنوّر ── */
+    .chk, .tgl { transition: color .2s, translate .35s cubic-bezier(.2, .8, .2, 1); }
+    .chk:hover, .tgl:hover { translate: -4px 0; }
+    .chk:hover { color: var(--text); }
+    .uswitch { transition: box-shadow .3s, border-color .25s, background .25s; }
+    .tgl:hover .uswitch:not(:checked) { border-color: rgba(var(--accent-rgb), .45); }
+
+    /* ── صفوف الأذكار + الحقول ── */
+    .arow { transition: border-color .2s, background .2s, translate .3s cubic-bezier(.2, .8, .2, 1); }
+    .arow:hover { translate: -3px 0; }
+    .num-in { transition: border-color .2s, box-shadow .3s; }
+    .num-in:hover { border-color: rgba(var(--accent-rgb), .4); }
+    .num-in:focus { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .13); }
+  }
+
+  /* ───── لمسة نهائية: انتقال الصفحات + القوائم المنبثقة (pop) + الضوء ورا القوائم ───── */
+  /* بقعة الضوء اللي بتتبع الماوس جوه الأقسام (تحت المحتوى وفوق الخلفية) */
+  .tile { isolation: isolate; }
+  .tile::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .5s ease;
+    background: radial-gradient(150px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .20), rgba(var(--accent-rgb), 0) 70%); }
+  .tile:hover::before { opacity: 1; }
+  .hub > :nth-child(1) { --ti: 0; }
+  .hub > :nth-child(2) { --ti: 1; }
+  .hub > :nth-child(3) { --ti: 2; }
+  .hub > :nth-child(4) { --ti: 3; }
+  .hub > :nth-child(5) { --ti: 4; }
+  .hub > :nth-child(6) { --ti: 5; }
+  .hub > :nth-child(7) { --ti: 6; }
+  .hub > :nth-child(8) { --ti: 7; }
+  .hub > :nth-child(9) { --ti: 8; }
+  .hub > :nth-child(10) { --ti: 9; }
+  .hub > :nth-child(11) { --ti: 10; }
+  .hub > :nth-child(12) { --ti: 11; }
+
+  /* القوائم المنبثقة: دخول وخروج بحركة pop ناعمة (CSS بس) + توهّج بيتفتح مع القائمة. التوهّج محدود عشان ما يتقصّش عند حافة النافذة */
+  .sugpop { display: none; opacity: 0; transform: translateY(14px) scale(.82); transform-origin: 0 100%;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .55), 0 0 12px rgba(var(--accent-rgb), .12), 0 0 0 0 rgba(var(--accent-rgb), 0), 0 0 0 0 rgba(var(--accent-rgb), 0);
+    transition: opacity .18s ease, transform .45s cubic-bezier(.34, 1.5, .5, 1), box-shadow .6s ease, display .45s allow-discrete; }
+  .sugpop.on { display: flex; opacity: 1; transform: none; animation: none;
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .55), 0 0 12px rgba(var(--accent-rgb), .14), 0 0 22px -4px rgba(var(--accent-rgb), .30), 0 0 40px -16px rgba(var(--accent-rgb), .38); }
+  @starting-style { .sugpop.on { opacity: 0; transform: translateY(14px) scale(.82);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .55), 0 0 12px rgba(var(--accent-rgb), .12), 0 0 0 0 rgba(var(--accent-rgb), 0), 0 0 0 0 rgba(var(--accent-rgb), 0); } }
+  .manimmenu:not([hidden]) { animation: menuPop .45s cubic-bezier(.34, 1.5, .5, 1) backwards, menuGlow .8s ease-out backwards; }
+  @keyframes menuPop { from { opacity: 0; transform: translateY(-12px) scale(.84); } 40% { opacity: 1; } }
+  @keyframes menuGlow { 0% { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), 0 0 0 0 rgba(var(--accent-rgb), 0); } 45% { box-shadow: 0 10px 28px rgba(0, 0, 0, .55), 0 0 26px -2px rgba(var(--accent-rgb), .45); } }
+  .qopts { animation: qodrop2 .55s cubic-bezier(.34, 1.4, .5, 1), qoGlow .9s ease-out; }
+  @keyframes qoGlow { 0% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 26px 50px -16px rgba(0, 0, 0, .92), 0 0 0 0 rgba(var(--accent-rgb), 0); }
+    45% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 26px 50px -16px rgba(0, 0, 0, .92), 0 0 44px -6px rgba(var(--accent-rgb), .7); } }
+  @media (prefers-reduced-motion: no-preference) {
+    /* الصفحات: Pop ناعم (طلوع + تكبير بنطّة زنبركية خفيفة) */
+    .view.on { animation: vin3 .28s ease-out backwards; }
+    @keyframes vin3 { from { opacity: 0; } }
+    .view.on:not([data-mk]) > * { animation: itPop .55s cubic-bezier(.34, 1.4, .5, 1) backwards; }   /* كل قسم جوه الصفحة بيطلع Pop ناعم ورا بعضه */
+    .view.on:not([data-mk]) > :nth-child(1) { animation-delay: 0s; }
+    .view.on:not([data-mk]) > :nth-child(2) { animation-delay: .045s; }
+    .view.on:not([data-mk]) > :nth-child(3) { animation-delay: .09s; }
+    .view.on:not([data-mk]) > :nth-child(4) { animation-delay: .135s; }
+    .view.on:not([data-mk]) > :nth-child(5) { animation-delay: .18s; }
+    .view.on:not([data-mk]) > :nth-child(n+6) { animation-delay: .22s; }
+    @keyframes itPop { from { opacity: 0; transform: translateY(14px) scale(.965); } 45% { opacity: 1; } }
+    .fold.open .fold-in > :not(.seg) { animation: ddItem .5s cubic-bezier(.34, 1.45, .5, 1) backwards; }
+    .fold.open .seg .pill { animation: ddItem .5s cubic-bezier(.34, 1.45, .5, 1) backwards; }   /* عناصر القوائم المنسدلة بتطلع Pop واحدة ورا التانية */
+    .fold.open .seg .pill:nth-child(1) { animation-delay: .04s; }
+    .fold.open .seg .pill:nth-child(2) { animation-delay: .08s; }
+    .fold.open .seg .pill:nth-child(3) { animation-delay: .12s; }
+    .fold.open .seg .pill:nth-child(4) { animation-delay: .16s; }
+    .fold.open .seg .pill:nth-child(n+5) { animation-delay: .2s; }
+    @keyframes ddItem { from { opacity: 0; transform: translateY(-8px) scale(.9); } 50% { opacity: 1; } }
+    /* أقسام القائمة الرئيسية: لما الماوس يدخل القسم يطلع Pop زنبركي، وبعدها القسم كله بيميل ناحية الماوس (Tilt) والأيقونة والعنوان بيتحركوا معاه */
+    .tile:hover { transform: perspective(720px) translateY(-4px) scale(1.04) rotateX(calc(var(--ry, 0) * -7deg)) rotateY(calc(var(--rx, 0) * 8deg)); transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), border-color .2s, background .2s, box-shadow .4s; }
+    .tile.trk:hover { transition: transform .14s ease-out, border-color .2s, background .2s, box-shadow .4s; }
+    .tile:hover:active { transform: perspective(720px) translateY(-1px) scale(.985); transition-duration: .1s; }
+    .tile svg { transition: scale .45s cubic-bezier(.34, 1.56, .64, 1), rotate .45s cubic-bezier(.34, 1.56, .64, 1), filter .3s, translate .5s cubic-bezier(.34, 1.56, .64, 1); }
+    .tile.trk svg { transition: scale .45s cubic-bezier(.34, 1.56, .64, 1), rotate .45s cubic-bezier(.34, 1.56, .64, 1), filter .3s, translate .16s ease-out; }
+    .tile:hover svg { translate: calc(var(--px, 0) * 6px) calc(var(--py, 0) * 6px); }
+    .tile:hover .t { translate: calc(-3px + var(--px, 0) * 4px) calc(var(--py, 0) * 3px); }
+    .tile.trk .t { transition: color .2s, translate .14s ease-out; }
+    .tile:hover::before { opacity: 1; background: radial-gradient(170px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .26), rgba(var(--accent-rgb), 0) 70%); }
+    /* أقسام القائمة الرئيسية: بتطلع متتابعة بحركة Pop */
+    #hub.on .tile { animation: tilePop .62s cubic-bezier(.34, 1.5, .5, 1) backwards; animation-delay: calc(var(--ti, 0) * 45ms + 60ms); }
+    @keyframes tilePop { from { opacity: 0; transform: translateY(20px) scale(.86); } 45% { opacity: 1; } }
+  }
 </style>
 </head>
 <body>
@@ -1712,6 +1843,17 @@
     if (id !== 'pAlerts' && typeof closeForm === 'function') closeForm();   // مفيش نموذج مفتوح يفضل وراك
   }
   document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+  // بقعة ضوء ناعمة بتتبع الماوس جوه كل قسم في القائمة الرئيسية
+  document.querySelectorAll('.tile').forEach(t => {
+    let trkT = 0;
+    t.addEventListener('pointerenter', () => { t.classList.remove('trk'); clearTimeout(trkT); trkT = setTimeout(() => t.classList.add('trk'), 360); });   // أول لحظة: Pop زنبركي، بعدها تتبّع سريع ناعم للماوس
+    t.addEventListener('pointermove', e => {
+      const r = t.getBoundingClientRect(), nx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - .5) * 2)), ny = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - .5) * 2));
+      t.style.setProperty('--mx', (e.clientX - r.left) + 'px'); t.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      t.style.setProperty('--rx', nx.toFixed(3)); t.style.setProperty('--ry', ny.toFixed(3)); t.style.setProperty('--px', nx.toFixed(3)); t.style.setProperty('--py', ny.toFixed(3));
+    });
+    t.addEventListener('pointerleave', () => { clearTimeout(trkT); t.classList.remove('trk'); for (const v of ['--rx', '--ry', '--px', '--py']) t.style.removeProperty(v); });   // الخروج: يرجع لمكانه بزنبرك ناعم
+  });
   // بار خيارات المصحف: بينزل لما تضغط على عنوان «القرآن الكريم» وإنت بتقرا
   const qoBar = () => (MS.pQuran ? MS.pQuran.root.querySelector('.qopts') : null);
   function qoSet(on) {
@@ -2227,10 +2369,11 @@
   // ───── رسم التمييز: شرائط ناعمة مدمجة تحت النص (كلمات متتالية على نفس السطر = شريط واحد) ─────
   function hlMeasure(m) {
     const inner = m.root.querySelector('.mpi'), ir = inner.getBoundingClientRect(), out = [];
+    const sx = (inner.offsetWidth && ir.width / inner.offsetWidth) || 1, sy = (inner.offsetHeight && ir.height / inner.offsetHeight) || 1;   // لو أي أب عليه تكبير/تصغير (أنيميشن) نرجّع القياس لمقاس الصفحة الحقيقي
     inner.querySelectorAll('.w').forEach(w => {
       const r = w.getClientRects()[0]; if (!r) return;
       const ay = w.parentElement;
-      out.push({ i: +ay.dataset.i, k: +ay.dataset.k, j: +w.dataset.j, l: r.left - ir.left, r: r.right - ir.left, t: r.top - ir.top, h: r.height });
+      out.push({ i: +ay.dataset.i, k: +ay.dataset.k, j: +w.dataset.j, l: (r.left - ir.left) / sx, r: (r.right - ir.left) / sx, t: (r.top - ir.top) / sy, h: r.height / sy });
     });
     return out;
   }

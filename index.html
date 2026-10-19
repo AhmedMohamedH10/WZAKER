@@ -147,6 +147,9 @@
     filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), .9)); }
   .dial:not(.beads):not(.strand) .head { display: inline; opacity: 0; transform-origin: 88px 88px; transform: rotate(0deg);
     transition: transform var(--glide, .65s cubic-bezier(.22, 1, .36, 1)), opacity .4s ease; }
+  .rew { display: none; opacity: 0; transform-origin: 88px 88px; pointer-events: none; }
+  .dial.beads .rew { display: inline; }
+  .rew circle { fill: #eafff4; filter: drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 9px rgba(var(--accent-rgb), .85)); }   /* شرارة بتنسحب مع الخط المنوّر وهو راجع */
   .head circle { fill: #eafff4; filter: drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 7px rgba(var(--accent-rgb), .7)); animation: headBreath 2.2s ease-in-out infinite; }
   @keyframes headBreath { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .halo, .head circle { animation: none; } .dial:not(.beads):not(.strand) .bar, .halo, .dial:not(.beads):not(.strand) .head { transition: none; } }
@@ -155,6 +158,7 @@
   .dial.beads .bsvg { display: block; }
   .dial.beads .track, .dial.beads .bar { transform-origin: 88px 88px; transform: scale(1.13); stroke-width: 2; }   /* قوس التقدّم برّه الحبات */
   .dial.beads .num { font-size: calc(70px * var(--nk, 1)); position: relative; top: var(--nfy, 0px); left: var(--nfx, 0px); }   /* --nfy/--nfx: تصحيح تلقائي من layout.js يخلّي شكل الرقم نفسه (مش صندوق الخط) في نص الدايرة */
+  .dial.beads .bar { transition: stroke-dashoffset var(--glide, .65s cubic-bezier(.22, 1, .36, 1)); }   /* قوس التقدّم في الحبات بيتحرك ويرجع بانسيابية زي الدايرة العادية */
   .dial.beads .readout { place-content: center; }
   .dial.beads .of { top: calc(50% + 39px); }
   .dial.beads[data-hit] { cursor: default; }
@@ -173,6 +177,7 @@
   .dial.strand .of { top: calc(50% + 41px); }
   .dial.strand[data-hit] { cursor: default; }
   .dial.strand .sb { pointer-events: auto; cursor: pointer; }
+  .dial.strand .sb .hl, .dial.strand .sb .cr { transition: opacity .5s ease; }   /* توهّج الخرزة الحالية/المعدودة بيتغيّر بنعومة */
   .dial.strand .readout { pointer-events: none; }
   .ssvg .hl, .ssvg .cr { transition: opacity .25s ease; }
   /* إعداد التوهّج: مقفول = الحبات مطفية (من غير هالة ولا حواف مضيئة) */
@@ -184,7 +189,15 @@
     position: relative; top: var(--nfy, 0px); left: var(--nfx, 0px);   /* --nfy/--nfx/--nk: توسيط وتصغير تلقائي للرقم من layout.js */
     font-variant-numeric: tabular-nums;
     text-shadow: 0 0 14px rgba(var(--accent-rgb), .32);
+    display: flex; justify-content: center; direction: ltr; unicode-bidi: isolate;   /* الخانات دايمًا شمال→يمين حتى جوه صفحة RTL */
   }
+  /* انتقال الأرقام: كل خانة ليها عرض ثابت (مفيش اهتزاز أفقي) والرقم القديم بيطلع ويتلاشى والجديد بيطلع من تحت */
+  .num .nv { display: flex; justify-content: center; }
+  .num .dg { position: relative; display: block; width: var(--dw, .62em); text-align: center; }
+  .num .dg.sep { width: .3em; }
+  .num .dg b { display: inline-block; font-weight: inherit; }
+  .num .o { position: absolute; left: 0; right: 0; top: 0; text-align: center; pointer-events: none; font-style: normal; }
+  .num .o::before { content: attr(data-o); }   /* النص القديم بييجي من data-o علشان textContent يفضل الرقم الحالي بس */
   .of { position: absolute; left: 0; right: 0; top: calc(50% + 46px); font-size: 13.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
 
   .dhikr {
@@ -262,6 +275,8 @@
   .dial, .dhikr, .total { transition: opacity .4s ease, transform .55s cubic-bezier(.34, 1.4, .64, 1); }   /* رجوع الدايرة: Pop خفيف */
   .dhikr { transition: background .15s, opacity .4s ease, transform .55s cubic-bezier(.34, 1.4, .64, 1); }
   body.cards-open .dial, body.cards-open .dhikr, body.cards-open .total { opacity: 0; transform: scale(.9); pointer-events: none !important; transition-duration: .3s, .3s; transition-timing-function: ease, cubic-bezier(.4, 0, .2, 1); }
+  /* إتمام الهدف: الدايرة بتصغر وتتلاشى (نفس حركة الأذكار المخفية)، الرقم بيتبدّل وهي مخفية، وترجع بـ Pop */
+  body.dip .dial, body.dip .dhikr, body.dip .total { opacity: 0; transform: scale(.9); pointer-events: none !important; transition-duration: .3s, .3s; transition-timing-function: ease, cubic-bezier(.4, 0, .2, 1); }
   .card { transition: opacity .25s ease, border-color .45s ease, box-shadow .45s ease; }
 
   /* تلميح الدخول: لما البطاقات تتقرّب من المسبحة، الإطار يتوهّج بهدوء ويتنفّس لحد ما تدخل (أو تبعد فيرجع) */
@@ -419,6 +434,7 @@
         <g mask="url(#fillMask)" class="flow-w"><circle class="flow" id="flow" cx="88" cy="88" r="74"/></g>
         <circle class="shine" id="shine" cx="88" cy="88" r="74"/>
         <g class="head" id="head"><circle class="hrip" id="hrip" cx="162" cy="88" r="4.6"/><circle cx="162" cy="88" r="4.6"/></g>
+        <g class="rew" id="rew"><circle cx="162" cy="88" r="3.3"/></g>
       </svg>
       <svg class="bsvg" id="bsvg" viewBox="0 0 176 176" aria-hidden="true"></svg>
       <svg class="ssvg" id="ssvg" viewBox="0 0 176 176" aria-hidden="true"></svg>
@@ -582,10 +598,8 @@
     function set(count) {
       if (!built) build();
       const first = lastCount === null;
-      if (count < lastCount) {                                       // تصفير/دورة جديدة: بنرجع لأقرب وضع من غير لفّات زيادة
-        cur -= Math.floor(cur / 360) * 360;
-        off = (cur > 180 ? 360 : 0) - count * STEP;
-      }
+      if (first) off = Math.floor(Math.random() * N) * STEP;          // نقطة البداية عشوائية مع كل تشغيل
+      if (count < lastCount) off = tgt;                              // التصفير/دورة جديدة: السبحة تفضل مكانها وتكمل عادي (من غير ما ترجع للأولى)
       const up = lastCount !== null && count === lastCount + 1;
       lastCount = count; tgt = count * STEP + off;
       if (up) shk.kick(1);                                           // تسبيحة جديدة: السبحة بتهتز هزّة خفيفة
@@ -608,8 +622,8 @@
     const K = 150, CD = 9, REST = .72, KICK = 190, SPIN = 560;        // زنبرك الرجوع | تخميد | مرونة الخبطة | سرعة الزقّة | لفّة الخرزة حوالين نفسها
     const STONES = [['#2c6e52', '#0f3123', '#07140e'], ['#265f49', '#0c2b1e', '#06120c'], ['#215c4c', '#0a2b27', '#061514'], ['#2f7453', '#11351f', '#08160e']];
     const th = Array(N).fill(0), vel = Array(N).fill(0), spin = Array(N).fill(0), spinV = Array(N).fill(0), seed0 = [], els = [];
-    let shk, built = false, lastCount = null, raf = 0, off0 = Math.floor(Math.random() * N),   // خرزة البداية عشوائية مع كل تشغيل، وبتكمل من مكانها بعد ما العدّاد يتصفّر
-         last = 0, kickIdx = null, kickT = 0, gSt = [], gSp, gSr, shadows = [], lt = .3, ld = 'top', ropeSh, ropeHi;
+    let shk, built = false, lastCount = null, raf = 0, off0 = Math.floor(Math.random() * N), adv = 0,   // off0: خرزة البداية (عشوائية مع كل تشغيل) | adv: إجمالي تقدّم الخرز، ما بيتصفّرش مع العدّاد فالخرز يكمل عادي
+         last = 0, kickIdx = null, kickT = 0, ripple = [], gSt = [], gSp, gSr, shadows = [], lt = .3, ld = 'top', ropeSh, ropeHi;
     const E = (tag, at, par) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); if (par) par.appendChild(e); return e; };
     function buildRope() {                                           // الحبل: خيط مفتول (ظل + حواف داكنة + جسم + فتل مائل + لمعة) تحت الخرزات؛ بيظهر بين الخرزات وبيدخل من فتحاتها
       const host = $('dial').querySelector('svg'), g = E('g', { class: 'rope', transform: 'rotate(90 88 88)' });   // الـ svg الأساسي مقلوب -90° فبنعدّل عشان الإضاءة بإحداثيات الشاشة
@@ -679,9 +693,9 @@
       e.hole.setAttribute('transform', `rotate(${(deg + 90).toFixed(1)})`);
       e.tex.setAttribute('transform', `rotate(${((seed0[i] + spin[i] + th[i] * RR / R) % 360).toFixed(1)})`);   // الخرزة بتلفّ وهي بتتحرك (تدحرج) + لفّة الزقّة
     }
-    function mark(count) {                                            // الخرز اللي اتعدّ في اللفّة الحالية بيتوهّج، والحالي عليه حلقة
-      const a = count % N;
-      els.forEach((e, i) => { const r = (i - off0 + N) % N; e.hl.setAttribute('opacity', r < a ? .5 : r === a ? 1 : 0); e.cur.setAttribute('opacity', r === a ? .7 : 0); });
+    function mark() {                                                 // الخرز اللي اتعدّ في اللفّة الحالية بيتوهّج، والحالي عليه حلقة
+      const a = adv % N;
+      els.forEach((e, i) => { const r = (i - off0 + N) % N; e.hl.style.opacity = r < a ? .5 : r === a ? 1 : 0; e.cur.style.opacity = r === a ? .7 : 0; });   // style (مش attribute) علشان الـ transition تشتغل: التوهّج بيظهر ويختفي بنعومة
     }
     function stopAll() { for (let i = 0; i < N; i++) { th[i] = vel[i] = spinV[i] = 0; if (built) place(i); } }
     function frame(t) {
@@ -707,19 +721,30 @@
     }
     function set(count) {
       if (!built) build();
-      if (lastCount !== null && count === 0 && lastCount > 0) off0 = (off0 + lastCount) % N;   // العدّاد اتصفّر (خلّص الهدف): الخرز يكمل من آخر خرزة مش يرجع للأولى
-      if (lastCount !== null && count === lastCount + 1 && !reduceMotion) {   // تسبيحة جديدة: الخرزة اللي اتضغطت (أو الحالية) بتتزقّ
-        const i = kickIdx ?? ((off0 + lastCount) % N); vel[i] += KICK; spinV[i] += SPIN; shk.kick(1.3);
+      const tickUp = lastCount !== null && (count === lastCount + 1 || (count === 1 && count < lastCount));   // تسبيحة جديدة (حتى لو جت بعد الإكمال على طول قبل ما التصفير يتعرض)
+      if (tickUp && !reduceMotion) {   // تسبيحة جديدة: الخرزة اللي اتضغطت (أو الحالية) بتتزقّ
+        const i = kickIdx ?? ((off0 + adv) % N); vel[i] += KICK; spinV[i] += SPIN; shk.kick(1.3);
         if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
-      } else if (lastCount !== null && count !== lastCount) { cancelAnimationFrame(raf); raf = 0; stopAll(); }   // تصفير/قفزة: من غير حركة
-      kickIdx = null; lastCount = count; mark(count);
+      } else if (lastCount !== null && count !== lastCount && count !== 0) { cancelAnimationFrame(raf); raf = 0; stopAll(); }   // قفزة: من غير حركة. التصفير مش بيقطع حركة آخر خرزة
+      if (lastCount === null) adv = count; else adv += count < lastCount ? count : count - lastCount;   // الرقم رجع لورا = دورة جديدة بدأت: الخرز يكمل من مكانه ويتقدّم بعدد التسبيحات الجديدة بس   // التصفير (هدف خلص/ذكر جديد) ما بيحرّكش الخرز ولا بيمسح الخرز المتوهّج
+      kickIdx = null; lastCount = count; mark();
     }
     return {
       set,
       light(t, d) { if (t === lt && d === ld) return; lt = t; ld = d; if (built) paintLight(); },
-      reset() { lastCount = null; cancelAnimationFrame(raf); raf = 0; if (built) stopAll(); if (shk) shk.stop(); },
+      reset() { lastCount = null; cancelAnimationFrame(raf); raf = 0; ripple.forEach(a => a.cancel()); ripple = []; if (built) stopAll(); if (shk) shk.stop(); },
       hint(i) { kickIdx = Number.isInteger(i) ? i : null; clearTimeout(kickT); kickT = setTimeout(() => { kickIdx = null; }, 600); }   // أنهي خرزة اتضغطت
-      ,pulse(strong) { if (built && strong) shk.kick(2.2); }                // إتمام الدورة: هزّة أقوى شوية
+      ,pulse(strong) {                                                       // إتمام الدورة: هزّة أهدى + موجة ضوء ناعمة بتلفّ على الخرز (opacity بس: مفيش تأثير على الفيزياء ولا الأرقام)
+        if (!built || !strong) return;
+        shk.kick(1.2);
+        if (reduceMotion) return;
+        ripple.forEach(a => a.cancel()); ripple = [];
+        const st = (off0 + adv) % N;
+        for (let k = 0; k < N; k++) {
+          const e = els[(st + k) % N], base = parseFloat(e.hl.style.opacity) || 0;
+          ripple.push(e.hl.animate([{ opacity: base }, { opacity: 1, offset: .35 }, { opacity: base }], { duration: 520, delay: k * 34, easing: 'ease-in-out' }));
+        }
+      }
     };
   })();
 
@@ -729,10 +754,44 @@
   let REAL = null;                       // آخر حالة حقيقية من الـ main (S ممكن يتعدّل مؤقتًا لعرض نتيجة التحدي)
   // ───── حركة شريط التقدّم (الدايرة العادية): انسيابية + لمعة بتجري مع كل تسبيحة + رأس مضيء + توهج بيتنفّس من 80% لحد الهدف ─────
   let fxPrev = null, shineAnim = null, ripAnim = null, burstAnim = null;
+  // ───── رجوع القوس (حبات سبحة): الخط المنوّر بينسحب بانسيابية طويلة وناعمة، وشرارة مضيئة بترجع معاه والتوهّج بيتفتّح وبيهدى. لو ضغطت وهو راجع بيكمل للأمام من مكانه الحالي من غير أي قفزة ─────
+  let rewAnims = [];
+  const RW_IDS = ['bar', 'halo', 'maskBar'];
+  function rewEnd(commit) {
+    if (!rewAnims.length) return;
+    const bar = $('bar');
+    if (commit) { const cur = getComputedStyle(bar).strokeDashoffset; for (const id of RW_IDS) { const e = $(id); e.style.transition = 'none'; e.style.strokeDashoffset = cur; } }
+    rewAnims.forEach(a => a.cancel()); rewAnims = [];
+    if (commit) { void bar.getBoundingClientRect(); for (const id of RW_IDS) $(id).style.transition = ''; }
+  }
+  function rewind(fromOff, toOff) {
+    const frac = Math.max(0, Math.min(1, (toOff - fromOff) / C));
+    for (const id of RW_IDS) { const e = $(id); e.style.transition = 'none'; e.style.strokeDashoffset = toOff; }
+    const dur = Math.round(560 + 640 * frac), ease = 'cubic-bezier(.6, .05, .2, 1)', AC = (getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb') || '').trim() || '61,255,163';
+    const glow = (b, a) => `drop-shadow(0 0 ${b}px rgba(${AC},${a}))`;
+    const a0 = (1 - fromOff / C) * 360;
+    rewAnims = [
+      $('bar').animate([{ strokeDashoffset: fromOff, filter: glow(4, .5) }, { filter: glow(15, .95), offset: .4 }, { strokeDashoffset: toOff, filter: glow(4, .5) }], { duration: dur, easing: ease }),
+      $('rew').animate([{ transform: `rotate(${a0.toFixed(1)}deg) scale(1.13)`, opacity: 0 }, { opacity: 1, offset: .12 }, { opacity: 1, offset: .8 }, { transform: 'rotate(0deg) scale(1.13)', opacity: 0 }], { duration: dur, easing: ease })
+    ];
+    rewAnims[0].onfinish = () => { for (const id of RW_IDS) $(id).style.transition = ''; rewAnims = []; };
+  }
   function progFx(count, target) {
     const dl = $('dial'), p = target ? Math.min(1, count / target) : 0, off = C * (1 - p), len = C * p;
     dl.style.setProperty('--glide', p >= .9 ? '.7s cubic-bezier(.22, 1, .36, 1)' : '.65s cubic-bezier(.25, 1.2, .4, 1)');   // قرب الآخر من غير تعدّي (عشان ما يظهرش فراغ عند البداية)
-    $('bar').style.strokeDashoffset = off; $('halo').style.strokeDashoffset = off; $('maskBar').style.strokeDashoffset = off;
+    const beadStyle = dl.classList.contains('strand') || dl.classList.contains('beads');
+    const isBeads = dl.classList.contains('beads');
+    if (rewAnims.length && fxPrev !== null && count > fxPrev) rewEnd(true);        // ضغطة جديدة وهو راجع: يكمل للأمام من مكانه الحالي
+    if (isBeads && !reduceMotion && fxPrev !== null && count < fxPrev && off > C * 0.02 && p === 0) {   // رجوع للصفر (إتمام/تصفير): حركة الرجوع الفخمة
+      rewEnd(true);
+      const from = parseFloat(getComputedStyle($('bar')).strokeDashoffset);
+      if (Number.isFinite(from) && off - from > C * 0.03) rewind(from, off); else { for (const id of RW_IDS) $(id).style.strokeDashoffset = off; }
+    } else if (dl.classList.contains('strand') && fxPrev !== null && count < fxPrev) {            // شكل الخرز: التصفير يرجّع القوس للصفر فورًا (من غير ما يلفّ لورا بسرعة ويبان كتعليقة) وبيظهر تاني بنعومة
+      for (const id of ['bar', 'halo', 'maskBar']) { const e = $(id); e.style.transition = 'none'; e.style.strokeDashoffset = off; }
+      void $('bar').getBoundingClientRect();
+      for (const id of ['bar', 'halo', 'maskBar']) $(id).style.transition = '';
+      if (!reduceMotion) $('bar').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' });
+    } else { $('bar').style.strokeDashoffset = off; $('halo').style.strokeDashoffset = off; $('maskBar').style.strokeDashoffset = off; }
     $('head').style.transform = 'rotate(' + (p * 360).toFixed(2) + 'deg)'; $('head').style.opacity = p > 0 ? 1 : 0;
     const t = target && p < 1 ? Math.max(0, Math.min(1, (p - .8) / .2)) : 0, near = t * t * (3 - 2 * t);   // 0 قبل 80% → 1 قبل الهدف بشوية، وعند الهدف بيهدى (بعد نبضة الإتمام)
     $('haloW').style.opacity = (near * .85).toFixed(3);
@@ -768,7 +827,7 @@
     document.body.classList.toggle('is-challenge', !!s.challenge);
     document.documentElement.style.setProperty('--mini-op', String(s.miniOpacity ?? .85));
     document.documentElement.style.setProperty('--idle-op', String(s.idleOpacity ?? 1));
-    $('num').textContent = fmt(count);
+    NumRoll.set(fmt(count), count);   // انتقال ناعم بين الأرقام (لفّ لكل خانة، وتلاشي ناعم عند التصفير/القفز)
     $('of').textContent = target ? '/ ' + fmt(target) : 'بدون هدف';
     progFx(count, target);
     const beadsOn = s.dialStyle === 'beads', strandOn = s.dialStyle === 'strand', dl = $('dial');
@@ -835,16 +894,88 @@
 
   // ───── Feedback بصري خفيف (يتلغي ويتعاد مع كل Scroll فمفيش تراكم) ─────
   let numAnim = null, barAnim = null, mAnim = null;
+  // ───── رقم العدّاد: لفّ ناعم (بدون تلاشي/ضبابية) ─────
+  // أي تغيير في الرقم (تسبيحة، تصفير 100→0، قفزة): كل خانة اتغيّرت بتلفّ لفوق (القديمة تطلع والجديدة تطلع من تحت) زي عدّاد الكيلومترات.
+  // الخانات الزايدة (100→0) بتطلع وتضيق لحد ما تختفي، والخانات الجديدة (9→10) بتتفتح بنعومة والرقم بيفضل متوسّط طول الوقت.
+  // الخانات ليها عرض ثابت (--dw من layout.js) فمفيش اهتزاز أفقي. textContent لـ #num بيفضل الرقم الحالي بس (layout.js بيقيس عليه).
+  const NumRoll = (() => {
+    const host = $('num'), EASE = 'cubic-bezier(.22, 1, .36, 1)';
+    let nv = null, cur = null, lastT = 0, skip = false, mode = 'pop';   // mode: pop (Pop ناعم) | roll (لفّ) | none
+    const isDigit = c => /[0-9٠-٩]/.test(c);
+    const mkSlot = c => { const sp = document.createElement('span'), b = document.createElement('b'); sp.className = 'dg' + (isDigit(c) ? '' : ' sep'); b.textContent = c; sp.appendChild(b); return sp; };
+    const vis = el => { const cs = getComputedStyle(el); let y = 0; try { y = new DOMMatrix(cs.transform).m42 || 0; } catch (_) {} return { o: parseFloat(cs.opacity), y }; };
+    const outKF = v => [{ opacity: v.o, transform: 'translateY(' + v.y + 'px)' }, { opacity: 0, offset: .7 }, { opacity: 0, transform: 'translateY(-72%)' }];
+    const inKF = [{ opacity: 0, transform: 'translateY(72%)' }, { opacity: 1, offset: .45 }, { opacity: 1, transform: 'translateY(0)' }];
+    function ghostOf(slot, b) {                           // الرقم القديم بيتحوّل لنسخة بتطلع وتختفي (من غير ما تلوّث textContent)
+      const v = vis(b), g = document.createElement('i'); g.className = 'o'; g.dataset.o = b.textContent; slot.appendChild(g);
+      return { g, v };
+    }
+    function set(next) {
+      if (next === cur) return;
+      const prev = cur; cur = next;
+      if (!nv) { host.textContent = ''; nv = document.createElement('span'); nv.className = 'nv'; host.appendChild(nv); }
+      const t = performance.now(), fast = t - lastT < 150, dur = fast ? 260 : 440; lastT = t;
+      const chars = [...next];
+      if (prev === null || reduceMotion || skip || mode === 'none') { nv.getAnimations({ subtree: true }).forEach(a => a.cancel()); nv.replaceChildren(...chars.map(mkSlot)); return; }
+      if (mode === 'pop') {                                // Pop ناعم: الرقم الجديد يظهر مكان القديم فورًا ويتكبّر بنطّة خفيفة ويستقر (من غير لفّ ولا تقلّص خانات)
+        let s0 = 1; try { s0 = new DOMMatrix(getComputedStyle(nv).transform).a || 1; } catch (_) {}   // نبدأ من الحجم الحالي: لو التسبيحة اللي قبلها لسه بتستقر مفيش قفزة
+        const widthChange = prev !== null && [...prev].length !== chars.length;   // 9→10 / 100→0: عدد الخانات اتغيّر فالرقم هيتنقل من مكانه: بنعمل تلاشي متقاطع ناعم بدل قفزة
+        nv.getAnimations().forEach(a => a.cancel());
+        host.querySelectorAll(':scope > .o').forEach(g => g.remove());
+        if (widthChange) {
+          const g = document.createElement('i'); g.className = 'o'; g.dataset.o = prev; g.style.cssText = 'left:50%;right:auto;white-space:nowrap';
+          host.appendChild(g);
+          g.animate([{ opacity: .85, transform: 'translateX(-50%) scale(1)' }, { opacity: 0, transform: 'translateX(-50%) scale(.94)' }], { duration: 240, easing: 'ease-out', fill: 'both' }).onfinish = () => g.remove();
+        }
+        nv.replaceChildren(...chars.map(mkSlot));
+        nv.animate([
+          { transform: `scale(${Math.min(s0, .96).toFixed(3)})`, opacity: widthChange ? 0 : .7 },
+          { transform: 'scale(1.04)', opacity: 1, offset: widthChange ? .4 : .5 },
+          { transform: 'scale(1)', opacity: 1 }
+        ], { duration: widthChange ? 380 : fast ? 220 : 340, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+        return;
+      }
+      const olds = [...nv.children].filter(e => !e.classList.contains('gone')), lead = chars.length - olds.length, w = olds.length ? olds[0].offsetWidth : 0, fresh = [];
+      for (let i = 0; i < chars.length; i++) {
+        const j = i - lead;
+        if (j < 0) { fresh.push(mkSlot(chars[i])); continue; }
+        const o = olds[j], b = o.firstChild;
+        if (b.textContent === chars[i]) continue;
+        const { g, v } = ghostOf(o, b);
+        g.animate(outKF(v), { duration: dur, easing: EASE, fill: 'both' }).onfinish = () => g.remove();
+        b.getAnimations().forEach(a => a.cancel()); b.textContent = chars[i];
+        b.animate(inKF, { duration: dur, easing: EASE });
+      }
+      for (let k = 0; k < -lead; k++) {                    // خانات زايدة (100→0): بتطلع وتضيق لحد ما تختفي والرقم بيتوسّط بالتدريج
+        const o = olds[k], b = o.firstChild; if (!b) continue;
+        const { g, v } = ghostOf(o, b); b.remove(); o.classList.add('gone');
+        g.animate(outKF(v), { duration: dur, easing: EASE, fill: 'both' });
+        o.animate([{ width: (w || o.offsetWidth) + 'px' }, { width: '0px' }], { duration: dur + 80, easing: EASE, fill: 'forwards' }).onfinish = () => o.remove();
+      }
+      if (fresh.length) {                                  // خانات جديدة (9→10): بتتفتح بنعومة
+        nv.prepend(...fresh);
+        for (const sp of fresh) {
+          sp.firstChild.animate(inKF, { duration: dur, easing: EASE });
+          if (w) sp.animate([{ width: '0px' }, { width: w + 'px' }], { duration: dur + 80, easing: EASE });
+        }
+      }
+    }
+    return { set, mode: m => { mode = m === 'roll' || m === 'none' ? m : 'pop'; }, skipNext: v => { skip = v !== false; } };   // skipNext(): التغيير الجاي من غير حركة (بيتعمل والدايرة مخفية)
+  })();
   function pulse(strong) {
     if (reduceMotion) return;
+    let s0 = 1;                                  // نبدأ من حجم الرقم الحالي: لو نبضة الإتمام لسه شغالة، التسبيحة اللي بعدها مش بتقطعها بقفزة
+    try { s0 = new DOMMatrix(getComputedStyle($('num')).transform).a || 1; } catch (_) {}
     if (numAnim) numAnim.cancel();
     if (barAnim) barAnim.cancel();
     if (mAnim) mAnim.cancel();
     const AC = (getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb') || '').trim() || '61,255,163';
     const g = strong ? 30 : 22, a = strong ? .6 : .45;
+    const popMode = true;                                        // Pop ناعم بيكبّر الرقم الجديد بنفسه: هنا بنسيب توهّج بس (من غير تكبير تاني فوقه)
+    s0 = 1;
     const frames = [
-      { transform: 'scale(1)',     textShadow: `0 0 14px rgba(${AC},.32)` },
-      { transform: strong ? 'scale(1.1)' : 'scale(1.04)', textShadow: `0 0 ${g}px rgba(${AC},${a})`, offset: .35 },
+      { transform: `scale(${s0.toFixed(3)})`, textShadow: `0 0 14px rgba(${AC},.32)` },
+      { transform: popMode ? (strong ? 'scale(1.03)' : 'scale(1)') : strong ? 'scale(1.1)' : 'scale(1.04)', textShadow: `0 0 ${g}px rgba(${AC},${a})`, offset: .35 },
       { transform: 'scale(1)',     textShadow: `0 0 14px rgba(${AC},.32)` }
     ];
     if (S && S.dialStyle === 'beads') BEADS.pulse(strong); else if (S && S.dialStyle === 'strand') STRAND.pulse(strong);
@@ -962,14 +1093,19 @@
       render(shown ? { ...next, ...shown } : next, shown ? shown.count : undefined);   // الرقم والذكر المكتملين لحظة قصيرة، ثم دورة جديدة
       pulse(true);
       playDone();
-      settleTimer = setTimeout(() => render(next), 520);
+      // العدّاد عمره ما بيختفي: الرقم يتبدّل مكانه بـ Pop ناعم، القوس يرجع للصفر بنعومة، والدايرة كلها بتاخد نفَس خفيف
+      settleTimer = setTimeout(() => {
+        render(next);
+        if (!reduceMotion) $('dial').animate([{ transform: 'scale(.988)' }, { transform: 'scale(1.018)', offset: .45 }, { transform: 'scale(1)' }], { duration: 520, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+      }, reduceMotion ? 0 : 650);
     } else {
+      document.body.classList.remove('dip');
       render(S);
       pulse(false);
       playTick();
     }
   });
-  window.azkar.onState(s => { clearTimeout(settleTimer); render(s); });
+  window.azkar.onState(s => { clearTimeout(settleTimer); document.body.classList.remove('dip'); render(s); });
   window.azkar.onStartup(({ volume }) => playStartup(volume));
   window.azkar.onExitPlay(({ volume }) => playExit(volume));
   // دخول المسبحة: أول مرة النافذة تظهر (بعد اللوجو). بنستنى فريمين علشان الـ compositor يجهز وما يبقاش فيه تقطيع في أول الأنيميشن
