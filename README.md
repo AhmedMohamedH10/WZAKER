@@ -4,7 +4,6 @@
 
 - المستودع الأصلي (ويندوز): https://github.com/AhmedMohamedH10/WZAKER
 - المطور الأصلي: **AhmedMohamedH10**
-- نسخة لينكس تمت من خلالي: **Mohamed Zaitoon (ZaitXCode)**
 
 ## التثبيت على لينكس
 
@@ -25,7 +24,6 @@
 | **أي توزيعة** | **AppImage** | `chmod +x WZAKER-3.6.4-alpha01-linux-x86_64.AppImage && ./WZAKER-3.6.4-alpha01-linux-x86_64.AppImage` |
 | универсальный | `.tar` / `.zip` | استخراج وتشغيل `/usr/bin/wzaker` |
 
-> **ملاحظة:** نسخة AppImage **غير موقّعة** (بدون GPG). نسخة لينكس تمت من خلالي **Mohamed Zaitoon (ZaitXCode)**.
 > vendor/copyright = AhmedMohamedH10 (المطور الأصلي).
 
 ## البناء من السورس
@@ -61,7 +59,6 @@ tauri build
 ## الشكر
 
 - **AhmedMohamedH10** — المطور الأصلي لتطبيق WZAKER (ويندوز).
-- **Mohamed Zaitoon (ZaitXCode)** — نسخة لينكس (Tauri + Rust).
 - بيانات الأذكار من «حصن المسلم».
 
 ## الترخيص
