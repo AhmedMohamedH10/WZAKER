@@ -6,12 +6,18 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
+    Emitter, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 
 const CURRENT_VERSION: &str = "3.6.4";
+const GLOW: f64 = 18.0;                       // هامش التوهج (زي main.js)
+const CARD_FULL: (f64, f64) = (258.0, 354.0);  // كارت المسبحة
+const CARD_MINI: (f64, f64) = (232.0, 48.0);
+const EDGE: f64 = 24.0;                        // هامش من حافة الشاشة
+const SPLASH_SIZE: (f64, f64) = (640.0, 420.0);
+const SETTINGS_SIZE: (f64, f64) = (720.0, 720.0);
 const REPO: &str = "AhmedMohamedH10/WZAKER";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +48,49 @@ fn open_url(url: String) {
     let _ = open::that(url);
 }
 
+/// إنهاء شاشة اللوجو وإظهار المسبحة
+#[tauri::command]
+fn splash_done(app: tauri::AppHandle) {
+    if let Some(s) = app.get_webview_window("splash") {
+        let _ = s.close();
+    }
+    if let Some(m) = app.get_webview_window("main") {
+        let _ = m.show();
+        let _ = m.set_focus();
+    }
+}
+
+/// فتح نافذة الإعدادات (settings.html) — زي نسخة ويندوز
+#[tauri::command]
+fn open_settings(app: tauri::AppHandle, focus: Option<String>) {
+    if let Some(w) = app.get_webview_window("settings") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return;
+    }
+    let url = match focus {
+        Some(f) if !f.is_empty() => format!("settings.html#{}", f),
+        _ => "settings.html".to_string(),
+    };
+    let _ = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App(std::path::PathBuf::from(url)))
+        .inner_size(SETTINGS_SIZE.0, SETTINGS_SIZE.1)
+        .decorations(false)
+        .transparent(true)
+        .always_on_top(true)
+        .resizable(false)
+        .build();
+}
+
+/// تصغير/تكبير المسبحة (mini mode) + إعادة تموضعها
+#[tauri::command]
+fn set_window_mode(app: tauri::AppHandle, mini: bool) {
+    if let Some(w) = app.get_webview_window("main") {
+        let (cw, ch) = if mini { CARD_MINI } else { CARD_FULL };
+        let _ = w.set_size(LogicalSize::new(cw + GLOW * 2.0, ch + GLOW * 2.0));
+        place_bottom_right(&w);
+    }
+}
+
 #[tauri::command]
 fn trigger_tick() { /* frontend handles via event */ }
 
@@ -65,6 +114,21 @@ fn start_global_scroll(app: &tauri::AppHandle) {
             eprintln!("rdev listen error: {:?}", e);
         }
     });
+}
+
+/// وضع النافذة في أسفل يمين الشاشة (زي نسخة ويندوز)
+fn place_bottom_right(w: &WebviewWindow) {
+    if let Ok(Some(monitor)) = w.current_monitor() {
+        let scale = monitor.scale_factor();
+        let size = w.outer_size().unwrap_or(tauri::PhysicalSize::new(0, 0));
+        let m = monitor.size();
+        let x = (m.width as f64) / scale - (size.width as f64) / scale - EDGE;
+        let y = (m.height as f64) / scale - (size.height as f64) / scale - EDGE;
+        let _ = w.set_position(PhysicalPosition::new(
+            (x.max(0.0) * scale) as i32,
+            (y.max(0.0) * scale) as i32,
+        ));
+    }
 }
 
 pub struct AppState {
@@ -128,7 +192,7 @@ pub fn run() {
             }
             let _ = shortcut;
         }).build())
-        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick])
+        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode])
         .setup(|app| {
             // Tray icon
             // Global shortcut Ctrl+Alt+W
@@ -162,6 +226,34 @@ pub fn run() {
 
             // Global scroll (X11/XWayland via rdev)
             start_global_scroll(app.handle());
+
+            // شاشة اللوجو عند البدء (splash.html) — بتقفل نفسها لما تخلص
+            if let Ok(sp) = WebviewWindowBuilder::new(app, "splash", WebviewUrl::App(std::path::PathBuf::from("splash.html")))
+                .inner_size(SPLASH_SIZE.0, SPLASH_SIZE.1)
+                .decorations(false)
+                .transparent(true)
+                .always_on_top(true)
+                .resizable(false)
+                .visible(true)
+                .build()
+            {
+                let _ = sp.center();   // شاشة اللوجو في نص الشاشة (زي نسخة ويندوز)
+            }
+            // المسبحة: أسفل يمين الشاشة
+            if let Some(mw) = app.get_webview_window("main") {
+                place_bottom_right(&mw);
+            }
+            // شبكة أمان: لو اللوجو ما قفلتش بنفسها
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(9000));
+                if let Some(s) = handle.get_webview_window("splash") {
+                    let _ = s.close();
+                }
+                if let Some(m) = handle.get_webview_window("main") {
+                    let _ = m.show();
+                }
+            });
 
             // Autostart: register (default off; controlled by settings)
             Ok(())

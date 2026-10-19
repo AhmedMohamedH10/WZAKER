@@ -71,6 +71,9 @@
           try { window.__TAURI__?.core?.invoke('install_update'); } catch (_) {}
           delete p.updInstall;
         }
+        if (typeof p.miniMode === 'boolean') {
+          try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: p.miniMode }); } catch (_) {}
+        }
         if (typeof p.autoUpdateOn === 'boolean') {
           state.autoUpdateOn = p.autoUpdateOn;
           if (p.autoUpdateOn) { api._updTimer = setInterval(() => { try { window.__TAURI__?.core?.invoke('check_update').then(u => { state.upd = Object.assign(state.upd || {}, u); save(); emit('state', { ...state }); }); } catch (_) {} }, 6 * 3600_000); setTimeout(() => { try { window.__TAURI__?.core?.invoke('check_update').then(u => { state.upd = Object.assign(state.upd || {}, u); save(); emit('state', { ...state }); }); } catch (_) {} }, 20000); }
@@ -193,7 +196,12 @@
   };
 
   // ── Splash ────────────────────────────────────────────────────────────────
-  api.splashPhase = (p) => { if (p === 'done') { try { emit('splashGo'); } catch (_) {} } };
+  api.splashPhase = (p) => {
+    if (p === 'done') {
+      try { emit('splashGo'); } catch (_) {}
+      try { window.__TAURI__?.core?.invoke('splash_done'); } catch (_) {}
+    }
+  };
 
   // ── boot ─────────────────────────────────────────────────────────────────
   // onShown: أظهر النافذة (Tauri يظهرها تلقائيًا)
