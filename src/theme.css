@@ -1,0 +1,20 @@
+/* ──────────────────────────────────────────────────────────────
+   WZAKER — ألوان وخطوط البراند (مصدر واحد لكل الصفحات)
+   غيّر --accent و --accent-rgb هنا فقط، وكل الواجهات (الدايل، الإعدادات،
+   الإشعار المنبثق، إطار التحدي) هتاخد اللون الجديد تلقائيًا.
+   ────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #090f0b;
+  --accent: #3dffa3;                 /* Neon mint */
+  --accent-rgb: 61, 255, 163;        /* نفس اللون بصيغة RGB (للشفافيات والـ glow) */
+  --text: #e9fff4;
+  --dim: rgba(233, 255, 244, .46);
+  --line: rgba(var(--accent-rgb), .14);
+  --font-main: 'Inter', 'Hail Elastic Plain', 'Segoe UI', 'Tahoma', 'Noto Naskh Arabic', sans-serif;
+  /* خط الآية (فيه تشكيل): خطوط ويندوز العربية أولاً علشان التشكيل يظهر سليم */
+  --font-verse: 'Inter', 'Hail Elastic Plain', 'Traditional Arabic', 'Sakkal Majalla', 'Segoe UI', 'Tahoma', serif;
+}
+
+/* أول كلمة من كل نص: الخط الأصلي (Light-1 بالحروف الممدودة). الباقي: Hail Elastic Plain. (firstword.js بيلف الكلمة في .fw) */
+:root { --font-first: 'Inter', 'Hail Elastic Light 1', 'Hail Elastic Plain', 'Segoe UI', 'Tahoma', 'Noto Naskh Arabic', sans-serif; }
+.fw { font-family: var(--font-first); }

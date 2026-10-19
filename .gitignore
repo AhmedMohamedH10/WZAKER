@@ -1,0 +1,13 @@
+# Tauri / Rust
+target/
+src-tauri/target/
+node_modules/
+dist/
+build/
+*.AppImage
+*.deb
+*.rpm
+# IDE
+.idea/
+.vscode/
+*.swp
