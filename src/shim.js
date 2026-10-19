@@ -71,6 +71,9 @@
           try { window.__TAURI__?.core?.invoke('install_update'); } catch (_) {}
           delete p.updInstall;
         }
+        if (typeof p.autoLaunch === 'boolean') {
+          try { window.__TAURI__?.core?.invoke('set_autostart', { enabled: p.autoLaunch }); } catch (_) {}
+        }
         if (typeof p.miniMode === 'boolean') {
           try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: p.miniMode }); } catch (_) {}
         }
@@ -112,7 +115,7 @@
     getLogoData: () => Promise.resolve(null),
     getBannerData: () => Promise.resolve(null),
     settingsWide: () => {},
-    minimize: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.minimize?.(); } catch (_) {} },
+    minimize: () => { try { window.__TAURI__?.core?.invoke('hide_window'); } catch (_) { try { window.__TAURI__?.window?.getCurrentWindow?.()?.minimize?.(); } catch (_) {} } },
     hideToTray: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.hide?.(); } catch (_) {} },
     quit: () => { try { window.__TAURI__?.core?.invoke('quit_app'); } catch (_) { window.close(); } },
     openContact: () => {},

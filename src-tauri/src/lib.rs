@@ -91,6 +91,41 @@ fn set_window_mode(app: tauri::AppHandle, mini: bool) {
     }
 }
 
+/// التشغيل تلقائي مع النظام (XDG autostart) — زي "التشغيل مع ويندوز"
+#[tauri::command]
+fn set_autostart(enabled: bool) -> Result<(), String> {
+    let dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join(".config")
+        .join("autostart");
+    let _ = std::fs::create_dir_all(&dir);
+    let f = dir.join("wzaker.desktop");
+    if !enabled {
+        let _ = std::fs::remove_file(&f);
+        return Ok(());
+    }
+    // مسار التنفيذ الفعلي
+    let exec = if std::path::Path::new("/usr/bin/wzaker").exists() {
+        "/usr/bin/wzaker".to_string()
+    } else if let Ok(cur) = std::env::current_exe() {
+        cur.to_string_lossy().to_string()
+    } else {
+        "wzaker".to_string()
+    };
+    let content = format!(
+        "[Desktop Entry]\nType=Application\nName=ذكر\nComment=سبحة وأذكار\nExec={}\nIcon=wzaker\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+        exec
+    );
+    std::fs::write(&f, content).map_err(|e| e.to_string())
+}
+
+/// إخفاء النافذة (ختفي للـ tray) — زي زر "–"
+#[tauri::command]
+fn hide_window(app: tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.hide();
+    }
+}
+
 #[tauri::command]
 fn trigger_tick() { /* frontend handles via event */ }
 
@@ -192,7 +227,7 @@ pub fn run() {
             }
             let _ = shortcut;
         }).build())
-        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode])
+        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window])
         .setup(|app| {
             // Tray icon
             // Global shortcut Ctrl+Alt+W
