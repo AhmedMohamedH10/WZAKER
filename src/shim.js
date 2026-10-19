@@ -167,6 +167,8 @@
     previewAlert: () => {},
     onAlerts: (cb) => {},
     backupList: () => Promise.resolve([]),
+    backupExport: () => Promise.resolve(''),
+    backupImport: () => Promise.resolve(),
     backupNow: () => Promise.resolve(),
     backupPath: () => Promise.resolve(''),
     backupOpenDir: () => {},
@@ -181,6 +183,22 @@
     khatmaPage: () => {},
     khatmaNew: () => {},
   };
+
+  // ── Global scroll (event من Rust/rdev) ──────────────────────────────────
+  try {
+    window.__TAURI__?.event?.listen('global_tick', () => api.tick());
+  } catch (_) {}
+
+  // ── Backup / Restore ─────────────────────────────────────────────────────
+  api.backupExport = () => {
+    try { return window.__TAURI__?.core?.invoke('backup_export'); } catch (_) { return Promise.resolve(''); }
+  };
+  api.backupImport = (path) => {
+    try { return window.__TAURI__?.core?.invoke('backup_import', { path }); } catch (_) { return Promise.resolve(); }
+  };
+
+  // ── Splash ────────────────────────────────────────────────────────────────
+  api.splashPhase = (p) => { if (p === 'done') { try { emit('splashGo'); } catch (_) {} } };
 
   // ── boot ─────────────────────────────────────────────────────────────────
   // onShown: أظهر النافذة (Tauri يظهرها تلقائيًا)
