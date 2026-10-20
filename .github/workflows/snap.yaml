@@ -29,11 +29,13 @@ jobs:
           sudo snap install snapcraft --classic
           snapcraft --version
 
-      - name: تشخيص تثبيت الـ snaps
+      - name: تثبيت build-snaps يدويًا
         run: |
-          sudo snap install rustup --classic 2>&1 | tail -20 || true
-          echo "--- journal ---"
-          sudo journalctl -u snapd --no-pager -n 15 2>/dev/null | tail -15 || true
+          # snapcraft(jit) بيفشل أحيانًا في تثبيت الـ build-snaps جوّه الـ runner
+          sudo snap install rustup --classic || true
+          sudo snap install gtk-common-themes || true
+          sudo snap install gnome-42-2204 || true
+          snap list | tail -8
 
       - name: البناء
         working-directory: packaging/snap
