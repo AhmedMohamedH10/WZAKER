@@ -232,7 +232,7 @@
     saveAyahImage: (dataUrl, name) => { try { return window.__TAURI__?.core?.invoke('save_image', { dataUrl: dataUrl, name: name || 'ayah.png' }); } catch (_) { return Promise.resolve(null); } },
     showInFolder: (p) => { try { window.__TAURI__?.core?.invoke('show_in_folder', { path: p }); } catch (_) {} },
     getLogoData: () => assetDataUrl('assets/logo.png'),
-    getBannerData: () => assetDataUrl('assets/banner.png'),
+    getBannerData: () => assetDataUrl('assets/shot-banner.png'),
     settingsWide: (on) => { try { window.__TAURI__?.core?.invoke('set_settings_wide', { on: !!on }); } catch (_) {} },
     minimize: () => { try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: true }); } catch (_) {} },
     hideToTray: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.hide?.(); } catch (_) {} },
