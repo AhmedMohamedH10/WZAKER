@@ -18,6 +18,20 @@ sudo systemctl enable --now snapd.socket
 
 ## 2) البناء — Build
 
+### أ) من GitHub Actions (الأسهل) ✅
+
+الملف `.github/workflows/snap.yaml` بيبني حزمة الـ snap على `ubuntu-latest` (snapcraft جاهز there ✓) ويحفظها كـ **artifact** تنزّله من صفحة الـ run.
+
+- افتح: <https://github.com/AhmedMohamedH10/WZAKER/actions/workflows/snap.yaml>
+- اضغط **Run workflow** → علّم **publish** لو عايز النشر كمان (يحتاج secret ✗).
+- بعد انتهاء الـ run، نزّل الـ artifact `wzaker-snap` (فيه `wzaker_3.6.4_amd64.snap`).
+
+> للنشر من CI: ضيف secret اسمه `SNAPCRAFT_STORE_CREDENTIALS` (من المتجر: Settings → Publish → get your store credentials ✗).
+
+### ب) يدويًا
+
+</div>
+
 ملف الوصف موجود في: `packaging/snap/snapcraft.yaml`
 
 </div>

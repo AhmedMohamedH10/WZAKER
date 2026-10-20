@@ -1,0 +1,60 @@
+name: Snap
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'النشر على Snap Store بعد البناء (يحتاج secret)')
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: بناء حزمة Snap
+    runs-on: ubuntu-latest
+    steps:
+      - name: سحب الكود
+        uses: actions/checkout@v4
+
+      - name: تجهيز أدوات البناء
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libssl-dev libxdo-dev libx11-dev pkg-config build-essential
+          sudo snap install snapcraft --classic
+          sudo snapcraft --version
+
+      - name: البناء
+        working-directory: packaging/snap
+        run: snapcraft pack --destructive-mode
+
+      - name: رفع الحزمة كـ artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wzaker-snap
+          path: packaging/snap/*.snap
+
+  publish:
+    name: نشر على Snap Store
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == 'true' }}
+    steps:
+      - name: سحب الحزمة
+        uses: actions/download-artifact@v4
+        with:
+          name: wzaker-snap
+          path: snap
+
+      - name: تسجيل الدخول للمتجر
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          echo "$SNAPCRAFT_STORE_CREDENTIALS" | snapcraft login --store=admin
+
+      - name: الرفع
+        run: snapcraft upload --release "3.6.4" snap/*.snap
