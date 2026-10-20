@@ -465,7 +465,7 @@ pub fn run() {
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
-                    for _ in 0..40 {
+                    for _ in 0..100 {
                         std::thread::sleep(std::time::Duration::from_millis(150));
                         if let Some(mw) = handle.get_webview_window("main") {
                             place_bottom_right(&mw);
