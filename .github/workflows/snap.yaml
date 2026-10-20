@@ -25,12 +25,21 @@ jobs:
           sudo apt-get install -y -qq \
             libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
             libssl-dev libxdo-dev libx11-dev pkg-config build-essential
+          sudo systemctl restart snapd.socket snapd.service 2>/dev/null || true
           sudo snap install snapcraft --classic
-          sudo snapcraft --version
+          snapcraft --version
 
       - name: البناء
         working-directory: packaging/snap
-        run: snapcraft pack --destructive-mode
+        run: |
+          # snapd على الـ runner أحيانًا بيفشل في تثبيت الـ build-snaps — نعيد المحاولة
+          for i in 1 2 3; do
+            snapcraft pack --destructive-mode && break
+            echo "المحاولة $i فشلت — إعادة المحاولة..."
+            sudo systemctl restart snapd.socket snapd.service 2>/dev/null || true
+            sleep 15
+          done
+          ls -l *.snap
 
       - name: رفع الحزمة كـ artifact
         uses: actions/upload-artifact@v4
