@@ -180,6 +180,10 @@ fn apply_input_shape(app: &tauri::AppHandle, rects: &[(f64, f64, f64, f64)], ful
         rs = vec![Rectangle { x: 0, y: 0, width: size.width as u16, height: size.height as u16 }];
     }
     if rs.is_empty() { return; }
+    static LOGGED3: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if !LOGGED3.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        eprintln!("[wzaker] shape: نافذة={} مناطق={} اتصالات={}", xid, rs.len(), conn.is_some());
+    }
     // شكل الإدخال = المناطق التفاعلية فقط
     if let Some((conn, _)) = conn {
         let res = conn.shape_rectangles(

@@ -423,13 +423,25 @@
   const reportHitRects = () => {
     try {
       const rects = [];
-      const sel = '[data-hit], #dial, #dhikr, #mini, #goal, #reset, #sound, #vol, #close, #hide, #grip, #mBar';
+      const sel = '[data-hit], #dial, #dhikr, #mini, #goal, #reset, #sound, #vol, #close, #hide, #gear, #grip, #mBar';
       document.querySelectorAll(sel).forEach(el => {
-        if (!el.offsetParent && el.id !== 'dial' && el.id !== 'dhikr') return;  // عناصر مخفية
+        // العناصر المخفية (display:none) ما تتحسبش
+        let hidden = false;
+        try { const cs = getComputedStyle(el); hidden = (cs.display === 'none' || cs.visibility === 'hidden'); } catch (_) {}
+        if (hidden) return;
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) rects.push({ x: r.left - 2, y: r.top - 2, w: r.width + 4, h: r.height + 4 });
       });
-      if (rects.length) api.setHitRects(rects);
+      if (rects.length) {
+        if (!window.__wzLoggedHits) {
+          window.__wzLoggedHits = true;
+          try {
+            const ids = Array.from(document.querySelectorAll(sel)).map(e => (e.id || e.tagName) + ':' + (e.getBoundingClientRect().width | 0) + 'x' + (e.getBoundingClientRect().height | 0) + ':' + getComputedStyle(e).display);
+            window.__TAURI__?.core?.invoke('log_msg', { msg: 'hitRects ' + ids.join(' | ') });
+          } catch (_) {}
+        }
+        api.setHitRects(rects);
+      }
     } catch (_) {}
   };
   try {
