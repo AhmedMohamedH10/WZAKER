@@ -29,6 +29,12 @@ jobs:
           sudo snap install snapcraft --classic
           snapcraft --version
 
+      - name: تشخيص تثبيت الـ snaps
+        run: |
+          sudo snap install rustup --classic 2>&1 | tail -20 || true
+          echo "--- journal ---"
+          sudo journalctl -u snapd --no-pager -n 15 2>/dev/null | tail -15 || true
+
       - name: البناء
         working-directory: packaging/snap
         run: |
