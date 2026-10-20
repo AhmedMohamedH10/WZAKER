@@ -77,6 +77,22 @@ rm -rf ~/rpmbuild/BUILD/wzaker-${VER}-build ~/rpmbuild/BUILDROOT/wzaker-${VER}
 rpmbuild -bb ~/rpmbuild/SPECS/wzaker.spec >/dev/null 2>&1
 cp "$(ls -t ~/rpmbuild/RPMS/x86_64/wzaker-${VER}-1*.rpm | head -1)" "$DIST/WZAKER-${VER}-linux-x86_64.rpm"
 
+# باقي الصيغ: pacman / apk / txz / pet / tar / zip
+cd /tmp/opencode
+rm -f "wzaker-${VER}-1-x86_64.pkg.tar.xz" "wzaker_${VER}_x86_64.apk" wzaker.tar wzaker.zip
+for spec in "pacman:wzaker-${VER}-1-x86_64.pkg.tar.xz" "apk:wzaker_${VER}_x86_64.apk" "tar:wzaker.tar" "zip:wzaker.zip"; do
+  typ="${spec%%:*}"; out="${spec##*:}"
+  "$FPM" -s dir -t "$typ" -n wzaker -v "$VER" --architecture x86_64 \
+    --description "wzaker" --maintainer "AhmedMohamedH10" --prefix / -C "$STAGE" . 2>&1 | tail -1
+  [ "$typ" = "pacman" ] && xz -d -c "$out" > wzaker-pacman.tar \
+    && zstd -f -q wzaker-pacman.tar -o "$DIST/WZAKER-${VER}-linux-x86_64.pkg.tar.zst"
+  [ "$typ" = "apk" ] && mv "$out" "$DIST/wzaker_${VER}_x86_64.apk"
+  [ "$typ" = "tar" ] && mv "$out" "$DIST/WZAKER-${VER}-linux-x86_64.tar"
+  [ "$typ" = "zip" ] && mv "$out" "$DIST/wzaker.zip"
+done
+tar cJf "$DIST/WZAKER-${VER}-linux-x86_64.txz" -C "$STAGE" .
+tar czf "$DIST/WZAKER-${VER}-linux-x86_64.pet" -C "$STAGE" .
+
 # AppImage
 WORK="$ROOT/build/appimage-work"
 rm -rf "$WORK"; mkdir -p "$WORK/AppDir/usr/bin" "$WORK/AppDir/usr/share/applications" "$WORK/AppDir/usr/share/icons/hicolor/256x256/apps"
