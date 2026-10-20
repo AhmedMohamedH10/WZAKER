@@ -432,16 +432,7 @@
         const r = el.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) rects.push({ x: r.left - 2, y: r.top - 2, w: r.width + 4, h: r.height + 4 });
       });
-      if (rects.length) {
-        if (!window.__wzLoggedHits) {
-          window.__wzLoggedHits = true;
-          try {
-            const ids = Array.from(document.querySelectorAll(sel)).map(e => (e.id || e.tagName) + ':' + (e.getBoundingClientRect().width | 0) + 'x' + (e.getBoundingClientRect().height | 0) + ':' + getComputedStyle(e).display);
-            window.__TAURI__?.core?.invoke('log_msg', { msg: 'hitRects ' + ids.join(' | ') });
-          } catch (_) {}
-        }
-        api.setHitRects(rects);
-      }
+      if (rects.length) api.setHitRects(rects);
     } catch (_) {}
   };
   try {

@@ -140,7 +140,6 @@ fn set_hit_rects(app: tauri::AppHandle, rects: Vec<Vec<f64>>) {
         .take(64)
         .map(|r| (r[0], r[1], r[2], r[3]))
         .collect();
-    eprintln!("[wzaker] مناطق التفاعل: {}", v.len());
     *st.hit.lock().unwrap() = v;
 }
 
@@ -180,10 +179,6 @@ fn apply_input_shape(app: &tauri::AppHandle, rects: &[(f64, f64, f64, f64)], ful
         rs = vec![Rectangle { x: 0, y: 0, width: size.width as u16, height: size.height as u16 }];
     }
     if rs.is_empty() { return; }
-    static LOGGED3: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if !LOGGED3.swap(true, std::sync::atomic::Ordering::Relaxed) {
-        eprintln!("[wzaker] shape: نافذة={} مناطق={} اتصالات={}", xid, rs.len(), conn.is_some());
-    }
     // شكل الإدخال = المناطق التفاعلية فقط
     if let Some((conn, _)) = conn {
         let res = conn.shape_rectangles(
@@ -278,7 +273,7 @@ fn backup_dir() -> std::path::PathBuf {
 }
 
 #[tauri::command]
-fn backup_export(app: tauri::AppHandle, data: String) -> Result<String, String> {
+fn backup_export(_app: tauri::AppHandle, data: String) -> Result<String, String> {
     let dir = backup_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let name = format!("wzaker-backup-{}.json", chrono_like_stamp());
@@ -582,7 +577,17 @@ fn place_bottom_right(w: &WebviewWindow) {
         (x.max(0.0) * scale) as i32,
         (y.max(0.0) * scale) as i32,
     ));
-    eprintln!("[wzaker] المسبحة: x={} y={} (شاشة {}x{})", x as i32, y as i32, m.width, m.height);
+    // سطر تشخيص واحد (مش كل إطار)
+    {
+        static LAST: std::sync::Mutex<Option<(i32, i32)>> = std::sync::Mutex::new(None);
+        if let Ok(mut g) = LAST.lock() {
+            let cur = (x as i32, y as i32);
+            if *g != Some(cur) {
+                *g = Some(cur);
+                eprintln!("[wzaker] المسبحة: x={} y={} (شاشة {}x{})", cur.0, cur.1, m.width, m.height);
+            }
+        }
+    }
 }
 
 pub struct AppState {
@@ -644,7 +649,7 @@ fn linux_code_to_browser(code: u16) -> Option<String> {
 }
 
 #[tauri::command]
-async fn check_update(state: tauri::State<'_, AppState>) -> Result<UpdateInfo, String> {
+async fn check_update(_state: tauri::State<'_, AppState>) -> Result<UpdateInfo, String> {
     let url = format!("https://api.github.com/repos/{}/releases/latest", REPO);
     let client = reqwest::Client::builder()
         .user_agent("wzaker-updater")
