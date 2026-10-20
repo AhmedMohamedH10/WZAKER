@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # بناء حزمة Snap من WZAKER
 #  - على Ubuntu: snapcraft pack مباشرة
-#  - على باقي التوزيعات (Fedora وغيرها): حاوية ubuntu:24.04 عبر podman
+#  - على باقي التوزيعات (Fedora وغيرها): حاوية ubuntu:22.04 عبر podman
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DIST="$HERE/../../dist"
@@ -13,7 +13,7 @@ if [ "${1:-}" = "--local" ]; then
     -v "$HOME":"$HOME" \
     -v /var/lib/snapd:/var/lib/snapd \
     -w "$HERE" \
-    docker.io/library/ubuntu:24.04 \
+    docker.io/library/ubuntu:22.04 \
     bash -c "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq snapcraft python3 git curl ca-certificates >/dev/null 2>&1 && snapcraft pack"
 else
   (cd "$HERE" && snapcraft pack)

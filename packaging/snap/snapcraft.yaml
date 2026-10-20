@@ -15,7 +15,7 @@ description: |
 
   نسخة لينكس من تطوير محمد زيتون، والمؤلف الأصلي للبرنامج أحمد بن محمد آل حسين.
 
-base: core24
+base: core22
 grade: stable
 confinement: strict
 license: MIT

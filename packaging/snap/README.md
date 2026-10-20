@@ -46,7 +46,7 @@ podman run --rm --privileged \
   -v /home/$USER:/home/$USER \
   -v /var/lib/snapd:/var/lib/snapd \
   -w /home/$USER/Projects/WZAKER/packaging/snap \
-  docker.io/library/ubuntu:24.04 \
+  docker.io/library/ubuntu:22.04 \
   bash -c "export DEBIAN_FRONTEND=noninteractive; apt-get update -qq && apt-get install -y -qq snapcraft python3 git curl ca-certificates >/dev/null 2>&1 && snapcraft pack"
 ```
 
