@@ -5,6 +5,26 @@
 
   const KEY = 'wzaker-state-v1';
 
+  // ── روابط التواصل (نفس روابط نسخة ويندوز) ─────────────────────────────
+  const CONTACT_LINKS = {
+    fb: 'https://www.facebook.com/AKA.AlHussin',
+    dc: 'https://discord.com/users/339177356843548673',
+    wa: 'https://wa.link/lv4cu4',
+    sg: 'https://tally.so/r/QKgVQl',
+  };
+
+  // قراءة ملف من الحزمة كـ data URL (اللوجو/البانر)
+  const assetDataUrl = (path) => {
+    try {
+      return fetch(path).then(r => r.blob()).then(b => new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = rej;
+        fr.readAsDataURL(b);
+      })).catch(() => null);
+    } catch (_) { return Promise.resolve(null); }
+  };
+
   // ── حالة افتراضية (من DEFAULT_STATE في main.js) ─────────────────────────
   const DEFAULT_STATE = {
     count: 0, total: 0,
@@ -206,18 +226,23 @@
       } catch (e) { }
     },
     alive: () => {},
-    hold: () => {},
+    hold: (on) => { try { window.__TAURI__?.core?.invoke('set_hold', { on: !!on }); } catch (_) {} },
     openSettings: (focus) => { try { window.__TAURI__?.core?.invoke('open_settings', { focus: focus || null }); } catch (_) { window.open('settings.html', 'settings', 'width=980,height=700'); } },
     closeSettings: () => { try { window.close(); } catch (_) {} },
-    saveAyahImage: () => Promise.resolve(null),
-    showInFolder: () => {},
-    getLogoData: () => Promise.resolve(null),
-    getBannerData: () => Promise.resolve(null),
-    settingsWide: () => {},
+    saveAyahImage: (dataUrl, name) => { try { return window.__TAURI__?.core?.invoke('save_image', { dataUrl: dataUrl, name: name || 'ayah.png' }); } catch (_) { return Promise.resolve(null); } },
+    showInFolder: (p) => { try { window.__TAURI__?.core?.invoke('show_in_folder', { path: p }); } catch (_) {} },
+    getLogoData: () => assetDataUrl('assets/logo.png'),
+    getBannerData: () => assetDataUrl('assets/banner.png'),
+    settingsWide: (on) => { try { window.__TAURI__?.core?.invoke('set_settings_wide', { on: !!on }); } catch (_) {} },
     minimize: () => { try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: true }); } catch (_) {} },
     hideToTray: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.hide?.(); } catch (_) {} },
     quit: () => { try { window.__TAURI__?.core?.invoke('quit_app'); } catch (_) { window.close(); } },
-    openContact: () => {},
+    openContact: (k) => {
+      const url = CONTACT_LINKS[k];
+      if (!url) return Promise.resolve();
+      try { window.__TAURI__?.core?.invoke('open_url', { url }); } catch (_) {}
+      return Promise.resolve();
+    },
     exitDone: () => {},
     startupNearEnd: () => {},
     dragStart: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.startDragging?.(); } catch (_) {} },
@@ -231,7 +256,7 @@
     onShown: (cb) => { try { window.__TAURI__?.core?.invoke('log_msg', { msg: 'onShown registered' }); } catch (_) {} on('shown', cb); },
     onHover: (cb) => on('hover', cb),
     onSettingsFocus: (cb) => on('settingsFocus', cb),
-    captureKey: () => {},
+    captureKey: (target) => { try { window.__TAURI__?.core?.invoke('capture_key', { target: target || 'custom' }); } catch (_) {} },
     cancelCaptureKey: () => { try { window.__TAURI__?.core?.invoke('cancel_capture'); } catch (_) {} },
     onKeyCaptured: (cb) => on('keyCaptured', cb),
     popupGet: () => { try { return window.__TAURI__?.core?.invoke('popup_get'); } catch (_) { return Promise.resolve(null); } },

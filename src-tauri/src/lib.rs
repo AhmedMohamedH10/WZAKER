@@ -48,6 +48,46 @@ fn open_url(url: String) {
     let _ = open::that(url);
 }
 
+/// فتح ملف/مجلد في مدير الملفات (بعد حفظ لقطة آية)
+#[tauri::command]
+fn show_in_folder(path: String) {
+    let p = std::path::PathBuf::from(&path);
+    let target = if p.is_dir() { p } else { p.parent().map(|d| d.to_path_buf()).unwrap_or(p) };
+    let _ = open::that(target);
+}
+
+/// حفظ لقطة (data URL) في مجلد الصور — Pictures/WZAKER
+#[tauri::command]
+fn save_image(data_url: String, name: String) -> Result<String, String> {
+    use base64::Engine;
+    let b64 = data_url.rsplit(',').next().unwrap_or("").trim().to_string();
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(home).join("Pictures").join("WZAKER");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    // اسم آمن
+    let safe: String = name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' { c } else { '_' })
+        .collect();
+    let safe = if safe.trim_matches('_').is_empty() { "ayah.png".to_string() } else { safe };
+    let path = dir.join(safe);
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// توسيع/تصغير نافذة الإعدادات (لقراءة المصحف)
+#[tauri::command]
+fn set_settings_wide(app: tauri::AppHandle, on: bool) {
+    if let Some(w) = app.get_webview_window("settings") {
+        let (cw, ch) = if on { (980.0, 720.0) } else { SETTINGS_SIZE };
+        let _ = w.set_size(tauri::LogicalSize::new(cw, ch));
+        let _ = w.center();
+    }
+}
+
 /// إنهاء شاشة اللوجو وإظهار المسبحة
 #[tauri::command]
 fn splash_done(app: tauri::AppHandle) {
@@ -714,7 +754,7 @@ pub fn run() {
             }
             let _ = shortcut;
         }).build())
-        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window,
+        .invoke_handler(tauri::generate_handler![quit_app, open_url, show_in_folder, save_image, set_settings_wide, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window,
     set_hit_rects, set_hold, popup_show, popup_get, popup_close, popup_pick, log_msg, capture_key, set_keys, cancel_capture, load_state, save_state,
     backup_export, backup_list, backup_import])
         .setup(|app| {
