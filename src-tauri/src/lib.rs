@@ -257,6 +257,96 @@ fn backup_import(path: String) -> Result<String, String> {
 #[tauri::command]
 fn trigger_tick() { /* frontend handles via event */ }
 
+/// آخر تمريرة عجلة (debounce عام لكل المصادر) — يمنع العدّ المزدوج
+static LAST_WHEEL: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+fn emit_wheel_tick(app: &tauri::AppHandle) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let last = LAST_WHEEL.load(std::sync::atomic::Ordering::Relaxed);
+    if now - last < 200 {
+        return;   // نفس حركة التمرير = تسبيحة واحدة
+    }
+    LAST_WHEEL.store(now, std::sync::atomic::Ordering::Relaxed);
+    eprintln!("[wzaker] تمرير عجلة → تسبيحة");
+    let _ = app.emit("global_tick", ());
+}
+
+/// عدّ عجلة الماوس العام على لينكس (evdev) — يشتغل على Wayland و X11 معًا
+/// (المستخدم يحتاج صلاحية قراءة /dev/input — مجموعة input)
+#[cfg(target_os = "linux")]
+fn start_evdev_scroll(app: &tauri::AppHandle) {
+    use std::io::Read;
+    use std::os::unix::io::AsRawFd;
+
+    const EV_REL: u16 = 2;
+    const REL_WHEEL: u16 = 8;          // عجلة الفأرة
+    const REL_WHEEL_HI_RES: u16 = 11; // تمرير عالي الدقة (لوحات اللمس)
+    const EVIOCGBIT_REL: libc::c_ulong = 0x8004_4522;   // _IOR('E', 0x20+2, 4)
+
+    let app2 = app.clone();
+    std::thread::spawn(move || {
+        let mut opened: Vec<String> = Vec::new();
+        loop {
+        // إعادة الفحص كل مرة (أجهزة تُوصل أثناء التشغيل)
+        let Ok(rd) = std::fs::read_dir("/dev/input") else {
+            eprintln!("[wzaker] evdev: مفيش صلاحية على /dev/input");
+            return;
+        };
+        for entry in rd.flatten() {
+            let path = entry.path();
+            let fname = path
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if !fname.starts_with("event") {
+                continue;
+            }
+            let Ok(file) = std::fs::File::open(&path) else { continue };
+
+            //devices الفأرة بس (اللي فيها REL_WHEEL) — مفيش قراءة لوحة المفاتيح
+            let mut bits = [0u8; 64];
+            let rc = unsafe { libc::ioctl(file.as_raw_fd(), EVIOCGBIT_REL, bits.as_mut_ptr()) };
+            if rc < 0 {
+                continue;
+            }
+            let has_wheel = |code: u16| -> bool {
+                let byte = (code / 8) as usize;
+                let bit = code % 8;
+                byte < bits.len() && (bits[byte] & (1u8 << bit)) != 0
+            };
+            if !has_wheel(REL_WHEEL) && !has_wheel(REL_WHEEL_HI_RES) {
+                continue;
+            }
+
+            if opened.contains(&fname) {
+                continue;
+            }
+            eprintln!("[wzaker] evdev: {}", &fname);
+            opened.push(fname.clone());
+            let app3 = app2.clone();
+            std::thread::spawn(move || {
+                let mut file = file;
+                let mut buf = [0u8; 24];   // struct input_event (64-bit)
+                loop {
+                    if file.read_exact(&mut buf).is_err() {
+                        break;
+                    }
+                    let typ = u16::from_ne_bytes([buf[16], buf[17]]);
+                    let code = u16::from_ne_bytes([buf[18], buf[19]]);
+                    if typ == EV_REL && (code == REL_WHEEL || code == REL_WHEEL_HI_RES) {
+                        emit_wheel_tick(&app3);
+                    }
+                }
+            });
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2000));
+        }
+    });
+}
+
 fn start_global_scroll(app: &tauri::AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
@@ -264,15 +354,9 @@ fn start_global_scroll(app: &tauri::AppHandle) {
         let mut last: i64 = 0;
         if let Err(e) = listen(move |event: Event| {
             if let EventType::Wheel { .. } = event.event_type {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_millis() as i64)
-                    .unwrap_or(0);
-                if now - last > 200 {
-                    let _ = app.emit("global_tick", ());
-                    last = now;
-                }
+                emit_wheel_tick(&app);
             }
+            let _ = &last;
         }) {
             eprintln!("rdev listen error: {:?}", e);
         }
@@ -420,7 +504,8 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Global scroll (X11/XWayland via rdev)
+            // عدّ عجلة الماوس العام: evdev (Wayland + X11) + rdev (fallback)
+            start_evdev_scroll(app.handle());
             start_global_scroll(app.handle());
 
             // click-through: الماوس بيعدّي فوق النافذة إلا فوق العناصر التفاعلية

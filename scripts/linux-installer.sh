@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# وذكر (WZAKER) — مثبّت لينكس: يكشف التوزيعة تلقائياً، ينزّل النسخة المناسبة ويثبّتها.
+# وذكر (WZAKER) — مثبّت لينكس: يكشف التوزيعة تلقائياً، ينزّل النسخة المناسبة،
+# يتحقق من توقيع GPG، يثبّتها، ويزيل النسخة القديمة (بهدوء) مع نسخة احتياطية للبيانات.
+#
 # الاستخدام:  curl -fsSL https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.4/linux-installer.sh | sudo bash
 
 set -euo pipefail
@@ -9,9 +11,8 @@ TAG="v3.6.4"
 VER="3.6.4"
 BASE="https://github.com/$REPO/releases/download/$TAG"
 KEY_FPR="EC5E1EC44ED65B7AFD33F17018A7EB1880C9F89E"
-KEY_URL="$BASE/wzaker-signing-key.asc"
 
-# المفتاح العام لتوقيع حزم وذكر (يُستورد تلقائياً قبل التحقق)
+# المفتاح العام لتوقيع حزم وذكر (مدمج — بيتستورد تلقائياً)
 read -r -d '' WZAKER_PUBKEY <<'KEYEOF' || true
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -75,46 +76,48 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+# ── المستخدم الحقيقي (السكربت بيتشغّل بـ sudo) ─────────────────────────────
+USER_NAME="$(id -un)"
+USER_HOME="$HOME"
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+  USER_NAME="$SUDO_USER"
+  USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+  [ -z "$USER_HOME" ] && USER_HOME="$HOME"
+fi
+
 # ── كشف التوزيعة ────────────────────────────────────────────────────────────
 if [ -r /etc/os-release ]; then . /etc/os-release; fi
 ID="${ID:-unknown}"; LIKE="${ID_LIKE:-}"; NAME="${PRETTY_NAME:-$ID}"
 case " $ID $LIKE " in
-  *debian*|*ubuntu*)          TYPE="deb";    FILE="WZAKER-$VER-linux-amd64.deb";;
+  *debian*|*ubuntu*)           TYPE="deb";    FILE="WZAKER-$VER-linux-amd64.deb";;
   *fedora*|*rhel*|*centos*|*rocky*|*alma*|*opensuse*) TYPE="rpm"; FILE="WZAKER-$VER-linux-x86_64.rpm";;
   *arch*|*manjaro*|*endeavouros*|*garuda*) TYPE="pacman"; FILE="WZAKER-$VER-linux-x86_64.pkg.tar.zst";;
-  *alpine*)                  TYPE="apk";    FILE="WZAKER-$VER-linux-x86_64.apk";;
-  *slackware*)               TYPE="slack";  FILE="WZAKER-$VER-linux-x86_64.txz";;
-  *void*)                    TYPE="xbps";   FILE="WZAKER-$VER-linux-x86_64.tar";;
-  *puppy*)                   TYPE="puppy";  FILE="WZAKER-$VER-linux-x86_64.pet";;
-  *gentoo*)                  TYPE="gentoo"; FILE="";;
-  *nixos*)                   TYPE="nix";    FILE="";;
-  *solus*)                   TYPE="solus";  FILE="";;
-  *)                         TYPE="appimage"; FILE="WZAKER-$VER-linux-x86_64.AppImage";;
+  *alpine*)                   TYPE="apk";    FILE="wzaker_${VER}_x86_64.apk";;
+  *slackware*)                TYPE="slack";  FILE="WZAKER-$VER-linux-x86_64.txz";;
+  *void*)                     TYPE="xbps";   FILE="WZAKER-$VER-linux-x86_64.tar";;
+  *puppy*)                    TYPE="puppy";  FILE="WZAKER-$VER-linux-x86_64.pet";;
+  *gentoo*)                   TYPE="gentoo"; FILE="";;
+  *nixos*)                    TYPE="nix";    FILE="";;
+  *solus*)                    TYPE="solus";  FILE="";;
+  *)                          TYPE="appimage"; FILE="WZAKER-$VER-linux-x86_64.AppImage";;
 esac
 
 log "توزيعة النظام: $NAME  ($ID)"
 log "نوع الحزمة: $TYPE"
 
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
-
-if [ "$TYPE" = "gentoo" ] || [ "$TYPE" = "nix" ] || [ "$TYPE" = "solus" ]; then
-  warn "توزيعة $NAME بتبني من السورس. نزّل الوصفة وثبّتها:"
-  case "$TYPE" in
-    gentoo) printf '   ebuild موجود في: %s\n' "$REPO/tree/linux/packaging" ;;
-    nix)    printf '   nix expression: %s\n' "$REPO/tree/linux/packaging" ;;
-    solus)  printf '   package.yml: %s\n' "$REPO/tree/linux/packaging" ;;
-  esac
-  exit 0
+# ── صلاحية قراءة عجلة الفأرة (التمرير العام على Wayland و X11) ───────────────
+RULE=/etc/udev/rules.d/99-wzaker-input.rules
+if [ -d /etc/udev/rules.d ]; then
+  cat > "$RULE" <<EOF
+# WZAKER — قراءة عجلة الفأرة على لينكس (Wayland + X11)
+KERNEL=="event[0-9]*", SUBSYSTEM=="input", ATTRS{name}=="*Receiver*|*receiver*|*Mouse*|*mouse*|*Touchpad*|*touchpad*|*TrackPoint*|*trackpoint*|*Pointer*|*pointer*", MODE="0660", GROUP="$USER_NAME"
+EOF
+  udevadm control --reload 2>/dev/null || true
+  udevadm trigger --subsystem-match=input 2>/dev/null || true
+  log "تم تفعيل التمرير العام (قاعدة udev)"
 fi
 
 # ── نسخ احتياطي للبيانات + إزالة النسخة القديمة (بهدوء) ─────────────────────
-# السكربت بيتشغّل بـ sudo، فبنستخدم بيت المستخدم الحقيقي (مش root)
-USER_HOME="$HOME"
-if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
-  USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
-  [ -z "$USER_HOME" ] && USER_HOME="$HOME"
-fi
 BACKUP_ROOT="$USER_HOME/Documents/WZAKER-backups"
 DATA_DIRS=(
   "$USER_HOME/.local/share/io.github.ahmedmohamedh10.wzaker"
@@ -122,17 +125,16 @@ DATA_DIRS=(
   "$USER_HOME/.cache/io.github.ahmedmohamedh10.wzaker"
 )
 STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP_DIR="$BACKUP_ROOT/pre-install-$STAMP"
+BACKUP_DIR=""
 HAS_DATA=0
-for d in "${DATA_DIRS[@]}"; do
-  [ -d "$d" ] && HAS_DATA=1
-done
+for d in "${DATA_DIRS[@]}"; do [ -d "$d" ] && HAS_DATA=1; done
 if [ "$HAS_DATA" = "1" ]; then
-  mkdir -p "$BACKUP_DIR" 2>/dev/null || { BACKUP_DIR="$USER_HOME/.wzaker-backups/pre-install-$STAMP"; mkdir -p "$BACKUP_DIR" 2>/dev/null; }
-  for d in "${DATA_DIRS[@]}"; do
-    [ -d "$d" ] && cp -a "$d" "$BACKUP_DIR/" 2>/dev/null
-  done
-  log "تم حفظ نسخة احتياطية من بياناتك في: $BACKUP_DIR"
+  BACKUP_DIR="$BACKUP_ROOT/pre-install-$STAMP"
+  mkdir -p "$BACKUP_DIR" 2>/dev/null || { BACKUP_DIR="$USER_HOME/.wzaker-backups/pre-install-$STAMP"; mkdir -p "$BACKUP_DIR" 2>/dev/null || BACKUP_DIR=""; }
+  if [ -n "$BACKUP_DIR" ]; then
+    for d in "${DATA_DIRS[@]}"; do [ -d "$d" ] && cp -a "$d" "$BACKUP_DIR/" 2>/dev/null; done
+    log "تم حفظ نسخة احتياطية من بياناتك في: $BACKUP_DIR"
+  fi
 fi
 
 # إزالة النسخة القديمة إن وجدت (بهدوء، من غير سؤال)
@@ -146,20 +148,32 @@ elif command -v apk >/dev/null 2>&1 && apk info -e wzaker >/dev/null 2>&1; then
   apk del wzaker >/dev/null 2>&1
 fi
 
+if [ "$TYPE" = "gentoo" ] || [ "$TYPE" = "nix" ] || [ "$TYPE" = "solus" ]; then
+  warn "توزيعة $NAME بتبني من السورس. نزّل الوصفة وثبّتها:"
+  printf '   https://github.com/%s/tree/linux/packaging\n' "$REPO"
+  exit 0
+fi
+
+# ── استيراد مفتاح التوقيع ───────────────────────────────────────────────────
+if command -v gpg >/dev/null 2>&1; then
+  if curl -fsSL "$BASE/wzaker-signing-key.asc" -o /tmp/wzaker-key.asc 2>/dev/null; then
+    gpg --batch --import /tmp/wzaker-key.asc >/dev/null 2>&1 || true
+  fi
+  printf '%s\n' "$WZAKER_PUBKEY" | gpg --batch --import >/dev/null 2>&1 || true
+fi
+if command -v rpm >/dev/null 2>&1 && [ "$TYPE" = "rpm" ]; then
+  printf '%s\n' "$WZAKER_PUBKEY" | rpm --import - >/dev/null 2>&1 || true
+fi
+
 # ── التنزيل ────────────────────────────────────────────────────────────────
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
 log "تنزيل $FILE ..."
 if command -v curl >/dev/null 2>&1; then
   curl -fL --progress-bar "$BASE/$FILE" -o "$TMP/$FILE"
 else
   wget -q --show-progress "$BASE/$FILE" -O "$TMP/$FILE"
-fi
-
-# ── استيراد مفتاح التوقيع ──────────────────────────────────────────────────
-if command -v gpg >/dev/null 2>&1; then
-  printf '%s\n' "$WZAKER_PUBKEY" | gpg --batch --import >/dev/null 2>&1 || true
-fi
-if command -v rpm >/dev/null 2>&1 && [ "$TYPE" = "rpm" ]; then
-  printf '%s\n' "$WZAKER_PUBKEY" | rpm --import - >/dev/null 2>&1 || true
 fi
 
 # ── التحقق من التوقيع ───────────────────────────────────────────────────────
@@ -220,27 +234,28 @@ case "$TYPE" in
     ;;
   appimage)
     log "تثبيت AppImage ..."
-    install -d /opt/wzaker
+    install -d /opt/wzaker /usr/local/bin /usr/share/applications /usr/share/icons/hicolor/256x256/apps
     install -m755 "$TMP/$FILE" /opt/wzaker/wzaker.AppImage
-    install -d /usr/local/bin /usr/share/applications /usr/share/icons/hicolor/256x256/apps
     ln -sf /opt/wzaker/wzaker.AppImage /usr/local/bin/wzaker
     cat > /usr/share/applications/wzaker.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=ذكر
+GenericName=سبحة وأذكار
 Comment=سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
 Exec=wzaker
 Icon=wzaker
-Categories=Utility;
+Categories=Utility;Spirituality;
 Terminal=false
+StartupWMClass=wzaker
 EOF
     if [ -f "$TMP/wzaker.png" ]; then
-      curl -fsSL "$BASE/WZAKER-$VER-linux-x86_64.AppImage" -o /dev/null 2>/dev/null || true
+      install -m644 "$TMP/wzaker.png" /usr/share/icons/hicolor/256x256/apps/wzaker.png
     fi
     ;;
 esac
 
 log "تم التثبيت بنجاح ✅"
 [ -n "$BACKUP_DIR" ] && log "نسخة بياناتك القديمة: $BACKUP_DIR"
-log "شغّل التطبيق بالأمر:  wzaker"
+log "شغّل التطبيق من قائمة التطبيقات باسم: ذكر"
 exit 0

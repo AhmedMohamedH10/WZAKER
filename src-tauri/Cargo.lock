@@ -5871,6 +5871,7 @@ dependencies = [
 name = "wzaker"
 version = "3.6.4"
 dependencies = [
+ "libc",
  "log",
  "open",
  "rdev",
