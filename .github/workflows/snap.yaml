@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'النشر على Snap Store بعد البناء (يحتاج secret)')
+        description: 'النشر على Snap Store بعد البناء — يحتاج secret'
         type: boolean
         default: false
   push:
