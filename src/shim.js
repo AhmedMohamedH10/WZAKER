@@ -11,6 +11,10 @@
     dc: 'https://discord.com/users/339177356843548673',
     wa: 'https://wa.link/lv4cu4',
     sg: 'https://tally.so/r/QKgVQl',
+    // مطوّر نسخة لينكس — محمد زيتون
+    fb2: 'https://www.facebook.com/mohamedzaitoon2',
+    dc2: 'https://discord.com/users/mohamedzaitoon2',
+    wa2: 'https://wa.me/mohamedzaitoon2',
   };
 
   // قراءة ملف من الحزمة كـ data URL (اللوجو/البانر)
