@@ -30,7 +30,6 @@ install -m755 "$BIN" "$STAGE/usr/lib/wzaker/wzaker"
 cat > "$STAGE/usr/bin/wzaker" <<'EOF'
 #!/bin/sh
 # WZAKER launcher
-export GDK_BACKEND="${GDK_BACKEND:-wayland}"
 export NO_AT_BRIDGE=1
 exec /usr/lib/wzaker/wzaker "$@"
 EOF

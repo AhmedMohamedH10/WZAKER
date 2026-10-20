@@ -285,21 +285,34 @@ fn place_bottom_right(w: &WebviewWindow) {
         .current_monitor()
         .ok()
         .flatten()
-        .or_else(|| w.primary_monitor().ok().flatten());
-    let Some(monitor) = monitor else { return };
+        .or_else(|| w.primary_monitor().ok().flatten())
+        .or_else(|| {
+            // Wayland: مفيش monitor مباشر — ناخد أول شاشة متاحة
+            w.available_monitors()
+                .ok()
+                .and_then(|m| m.into_iter().next())
+        });
+    let Some(monitor) = monitor else {
+        eprintln!("[wzaker] مفيش مonitor");
+        return;
+    };
     let scale = monitor.scale_factor();
+    // المقاس المعروف من الإعدادات (النافذة ممكن تكون مخفية فـ outer_size = 0)
     let size = w.outer_size().unwrap_or(tauri::PhysicalSize::new(0, 0));
+    let (lw, lh) = if size.width == 0 || size.height == 0 {
+        (CARD_FULL.0 + GLOW * 2.0, CARD_FULL.1 + GLOW * 2.0)
+    } else {
+        (size.width as f64 / scale, size.height as f64 / scale)
+    };
     let m = monitor.size();
     let mp = monitor.position();
-    let wpx = (size.width as f64) / scale;
-    let hpx = (size.height as f64) / scale;
-    let x = (m.width as f64) / scale - wpx - EDGE + (mp.x as f64) / scale;
-    let y = (m.height as f64) / scale - hpx - EDGE + (mp.y as f64) / scale;
+    let x = (m.width as f64) / scale - lw - EDGE + (mp.x as f64) / scale;
+    let y = (m.height as f64) / scale - lh - EDGE + (mp.y as f64) / scale;
     let _ = w.set_position(PhysicalPosition::new(
         (x.max(0.0) * scale) as i32,
         (y.max(0.0) * scale) as i32,
     ));
-    eprintln!("[wzaker] placed at {}x{}", x as i32, y as i32);
+    eprintln!("[wzaker] المسبحة: x={} y={} (شاشة {}x{})", x as i32, y as i32, m.width, m.height);
 }
 
 pub struct AppState {
@@ -455,9 +468,7 @@ pub fn run() {
                     for _ in 0..40 {
                         std::thread::sleep(std::time::Duration::from_millis(150));
                         if let Some(mw) = handle.get_webview_window("main") {
-                            if mw.outer_size().map(|s| s.width > 0).unwrap_or(false) {
-                                place_bottom_right(&mw);
-                            }
+                            place_bottom_right(&mw);
                         }
                     }
                 });
@@ -471,6 +482,7 @@ pub fn run() {
                 }
                 if let Some(m) = handle.get_webview_window("main") {
                     let _ = m.show();
+                    place_bottom_right(&m);
                 }
             });
 
