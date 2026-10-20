@@ -5,7 +5,7 @@
 سبحة إلكترونية وأذكار وقرآن وأوقات صلاة.
 
 - **المؤلف الأصلي:** AhmedMohamedH10
-- **نسخة لينكس (Tauri + Rust):** Mohamed Zaitoon
+- **نسخة لينكس (Tauri + Rust):** محمد زيتون
 - **الرخصة:** MIT
 
 </div>
@@ -47,7 +47,7 @@ curl -fsSL https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.4/li
 
 1. **يكشف نظامك** تلقائياً (Fedora / Ubuntu / Arch / Alpine / Slackware / Void / Puppy / أي توزيعة تانية).
 2. **ينزّل** الحزمة المناسبة لتوزيعتك من إصدارات 3.6.4.
-3. **يتحقق** من توقيع GPG (باسم Mohamed Zaitoon) قبل التثبيت.
+3. **يتحقق** من توقيع GPG (باسم محمد زيتون) قبل التثبيت.
 4. **يثبّت** التطبيق ويضيفه لقائمة التطبيقات باسم **ذكر** — تشغّله من غير طرفية.
 
 **بعد التثبيت:** افتح قائمة التطبيقات واختر **ذكر**، أو شغّل `wzaker`.
@@ -63,7 +63,7 @@ curl -fsSL https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.4/li
 <div dir="rtl">
 
 - **AhmedMohamedH10** — المؤلف الأصلي
-- **Mohamed Zaitoon** — نسخة لينكس
+- **محمد زيتون** — نسخة لينكس
 - بيانات الأذكار من «حصن المسلم»
 
 </div>

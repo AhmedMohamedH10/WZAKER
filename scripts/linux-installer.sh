@@ -110,7 +110,7 @@ RULE=/etc/udev/rules.d/99-wzaker-input.rules
 if [ -d /etc/udev/rules.d ]; then
   cat > "$RULE" <<EOF
 # WZAKER — قراءة عجلة الفأرة على لينكس (Wayland + X11)
-KERNEL=="event[0-9]*", SUBSYSTEM=="input", ATTRS{name}=="*Receiver*|*receiver*|*Mouse*|*mouse*|*Touchpad*|*touchpad*|*TrackPoint*|*trackpoint*|*Pointer*|*pointer*", MODE="0660", GROUP="$USER_NAME"
+KERNEL=="event[0-9]*", SUBSYSTEM=="input", ATTRS{name}=="*Receiver*|*receiver*|*Mouse*|*mouse*|*Touchpad*|*touchpad*|*TrackPoint*|*trackpoint*|*Pointer*|*pointer*|*Keyboard*|*keyboard*|*KEYBOARD*", MODE="0660", GROUP="$USER_NAME"
 EOF
   udevadm control --reload 2>/dev/null || true
   udevadm trigger --subsystem-match=input 2>/dev/null || true
@@ -147,6 +147,12 @@ elif command -v pacman >/dev/null 2>&1 && pacman -Qi wzaker >/dev/null 2>&1; the
 elif command -v apk >/dev/null 2>&1 && apk info -e wzaker >/dev/null 2>&1; then
   apk del wzaker >/dev/null 2>&1
 fi
+# تنظيف ملفات النسخة القديمة مباشرة (لو مدير الحزم ما سجّلش الحزمة — قواعد بيانات تالفة)
+rm -rf /usr/lib/wzaker /opt/wzaker 2>/dev/null
+rm -f /usr/bin/wzaker /usr/local/bin/wzaker 2>/dev/null
+rm -f /usr/share/applications/wzaker.desktop 2>/dev/null
+rm -f /usr/share/icons/hicolor/256x256/apps/wzaker.png 2>/dev/null
+rm -f /usr/share/metainfo/io.github.ahmedmohamedh10.wzaker.metainfo.xml 2>/dev/null
 
 if [ "$TYPE" = "gentoo" ] || [ "$TYPE" = "nix" ] || [ "$TYPE" = "solus" ]; then
   warn "توزيعة $NAME بتبني من السورس. نزّل الوصفة وثبّتها:"
@@ -240,7 +246,8 @@ case "$TYPE" in
     cat > /usr/share/applications/wzaker.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=ذكر
+Name=WZAKER
+Name[ar]=وذكر
 GenericName=سبحة وأذكار
 Comment=سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
 Exec=wzaker
@@ -255,7 +262,16 @@ EOF
     ;;
 esac
 
+# استرجاع بيانات النسخة القديمة (الإعدادات والإحصائيات) بعد التثبيت
+if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+  for d in "${DATA_DIRS[@]}"; do
+    b="$BACKUP_DIR/$(basename "$d")"
+    [ -d "$b" ] && cp -a "$b" "$d" 2>/dev/null
+  done
+  log "تم استرجاع بياناتك من النسخة السابقة"
+fi
+
 log "تم التثبيت بنجاح ✅"
 [ -n "$BACKUP_DIR" ] && log "نسخة بياناتك القديمة: $BACKUP_DIR"
-log "شغّل التطبيق من قائمة التطبيقات باسم: ذكر"
+log "شغّل التطبيق من قائمة التطبيقات باسم: WZAKER (ذكر)"
 exit 0

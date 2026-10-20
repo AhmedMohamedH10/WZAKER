@@ -56,8 +56,10 @@ fn splash_done(app: tauri::AppHandle) {
     }
     if let Some(m) = app.get_webview_window("main") {
         let _ = m.show();
-        let _ = m.set_focus();
+        let _ = m.set_focusable(false);   // ما تسرقش تركيز الكيبورد من باقي التطبيقات
         place_bottom_right(&m);
+        eprintln!("[wzaker] splash_done → main_shown");
+        let _ = app.emit("main_shown", ());
     }
 }
 
@@ -138,7 +140,63 @@ fn set_hit_rects(app: tauri::AppHandle, rects: Vec<Vec<f64>>) {
         .take(64)
         .map(|r| (r[0], r[1], r[2], r[3]))
         .collect();
+    eprintln!("[wzaker] مناطق التفاعل: {}", v.len());
     *st.hit.lock().unwrap() = v;
+}
+
+/// ضبط شكل الإدخال (X11 SHAPE) — الماوس بيعدّي فوق النافذة إلا فوق العناصر التفاعلية
+fn apply_input_shape(app: &tauri::AppHandle, rects: &[(f64, f64, f64, f64)], full: bool, conn: &Option<(x11rb::rust_connection::RustConnection, usize)>) {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use x11rb::connection::Connection;
+    use x11rb::protocol::shape::{ConnectionExt as ShapeExt, SK, SO};
+    use x11rb::protocol::xproto::{ClipOrdering, Rectangle};
+
+    let Some(w) = app.get_webview_window("main") else { return };
+    if !w.is_visible().unwrap_or(false) { return }
+    if rects.is_empty() && !full { return }
+
+    // معرّف نافذة X11
+    let Ok(handle) = w.window_handle() else { return };
+    let xid: u32 = match handle.as_raw() {
+        RawWindowHandle::Xlib(x) => x.window as u32,
+        RawWindowHandle::Xcb(x) => x.window.get(),
+        _ => return,
+    };
+
+    let scale = w.scale_factor().unwrap_or(1.0);
+    let mut rs: Vec<Rectangle> = rects
+        .iter()
+        .filter_map(|r| {
+            let x = (r.0 * scale).round().max(0.0) as i16;
+            let y = (r.1 * scale).round().max(0.0) as i16;
+            let wd = (r.2 * scale).round().max(1.0) as u16;
+            let ht = (r.3 * scale).round().max(1.0) as u16;
+            if wd == 0 || ht == 0 { None } else { Some(Rectangle { x, y, width: wd, height: ht }) }
+        })
+        .collect();
+    // في الوضع المصغّر أو أثناء السحب: النافذة كلها تفاعلية
+    if full {
+        let size = w.inner_size().unwrap_or(tauri::PhysicalSize::new(0, 0));
+        rs = vec![Rectangle { x: 0, y: 0, width: size.width as u16, height: size.height as u16 }];
+    }
+    if rs.is_empty() { return; }
+    // شكل الإدخال = المناطق التفاعلية فقط
+    if let Some((conn, _)) = conn {
+        let res = conn.shape_rectangles(
+            SO::SET,
+            SK::INPUT,
+            ClipOrdering::UNSORTED,
+            xid,
+            0,
+            0,
+            &rs,
+        );
+        match res {
+            Ok(_) => { let _ = conn.flush(); }
+            Err(e) => eprintln!("[wzaker] فشل ضبط شكل الإدخال: {}", e),
+        }
+    }
+    rs.clear();
 }
 
 /// ضغط مطوّل (سحب/سلايدر) — يوقف الـ click-through
@@ -254,6 +312,66 @@ fn backup_import(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// إرسال الأزرار المخصصة واختصارات الأوامر للـ backend (من الواجهة)
+#[tauri::command]
+fn set_keys(
+    app: tauri::AppHandle,
+    custom: Option<CustomKey>,
+    hotkeys: Option<std::collections::HashMap<String, CustomKey>>,
+    space: Option<bool>,
+) {
+    let st = app.state::<AppState>();
+    *st.custom.lock().unwrap() = custom;
+    if let Some(h) = hotkeys {
+        *st.hotkeys.lock().unwrap() = h;
+    }
+    if let Some(sp) = space {
+        *st.space.lock().unwrap() = sp;
+    }
+}
+
+/// مسار ملف الحالة
+fn state_file() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home).join(".config").join("WZAKER").join("state.json")
+}
+
+/// تحميل الحالة المحفوظة (ملف) — عشان الإعدادات ما تضيعش
+#[tauri::command]
+fn load_state() -> Option<String> {
+    std::fs::read_to_string(state_file()).ok()
+}
+
+/// حفظ الحالة في ملف
+#[tauri::command]
+fn save_state(json: String) -> Result<(), String> {
+    let f = state_file();
+    if let Some(parent) = f.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::write(&f, json).map_err(|e| e.to_string())
+}
+
+/// تسجيل نص في اللوج (تشخيص)
+#[tauri::command]
+fn log_msg(msg: String) {
+    eprintln!("[wzaker] {}", msg);
+}
+
+/// التقاط زر/اختصار مخصص (زي F1 أو Ctrl+G) — زي نسخة ويندوز
+#[tauri::command]
+fn capture_key(_app: tauri::AppHandle, target: String) {
+    *CAPTURE_TARGET.lock().unwrap() = target;
+    CAPTURE_ON.store(true, std::sync::atomic::Ordering::SeqCst);
+    eprintln!("[wzaker] في وضع التقاط الزر");
+}
+
+/// إلغاء التقاط الزر
+#[tauri::command]
+fn cancel_capture() {
+    CAPTURE_ON.store(false, std::sync::atomic::Ordering::SeqCst);
+}
+
 #[tauri::command]
 fn trigger_tick() { /* frontend handles via event */ }
 
@@ -282,9 +400,11 @@ fn start_evdev_scroll(app: &tauri::AppHandle) {
     use std::os::unix::io::AsRawFd;
 
     const EV_REL: u16 = 2;
+    const EV_KEY: u16 = 1;
     const REL_WHEEL: u16 = 8;          // عجلة الفأرة
     const REL_WHEEL_HI_RES: u16 = 11; // تمرير عالي الدقة (لوحات اللمس)
-    const EVIOCGBIT_REL: libc::c_ulong = 0x8004_4522;   // _IOR('E', 0x20+2, 4)
+    const EVIOCGBIT_KEY: libc::c_ulong = 0x8004_4521;   // _IOR('E', 0x20+1, 4) → EV_KEY
+    const EVIOCGBIT_REL: libc::c_ulong = 0x8004_4522;   // _IOR('E', 0x20+2, 4) → EV_REL
 
     let app2 = app.clone();
     std::thread::spawn(move || {
@@ -306,19 +426,34 @@ fn start_evdev_scroll(app: &tauri::AppHandle) {
             }
             let Ok(file) = std::fs::File::open(&path) else { continue };
 
-            //devices الفأرة بس (اللي فيها REL_WHEEL) — مفيش قراءة لوحة المفاتيح
-            let mut bits = [0u8; 64];
-            let rc = unsafe { libc::ioctl(file.as_raw_fd(), EVIOCGBIT_REL, bits.as_mut_ptr()) };
-            if rc < 0 {
+            // قدرات الجهاز: EV_KEY (لوحة مفاتيح) و EV_REL (فأرة)
+            let mut kbits = [0u8; 64];
+            let mut rbits = [0u8; 64];
+            let rck = unsafe { libc::ioctl(file.as_raw_fd(), EVIOCGBIT_KEY, kbits.as_mut_ptr()) };
+            let rcr = unsafe { libc::ioctl(file.as_raw_fd(), EVIOCGBIT_REL, rbits.as_mut_ptr()) };
+            if rck < 0 && rcr < 0 {
                 continue;
             }
+            let has_key = |code: u16| -> bool {
+                let byte = (code / 8) as usize;
+                let bit = code % 8;
+                byte < kbits.len() && (kbits[byte] & (1u8 << bit)) != 0
+            };
             let has_wheel = |code: u16| -> bool {
                 let byte = (code / 8) as usize;
                 let bit = code % 8;
-                byte < bits.len() && (bits[byte] & (1u8 << bit)) != 0
+                byte < rbits.len() && (rbits[byte] & (1u8 << bit)) != 0
             };
+            // لوحة مفاتيح: فيها مفاتيح كتابة (مسافة/إدخال/A/F1) — الفأرة ما عندهاش كده
+            let is_keyboard = has_key(57) || has_key(28) || has_key(30) || has_key(59);
             if !has_wheel(REL_WHEEL) && !has_wheel(REL_WHEEL_HI_RES) {
-                continue;
+                if !is_keyboard {
+                    continue;   // جهاز تاني (إضاءة/أزرار) — يتجاهَل
+                }
+                // لوحة المفاتيح: تُقرأ فقط لو محتاجينها (Space أو زر مخصص)
+                if !app3_needs_keys(&app2) {
+                    continue;
+                }
             }
 
             if opened.contains(&fname) {
@@ -330,14 +465,62 @@ fn start_evdev_scroll(app: &tauri::AppHandle) {
             std::thread::spawn(move || {
                 let mut file = file;
                 let mut buf = [0u8; 24];   // struct input_event (64-bit)
+                let mut mods = KeyMods { shift: false, alt: false, ctrl: false, meta: false };
                 loop {
                     if file.read_exact(&mut buf).is_err() {
                         break;
                     }
                     let typ = u16::from_ne_bytes([buf[16], buf[17]]);
                     let code = u16::from_ne_bytes([buf[18], buf[19]]);
+                    let value = i32::from_ne_bytes([buf[20], buf[21], buf[22], buf[23]]);
+                    let pressed = value == 0;   // 0 = ضُغط
+                    match code {
+                        29 | 97 => mods.ctrl = pressed,
+                        42 | 54 => mods.shift = pressed,
+                        56 | 100 => mods.alt = pressed,
+                        125 | 126 => mods.meta = pressed,
+                        _ => {}
+                    }
                     if typ == EV_REL && (code == REL_WHEEL || code == REL_WHEEL_HI_RES) {
                         emit_wheel_tick(&app3);
+                    }
+                    if typ == EV_KEY && CAPTURE_ON.load(std::sync::atomic::Ordering::SeqCst) {
+                        // التقاط الزر المطلوب (من لوحة المفاتيح)
+                        CAPTURE_ON.store(false, std::sync::atomic::Ordering::SeqCst);
+                        let target = CAPTURE_TARGET.lock().unwrap().clone();
+                        let bcode = linux_code_to_browser(code).unwrap_or_else(|| format!("Key{}", code));
+                        let _ = app3.emit("key_captured", serde_json::json!({
+                            "target": target, "code": bcode, "name": bcode,
+                            "ctrl": mods.ctrl, "alt": mods.alt, "shift": mods.shift, "meta": mods.meta,
+                        }));
+                    }
+                    if typ == EV_KEY {
+                        // Space (لو مفعّل) + الزر المخصص + اختصارات الأوامر
+                        if code == 57 {   // KEY_SPACE
+                            let sp = app3.state::<AppState>();
+                            if *sp.space.lock().unwrap() {
+                                let _ = app3.emit("global_space", ());
+                            }
+                        } else if let Some(bcode) = linux_code_to_browser(code) {
+                            let st = app3.state::<AppState>();
+                            let ck = st.custom.lock().unwrap().clone();
+                            let hit = |k: &CustomKey| -> bool {
+                                k.code.eq_ignore_ascii_case(&bcode)
+                                    && k.ctrl == mods.ctrl && k.alt == mods.alt
+                                    && k.shift == mods.shift && k.meta == mods.meta
+                            };
+                            if let Some(ck) = ck {
+                                if hit(&ck) {
+                                    let _ = app3.emit("global_custom_key", ());
+                                }
+                            }
+                            let hks = st.hotkeys.lock().unwrap().clone();
+                            for (action, k) in hks.iter() {
+                                if hit(k) {
+                                    let _ = app3.emit("global_hotkey", action.clone());
+                                }
+                            }
+                        }
                     }
                 }
             });
@@ -348,15 +531,14 @@ fn start_evdev_scroll(app: &tauri::AppHandle) {
 }
 
 fn start_global_scroll(app: &tauri::AppHandle) {
+    // عجلة الماوس (X11) — بجانب evdev
     let app = app.clone();
     std::thread::spawn(move || {
         use rdev::{listen, Event, EventType};
-        let mut last: i64 = 0;
         if let Err(e) = listen(move |event: Event| {
             if let EventType::Wheel { .. } = event.event_type {
                 emit_wheel_tick(&app);
             }
-            let _ = &last;
         }) {
             eprintln!("rdev listen error: {:?}", e);
         }
@@ -405,6 +587,56 @@ pub struct AppState {
     pub hold: Mutex<bool>,                        // ضغط مطوّل (سحب/سلايدر)
     pub mini: Mutex<bool>,
     pub popup: Mutex<Option<serde_json::Value>>,  // بيانات نافذة الإشعار
+    pub custom: Mutex<Option<CustomKey>>,          // الزر/الاختصار المخصص للعدّ
+    pub hotkeys: Mutex<std::collections::HashMap<String, CustomKey>>,  // اختصارات الأوامر
+    pub space: Mutex<bool>,                                        // العدّ بـ Space
+}
+
+/// زر مخصص: كود المتصفح + الموديفاير
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CustomKey {
+    pub code: String,
+    pub ctrl: bool,
+    pub alt: bool,
+    pub shift: bool,
+    pub meta: bool,
+    pub name: String,
+}
+
+static CAPTURE_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static CAPTURE_TARGET: Mutex<String> = Mutex::new(String::new());
+
+/// هل المستخدم محتاج قراءة لوحة المفاتيح؟ (Space مفعّل أو زر مخصص)
+fn app3_needs_keys(app: &tauri::AppHandle) -> bool {
+    app.try_state::<AppState>()
+        .map(|st| {
+            *st.space.lock().unwrap() || st.custom.lock().unwrap().is_some()
+        })
+        .unwrap_or(false)
+}
+
+/// موديفايرز من حدث evdev
+#[derive(Clone, Copy)]
+struct KeyMods { shift: bool, alt: bool, ctrl: bool, meta: bool }
+
+/// ترجمة كود لينكس (evdev) لكود المتصفح
+fn linux_code_to_browser(code: u16) -> Option<String> {
+    let s = match code {
+        1 => "Escape", 14 => "Backspace", 15 => "Tab", 28 => "Enter", 57 => "Space",
+        16 => "KeyQ", 17 => "KeyW", 18 => "KeyE", 19 => "KeyR", 20 => "KeyT",
+        21 => "KeyY", 22 => "KeyU", 23 => "KeyI", 24 => "KeyO", 25 => "KeyP",
+        30 => "KeyA", 31 => "KeyS", 32 => "KeyD", 33 => "KeyF", 34 => "KeyG",
+        35 => "KeyH", 36 => "KeyJ", 37 => "KeyK", 38 => "KeyL",
+        44 => "KeyZ", 45 => "KeyX", 46 => "KeyC", 47 => "KeyV", 48 => "KeyB",
+        49 => "KeyN", 50 => "KeyM",
+        2 => "Digit1", 3 => "Digit2", 4 => "Digit3", 5 => "Digit4", 6 => "Digit5",
+        7 => "Digit6", 8 => "Digit7", 9 => "Digit8", 10 => "Digit9", 11 => "Digit0",
+        59 => "F1", 60 => "F2", 61 => "F3", 62 => "F4", 63 => "F5", 64 => "F6",
+        65 => "F7", 66 => "F8", 67 => "F9", 68 => "F10", 69 => "F11", 70 => "F12",
+        29 => "ControlLeft", 42 => "ShiftLeft", 56 => "AltLeft", 125 => "MetaLeft",
+        _ => return None,
+    };
+    Some(s.to_string())
 }
 
 #[tauri::command]
@@ -448,6 +680,9 @@ pub fn run() {
             hold: Mutex::new(false),
             mini: Mutex::new(false),
             popup: Mutex::new(None),
+            custom: Mutex::new(None),
+            hotkeys: Mutex::new(std::collections::HashMap::new()),
+            space: Mutex::new(false),
         })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
@@ -471,7 +706,7 @@ pub fn run() {
             let _ = shortcut;
         }).build())
         .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window,
-    set_hit_rects, set_hold, popup_show, popup_get, popup_close, popup_pick,
+    set_hit_rects, set_hold, popup_show, popup_get, popup_close, popup_pick, log_msg, capture_key, set_keys, cancel_capture, load_state, save_state,
     backup_export, backup_list, backup_import])
         .setup(|app| {
             // Tray icon
@@ -509,28 +744,36 @@ pub fn run() {
             start_global_scroll(app.handle());
 
             // click-through: الماوس بيعدّي فوق النافذة إلا فوق العناصر التفاعلية
+            // (شكل الإدخال في X11 — مناطق التفاعلية بس هي اللي بتستقبل النقر)
             let handle = app.handle().clone();
+            let click_through_on = std::env::var("WZAKER_CLICK_THROUGH")
+                .map(|v| v != "0" && !v.is_empty())
+                .unwrap_or(true);
             std::thread::spawn(move || {
+                // مهلة أولية: نستنى لحد ما النافذة تتظهور فعليًا
+                std::thread::sleep(std::time::Duration::from_millis(2500));
+                let conn = if click_through_on {
+                    match x11rb::connect(None) {
+                        Ok(c) => Some(c),
+                        Err(_) => {
+                            eprintln!("[wzaker] تعذّر فتح اتصال X11 — بدون click-through");
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
                 loop {
-                    std::thread::sleep(std::time::Duration::from_millis(40));
+                    std::thread::sleep(std::time::Duration::from_millis(700));
                     let st = handle.state::<AppState>();
                     let rects = st.hit.lock().unwrap().clone();
                     let holding = *st.hold.lock().unwrap();
                     let mini = *st.mini.lock().unwrap();
-                    let Some(w) = handle.get_webview_window("main") else { continue };
-                    let interactive = if mini || holding || rects.is_empty() {
-                        true
-                    } else {
-                        match (w.cursor_position(), w.scale_factor()) {
-                            (Ok(p), Ok(sc)) => {
-                                let x = p.x as f64 / sc;
-                                let y = p.y as f64 / sc;
-                                rects.iter().any(|r| x >= r.0 && x <= r.0 + r.2 && y >= r.1 && y <= r.1 + r.3)
-                            }
-                            _ => true,
-                        }
-                    };
-                    let _ = w.set_ignore_cursor_events(!interactive);
+                    if holding || mini {
+                        apply_input_shape(&handle, &rects, true, &conn);   // تفاعل كامل
+                        continue;
+                    }
+                    apply_input_shape(&handle, &rects, false, &conn);
                 }
             });
 
@@ -568,6 +811,8 @@ pub fn run() {
                 if let Some(m) = handle.get_webview_window("main") {
                     let _ = m.show();
                     place_bottom_right(&m);
+                    eprintln!("[wzaker] safety → main_shown");
+                    let _ = handle.emit("main_shown", ());
                 }
             });
 

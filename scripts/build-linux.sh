@@ -41,7 +41,8 @@ cat > "$STAGE/usr/share/applications/wzaker.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=ذكر
+Name=WZAKER
+Name[ar]=وذكر
 GenericName=سبحة وأذكار
 Comment=سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
 Comment[en]=Tasbih, azkar, Quran and prayer times
@@ -121,8 +122,9 @@ echo "▶ 4/5 توقيع الحزم (GPG)"
 python3 "$ROOT/scripts/rpm-sign.py" "$DIST/WZAKER-${VER}-linux-x86_64.rpm" "$KEY_ID" | tail -1
 cd "$DIST"
 for f in WZAKER-${VER}-linux-amd64.deb WZAKER-${VER}-linux-x86_64.rpm WZAKER-${VER}-linux-x86_64.pkg.tar.zst \
-         WZAKER-${VER}-linux-x86_64.apk WZAKER-${VER}-linux-x86_64.txz WZAKER-${VER}-linux-x86_64.pet \
-         WZAKER-${VER}-linux-x86_64.tar WZAKER-${VER}-linux-x86_64.zip; do
+         wzaker_${VER}_x86_64.apk WZAKER-${VER}-linux-x86_64.txz WZAKER-${VER}-linux-x86_64.pet \
+         WZAKER-${VER}-linux-x86_64.tar wzaker.zip WZAKER-${VER}-linux-x86_64.AppImage \
+         linux-installer.sh; do
   [ -f "$f" ] && gpg --batch --yes --local-user "$KEY_ID" --armor --detach-sign --output "$f.asc" "$f"
 done
 

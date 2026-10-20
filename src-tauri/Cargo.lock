@@ -5874,6 +5874,7 @@ dependencies = [
  "libc",
  "log",
  "open",
+ "raw-window-handle",
  "rdev",
  "reqwest 0.12.28",
  "serde",
@@ -5887,6 +5888,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
+ "x11rb",
 ]
 
 [[package]]

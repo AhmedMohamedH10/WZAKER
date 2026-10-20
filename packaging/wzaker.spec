@@ -40,5 +40,5 @@ install -m 644 /home/mohamedzaitoon/Projects/WZAKER/build/stage/usr/share/icons/
 /usr/share/icons/hicolor/256x256/apps/wzaker.png
 
 %changelog
-* Mon Oct 20 2026 Mohamed Zaitoon <mohamed-zaitoon@users.noreply.github.com> - 3.6.4-1
+* Mon Oct 20 2026 محمد زيتون <mohamed-zaitoon@users.noreply.github.com> - 3.6.4-1
 - Linux release (Tauri + Rust) — signed with GPG

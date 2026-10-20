@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 export GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg}"
-KEY="${SIGNING_KEY:-Mohamed Zaitoon}"
+KEY="${SIGNING_KEY:-محمد زيتون}"
 KEY_ID="${SIGNING_KEY_ID:-EC5E1EC44ED65B7AFD33F17018A7EB1880C9F89E}"
 DIST="$ROOT/dist"
 APPIMAGETOOL="$ROOT/tools/appimagetool"

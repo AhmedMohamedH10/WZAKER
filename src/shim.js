@@ -12,9 +12,9 @@
     daily: {}, streak: null, dndFullscreen: false, autoAdvance: true, target: 33,
     sound: true, volume: 0.4, startupSound: true, startupVolume: 0.2,
     completionSound: true, completionVolume: 0.2, exitSound: true, exitVolume: 0.2,
-    miniMode: false, miniOpacity: 0.85, idleOpacity: 0.7, spaceKey: false,
+    miniMode: false, miniOpacity: 0.85, idleOpacity: 0.7, spaceKey: true,
     hotkeys: { quit: null, mini: null, show: null, settings: null },
-    customKeyOn: false, customKey: null, dialLocked: false, scrollOn: true, clickOn: false,
+    customKeyOn: false, customKey: null, dialLocked: false, scrollOn: true, clickOn: true,
     dialStyle: 'ring', beadLight: .3, beadGlow: true, autoLaunch: false,
     reminderOn: false, reminderEvery: 1800, customAlerts: [], builtinVerses: true,
     dialLayout: null, glowV: 0, popupVolume: 0.5, reminderSound: true, reminderVolume: 0.5,
@@ -38,6 +38,19 @@
   let state = null;
   try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) { state = null; }
   if (!state || typeof state !== 'object') state = { ...DEFAULT_STATE };
+  // الحالة المحفوظة في ملف (أقوى من localStorage — بتعدّي التحديثات)
+  const FILE_KEY = '__wzaker_file_state';
+  try {
+    const p = window.__TAURI__?.core?.invoke('load_state');
+    if (p && typeof p.then === 'function') {
+      p.then(txt => {
+        try {
+          const o = JSON.parse(txt);
+          if (o && typeof o === 'object') { state = Object.assign(state, o); save(); emit('state', publicState()); }
+        } catch (_) {}
+      }).catch(() => {});
+    }
+  } catch (_) {}
 
   const listeners = { tick: [], state: [], stats: [], startup: [], exitPlay: [], shown: [], hover: [],
     settingsFocus: [], keyCaptured: [], popupScale: [], popupReveal: [], popupTick: [], popupSuccess: [],
@@ -45,9 +58,25 @@
 
   const on = (ch, cb) => { if (listeners[ch]) listeners[ch].push(cb); };
 
-  const emit = (ch, data) => { (listeners[ch] || []).forEach(cb => { try { cb(data); } catch (e) { console.error(e); } }); };
+  const emit = (ch, data) => { (listeners[ch] || []).forEach(cb => { try { cb(data); } catch (e) { try { window.__TAURI__?.core?.invoke('log_msg', { msg: 'emit ' + ch + ' ERR: ' + e }); } catch (_) {} } }); };
 
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} };
+  // حفظ الحالة: كتابة مؤجلة (مرة كل ~1.2 ثانية) عشان ما نكتبش_localStorage_ كتير
+  // (كان بيملا الـ WAL بـ 14 ميجا وبيرجّع البرنامج للـ D state)
+  let saveTimer = null;
+  let pendingSave = false;
+  const writeState = () => {
+    saveTimer = null; pendingSave = false;
+    let json = '';
+    try { json = JSON.stringify(state); } catch (_) { return; }
+    try { localStorage.setItem(KEY, json); } catch (_) {}
+    try { window.__TAURI__?.core?.invoke('save_state', { json }); } catch (_) {}
+  };
+  const save = () => {
+    pendingSave = true;
+    if (saveTimer) return;
+    saveTimer = setTimeout(writeState, 1200);
+  };
+  window.addEventListener('beforeunload', () => { if (pendingSave) { try { clearTimeout(saveTimer); } catch (_) {} writeState(); } });
 
   // ── الأذكار الافتراضية (زي main.js) ──────────────────────────────────────
   const DEFAULT_AZKAR = [
@@ -105,7 +134,7 @@
   });
 
   const api = {
-    getState: () => Promise.resolve(publicState()),
+    getState: () => { try { window.__TAURI__?.core?.invoke('log_msg', { msg: 'getState called' }); } catch (_) {} return Promise.resolve(publicState()); },
     getStats: () => Promise.resolve({}),
     patch: (p) => {
       if (p && typeof p === 'object') {
@@ -155,6 +184,7 @@
         const i = list.findIndex(a => a.id === state.dhikrId);
         state.dhikrId = list[(i + 1) % list.length].id;
       }
+      try { window.__TAURI__?.core?.invoke('log_msg', { msg: 'tick → ' + state.count }); } catch (_) {}
       const payload = {
         completed, shown: null,
         state: {
@@ -170,7 +200,11 @@
     },
     addDhikr: (text) => { state.customAzkar = state.customAzkar || []; state.customAzkar.push({ id: 'c' + Date.now(), text }); save(); emit('state', { ...state }); return Promise.resolve(state.customAzkar[state.customAzkar.length-1].id); },
     deleteDhikr: (id) => { state.customAzkar = (state.customAzkar || []).filter(x => x.id !== id); save(); emit('state', { ...state }); return Promise.resolve(); },
-    setHitRects: () => {},
+    setHitRects: (rects) => {
+      try {
+        window.__TAURI__?.core?.invoke('set_hit_rects', { rects: (rects || []).map(r => [r.x, r.y, r.w, r.h]) });
+      } catch (e) { }
+    },
     alive: () => {},
     hold: () => {},
     openSettings: (focus) => { try { window.__TAURI__?.core?.invoke('open_settings', { focus: focus || null }); } catch (_) { window.open('settings.html', 'settings', 'width=980,height=700'); } },
@@ -180,7 +214,7 @@
     getLogoData: () => Promise.resolve(null),
     getBannerData: () => Promise.resolve(null),
     settingsWide: () => {},
-    minimize: () => { try { window.__TAURI__?.core?.invoke('hide_window'); } catch (_) { try { window.__TAURI__?.window?.getCurrentWindow?.()?.minimize?.(); } catch (_) {} } },
+    minimize: () => { try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: true }); } catch (_) {} },
     hideToTray: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.hide?.(); } catch (_) {} },
     quit: () => { try { window.__TAURI__?.core?.invoke('quit_app'); } catch (_) { window.close(); } },
     openContact: () => {},
@@ -194,11 +228,11 @@
     onStats: (cb) => on('stats', cb),
     onStartup: (cb) => on('startup', cb),
     onExitPlay: (cb) => on('exitPlay', cb),
-    onShown: (cb) => on('shown', cb),
+    onShown: (cb) => { try { window.__TAURI__?.core?.invoke('log_msg', { msg: 'onShown registered' }); } catch (_) {} on('shown', cb); },
     onHover: (cb) => on('hover', cb),
     onSettingsFocus: (cb) => on('settingsFocus', cb),
     captureKey: () => {},
-    cancelCaptureKey: () => {},
+    cancelCaptureKey: () => { try { window.__TAURI__?.core?.invoke('cancel_capture'); } catch (_) {} },
     onKeyCaptured: (cb) => on('keyCaptured', cb),
     popupGet: () => { try { return window.__TAURI__?.core?.invoke('popup_get'); } catch (_) { return Promise.resolve(null); } },
     popupFit: () => {},
@@ -252,7 +286,7 @@
       return Promise.resolve();
     },
     testAz: () => {},
-    copyMin: () => {},
+    copyMin: () => { try { navigator.clipboard?.writeText('https://www.alminshawi.com'); } catch (_) {} },
     pickSound: () => Promise.resolve(null),
     previewAlert: () => {},
     onAlerts: (cb) => {},
@@ -303,6 +337,7 @@
   // ── boot ─────────────────────────────────────────────────────────────────
   // onShown: أظهر النافذة (Tauri يظهرها تلقائيًا)
   setTimeout(() => {
+    try { window.__TAURI__?.core?.invoke('log_msg', { msg: 'shim: emit shown' }); } catch (_) {}
     try { emit('shown'); } catch (_) {}
     try { document.body.classList.remove('pre-show'); } catch (_) {}
   }, 300);
@@ -352,6 +387,102 @@
   startReminder();
   const origPatch = api.patch;
   api.patch = (p) => { const r = origPatch(p); if (p && typeof p.reminderEvery === 'number') startReminder(); return r; };
+
+  // ── إرسال الأزرار المخصصة والاختصارات للـ backend (عبر evdev) ───────────
+  const keyObj = k => (k && k.code) ? {
+    code: String(k.code), ctrl: !!k.ctrl, alt: !!k.alt,
+    shift: !!k.shift, meta: !!k.meta, name: k.name || k.code,
+  } : null;
+  const pushKeys = () => {
+    try {
+      const hk = {};
+      for (const a of ['quit', 'mini', 'show', 'settings']) {
+        if (state.hotkeys && state.hotkeys[a]) hk[a] = keyObj(state.hotkeys[a]);
+      }
+      window.__TAURI__?.core?.invoke('set_keys', {
+        custom: state.customKeyOn ? keyObj(state.customKey) : null,
+        hotkeys: hk,
+        space: state.spaceKey !== false,
+      });
+    } catch (_) {}
+  };
+  pushKeys();
+  const origPatch2 = api.patch;
+  api.patch = (p) => {
+    const r = origPatch2(p);
+    if (p && ('customKey' in p || 'customKeyOn' in p || 'customKeyClear' in p || 'hotkeys' in p || 'spaceKey' in p)) {
+      if (p.customKeyClear) { state.customKey = null; state.customKeyOn = false; state.customKeyName = ''; }
+      if (p.customKey) { state.customKey = p.customKey; state.customKeyName = p.customKey.name || p.customKey.code; }
+      if (p.customKeyOn === false) { state.customKeyOn = false; }
+      pushKeys();
+    }
+    return r;
+  };
+
+  // النافذة ظهرت → إعادة إشعار 'shown' + إرسال مناطق التفاعل (click-through)
+  const reportHitRects = () => {
+    try {
+      const rects = [];
+      const sel = '[data-hit], #dial, #dhikr, #mini, #goal, #reset, #sound, #vol, #close, #hide, #grip, #mBar';
+      document.querySelectorAll(sel).forEach(el => {
+        if (!el.offsetParent && el.id !== 'dial' && el.id !== 'dhikr') return;  // عناصر مخفية
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) rects.push({ x: r.left - 2, y: r.top - 2, w: r.width + 4, h: r.height + 4 });
+      });
+      if (rects.length) api.setHitRects(rects);
+    } catch (_) {}
+  };
+  try {
+    window.__TAURI__?.event?.listen('main_shown', () => {
+      try { emit('shown'); } catch (_) {}
+      setTimeout(reportHitRects, 120);
+      setTimeout(reportHitRects, 600);
+    });
+  } catch (_) {}
+  // تحديث دوري لمناطق التفاعل (حركة النافذة/تغيير الحجم)
+  setInterval(reportHitRects, 1000);
+  window.addEventListener('resize', reportHitRects);
+
+  // ── التقاط الزر (من evdev) ─────────────────────────────────────────────
+  try {
+    window.__TAURI__?.event?.listen('key_captured', (ev) => {
+      const d = (ev && ev.payload) || {};
+      const k = { code: d.code, ctrl: !!d.ctrl, alt: !!d.alt, shift: !!d.shift, meta: !!d.meta, name: d.name || d.code };
+      if (d.target === 'custom' || !d.target) {
+        state.customKey = k;
+        state.customKeyOn = true;
+        state.customKeyName = k.name;
+      } else {
+        state.hotkeys = Object.assign({}, state.hotkeys || {});
+        state.hotkeys[d.target] = k;
+      }
+      save();
+      pushKeys();
+      emit('state', publicState());
+      emit('key_captured', { name: k.name });
+    });
+
+    // Space (عالمي)
+    window.__TAURI__?.event?.listen('global_space', () => {
+      if (state.spaceKey === false) return;
+      api.tick();
+    });
+
+    // الزر المخصص (عالمي)
+    window.__TAURI__?.event?.listen('global_custom_key', () => {
+      if (state.customKeyOn === false) return;
+      api.tick();
+    });
+
+    // اختصارات الأوامر (عالمي)
+    window.__TAURI__?.event?.listen('global_hotkey', (ev) => {
+      const a = (ev && ev.payload) || '';
+      if (a === 'quit') { try { window.__TAURI__?.core?.invoke('quit_app'); } catch (_) {} }
+      else if (a === 'mini') { try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: true }); } catch (_) {} }
+      else if (a === 'show') { try { window.__TAURI__?.window?.getCurrentWindow?.()?.show?.(); } catch (_) {} }
+      else if (a === 'settings') { api.openSettings(null); }
+    });
+  } catch (_) {}
 
   console.log('WZAKER Tauri shim loaded');
 })();
