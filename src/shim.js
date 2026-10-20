@@ -49,10 +49,62 @@
 
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} };
 
-  function publicState() { return { ...state }; }
+  // ── الأذكار الافتراضية (زي main.js) ──────────────────────────────────────
+  const DEFAULT_AZKAR = [
+    { id: 'd0', text: 'سبحان الله' },
+    { id: 'd1', text: 'الحمد لله' },
+    { id: 'd2', text: 'الله أكبر' },
+    { id: 'd4', text: 'أستغفر الله' },
+    { id: 'd3', text: 'لا إله إلا الله' },
+    { id: 'd5', text: 'اللهم صلِّ على محمد' },
+  ];
+
+  const allAzkar = () => DEFAULT_AZKAR.concat(
+    (state.customAzkar || []).map(c => ({ id: c.id, text: c.text, custom: true })),
+  );
+
+  const currentDhikr = () => {
+    const list = allAzkar();
+    return list.find(a => a.id === state.dhikrId) || list[0];
+  };
+
+  const todayKey = () => {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  };
+
+  const todayCount = () => {
+    const d = (state.daily || {})[todayKey()] || {};
+    return Object.values(d).reduce((a, b) => (a || 0) + (b || 0), 0);
+  };
+
+  // ── الحالة العامة (زي publicState في main.js) ────────────────────────────
+  const publicState = () => Object.assign({}, state, {
+    count: state.count || 0,
+    total: state.total || 0,
+    target: state.target || 33,
+    dhikrId: state.dhikrId || 'd0',
+    dhikrText: currentDhikr().text,
+    azkar: allAzkar(),
+    autoAdvance: state.autoAdvance !== false,
+    todayN: todayCount(),
+    customKeyName: state.customKey ? state.customKey.name : '',
+    hotkeyNames: {},
+    dialLayout: state.dialLayout || null,
+    popupSaved: state.px !== null && state.px !== undefined,
+    cardsSaved: state.cx !== null && state.cx !== undefined,
+    dndNow: false,
+    azDue: '', azRest: '', wirdDue: '',
+    prayerInfo: null,
+    hook: 'ok', hookErr: '', hookRestarts: 0,
+    appVersion: '3.6.4',
+    upd: state.upd || { status: 'idle', version: '', percent: 0, error: '' },
+    dailyAz: state.dailyAz || { d: '', m: [], e: [], sl: [], wk: [], mq: [], pr: [], wu: [] },
+  });
 
   const api = {
-    getState: () => Promise.resolve({ ...state }),
+    getState: () => Promise.resolve(publicState()),
     getStats: () => Promise.resolve({}),
     patch: (p) => {
       if (p && typeof p === 'object') {
@@ -62,7 +114,7 @@
           try {
             window.__TAURI__?.core?.invoke('check_update').then(u => {
               state.upd = Object.assign(state.upd || {}, u);
-              save(); emit('state', { ...state });
+              save(); emit('state', publicState());
             }).catch(e => { state.upd.status = 'error'; state.upd.error = String(e); save(); emit('state', { ...state }); });
           } catch (e) { state.upd.status = 'error'; save(); emit('state', { ...state }); }
           delete p.updCheck;
@@ -85,7 +137,7 @@
         Object.assign(state, p);
       }
       save();
-      emit('state', { ...state });
+      emit('state', publicState());
       return Promise.resolve();
     },
     tick: () => {
@@ -96,9 +148,21 @@
       state.total = (state.total || 0) + 1;
       if (target && state.count >= target) { state.count = 0; completed = true; }
       save();
-      const payload = { completed, shown: null, state: { count: state.count, total: state.total, target: state.target, dhikrId: state.dhikrId, dhikrText: state.dhikrText || 'سُبْحَانَ اللَّهِ', challenge: false } };
+      if (completed && state.autoAdvance !== false) {
+        // الانتقال للذكر التالي (زي نسخة ويندوز)
+        const list = allAzkar();
+        const i = list.findIndex(a => a.id === state.dhikrId);
+        state.dhikrId = list[(i + 1) % list.length].id;
+      }
+      const payload = {
+        completed, shown: null,
+        state: {
+          count: state.count, total: state.total, target: state.target,
+          dhikrId: state.dhikrId, dhikrText: currentDhikr().text, challenge: false,
+        },
+      };
       emit('tick', payload);
-      emit('state', { ...state });
+      emit('state', publicState());
       // صوت
       try { if (state.sound) { /* click sound handled by frontend? original plays in main */ } } catch (_) {}
       return Promise.resolve();
