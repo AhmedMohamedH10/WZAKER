@@ -30,8 +30,12 @@ install -m755 "$BIN" "$STAGE/usr/lib/wzaker/wzaker"
 cat > "$STAGE/usr/bin/wzaker" <<'EOF'
 #!/bin/sh
 # WZAKER launcher
-# XWayland (X11) عشان التطبيق يقدر يحدّد مكانه (أسفل يمين) + عدّ عجلة الماوس العام
-export GDK_BACKEND="${GDK_BACKEND:-x11}"
+# XWayland (X11) عشان التطبيق يقدر يحدّد مكانه (أسفل يمين) + يمرّر الماوس فوق النافذة
+if [ -n "${DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+else
+  export GDK_BACKEND=wayland
+fi
 export NO_AT_BRIDGE=1
 exec /usr/lib/wzaker/wzaker "$@"
 EOF
@@ -106,7 +110,11 @@ cp "$STAGE/usr/share/icons/hicolor/256x256/apps/wzaker.png" "$WORK/AppDir/usr/sh
 cat > "$WORK/AppDir/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "${0}")")"
-export GDK_BACKEND="${GDK_BACKEND:-x11}"
+if [ -n "${DISPLAY:-}" ]; then
+  export GDK_BACKEND=x11
+else
+  export GDK_BACKEND=wayland
+fi
 export NO_AT_BRIDGE=1
 exec "$HERE/usr/bin/wzaker" "$@"
 EOF
