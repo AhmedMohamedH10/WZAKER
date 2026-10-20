@@ -84,6 +84,7 @@ fn open_settings(app: tauri::AppHandle, focus: Option<String>) {
 /// تصغير/تكبير المسبحة (mini mode) + إعادة تموضعها
 #[tauri::command]
 fn set_window_mode(app: tauri::AppHandle, mini: bool) {
+    *app.state::<AppState>().mini.lock().unwrap() = mini;
     if let Some(w) = app.get_webview_window("main") {
         let (cw, ch) = if mini { CARD_MINI } else { CARD_FULL };
         let _ = w.set_size(LogicalSize::new(cw + GLOW * 2.0, ch + GLOW * 2.0));
@@ -124,6 +125,132 @@ fn hide_window(app: tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.hide();
     }
+}
+
+/// مناطق التفاعل (من الواجهة) — لتفعيل الـ click-through
+#[tauri::command]
+fn set_hit_rects(app: tauri::AppHandle, rects: Vec<Vec<f64>>) {
+    let st = app.state::<AppState>();
+    let v: Vec<(f64, f64, f64, f64)> = rects
+        .into_iter()
+        .filter(|r| r.len() == 4 && r.iter().all(|x| x.is_finite()))
+        .take(64)
+        .map(|r| (r[0], r[1], r[2], r[3]))
+        .collect();
+    *st.hit.lock().unwrap() = v;
+}
+
+/// ضغط مطوّل (سحب/سلايدر) — يوقف الـ click-through
+#[tauri::command]
+fn set_hold(app: tauri::AppHandle, on: bool) {
+    *app.state::<AppState>().hold.lock().unwrap() = on;
+}
+
+/// نافذة الإشعار المنبثق (آية التذكير / بطاقات التحدي)
+#[tauri::command]
+fn popup_show(app: tauri::AppHandle, kind: String, payload: String) {
+    let st = app.state::<AppState>();
+    let mut data = serde_json::json!({ "kind": kind });
+    if let Ok(p) = serde_json::from_str::<serde_json::Value>(&payload) {
+        data = p;
+    }
+    *st.popup.lock().unwrap() = Some(data);
+
+    // 위치 النافذة: فوق المسبحة (أسفل يمين الشاشة)
+    let mut pos: Option<(i32, i32)> = None;
+    if let Some(main) = app.get_webview_window("main") {
+        if let (Ok(p), Ok(s)) = (main.outer_position(), main.outer_size()) {
+            let scale = main.scale_factor().unwrap_or(1.0);
+            pos = Some((
+                p.x + s.width as i32 - 340,
+                p.y - 220,
+            ));
+            let _ = scale;
+        }
+    }
+
+    if let Some(old) = app.get_webview_window("popup") {
+        let _ = old.close();
+    }
+    let mut builder = WebviewWindowBuilder::new(&app, "popup", WebviewUrl::App(std::path::PathBuf::from("popup.html")))
+        .inner_size(320.0, 200.0)
+        .decorations(false)
+        .transparent(true)
+        .always_on_top(true)
+        .resizable(false)
+        .visible(true);
+    if let Some((x, y)) = pos {
+        builder = builder.position(x as f64, y as f64);
+    }
+    let _ = builder.build();
+}
+
+#[tauri::command]
+fn popup_get(app: tauri::AppHandle) -> Option<serde_json::Value> {
+    app.state::<AppState>().popup.lock().unwrap().clone()
+}
+
+#[tauri::command]
+fn popup_close(app: tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("popup") {
+        let _ = w.close();
+    }
+    *app.state::<AppState>().popup.lock().unwrap() = None;
+}
+
+#[tauri::command]
+fn popup_pick(app: tauri::AppHandle, index: i32) {
+    if let Some(w) = app.get_webview_window("popup") {
+        let _ = w.close();
+    }
+    *app.state::<AppState>().popup.lock().unwrap() = None;
+    let _ = index;
+}
+
+/// النسخ الاحتياطي: حفظ / عرض / استرجاع
+fn backup_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join("Documents")
+        .join("WZAKER-backups")
+}
+
+#[tauri::command]
+fn backup_export(app: tauri::AppHandle, data: String) -> Result<String, String> {
+    let dir = backup_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let name = format!("wzaker-backup-{}.json", chrono_like_stamp());
+    let path = dir.join(name);
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+fn chrono_like_stamp() -> String {
+    let d = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!("{}", d)
+}
+
+#[tauri::command]
+fn backup_list() -> Vec<String> {
+    let dir = backup_dir();
+    let mut v: Vec<String> = std::fs::read_dir(&dir)
+        .map(|rd| {
+            rd.filter_map(|e| e.ok())
+                .map(|e| e.path().to_string_lossy().to_string())
+                .filter(|p| p.ends_with(".json"))
+                .collect()
+        })
+        .unwrap_or_default();
+    v.sort();
+    v.reverse();
+    v
+}
+
+#[tauri::command]
+fn backup_import(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -168,6 +295,10 @@ fn place_bottom_right(w: &WebviewWindow) {
 
 pub struct AppState {
     pub upd: Mutex<UpdateInfo>,
+    pub hit: Mutex<Vec<(f64, f64, f64, f64)>>,   // مناطق التفاعل (click-through)
+    pub hold: Mutex<bool>,                        // ضغط مطوّل (سحب/سلايدر)
+    pub mini: Mutex<bool>,
+    pub popup: Mutex<Option<serde_json::Value>>,  // بيانات نافذة الإشعار
 }
 
 #[tauri::command]
@@ -205,7 +336,13 @@ fn install_update(state: tauri::State<'_, AppState>) {
 
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppState { upd: Mutex::new(UpdateInfo::default()) })
+        .manage(AppState {
+            upd: Mutex::new(UpdateInfo::default()),
+            hit: Mutex::new(Vec::new()),
+            hold: Mutex::new(false),
+            mini: Mutex::new(false),
+            popup: Mutex::new(None),
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
@@ -227,7 +364,9 @@ pub fn run() {
             }
             let _ = shortcut;
         }).build())
-        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window])
+        .invoke_handler(tauri::generate_handler![quit_app, open_url, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window,
+    set_hit_rects, set_hold, popup_show, popup_get, popup_close, popup_pick,
+    backup_export, backup_list, backup_import])
         .setup(|app| {
             // Tray icon
             // Global shortcut Ctrl+Alt+W
@@ -261,6 +400,32 @@ pub fn run() {
 
             // Global scroll (X11/XWayland via rdev)
             start_global_scroll(app.handle());
+
+            // click-through: الماوس بيعدّي فوق النافذة إلا فوق العناصر التفاعلية
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_millis(40));
+                    let st = handle.state::<AppState>();
+                    let rects = st.hit.lock().unwrap().clone();
+                    let holding = *st.hold.lock().unwrap();
+                    let mini = *st.mini.lock().unwrap();
+                    let Some(w) = handle.get_webview_window("main") else { continue };
+                    let interactive = if mini || holding || rects.is_empty() {
+                        true
+                    } else {
+                        match (w.cursor_position(), w.scale_factor()) {
+                            (Ok(p), Ok(sc)) => {
+                                let x = p.x as f64 / sc;
+                                let y = p.y as f64 / sc;
+                                rects.iter().any(|r| x >= r.0 && x <= r.0 + r.2 && y >= r.1 && y <= r.1 + r.3)
+                            }
+                            _ => true,
+                        }
+                    };
+                    let _ = w.set_ignore_cursor_events(!interactive);
+                }
+            });
 
             // شاشة اللوجو عند البدء (splash.html) — بتقفل نفسها لما تخلص
             if let Ok(sp) = WebviewWindowBuilder::new(app, "splash", WebviewUrl::App(std::path::PathBuf::from("splash.html")))

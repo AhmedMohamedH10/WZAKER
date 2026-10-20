@@ -96,11 +96,12 @@
     cardsSaved: state.cx !== null && state.cx !== undefined,
     dndNow: false,
     azDue: '', azRest: '', wirdDue: '',
-    prayerInfo: null,
+    prayerInfo: (window.prayerInfoFor ? window.prayerInfoFor(state) : null),
     hook: 'ok', hookErr: '', hookRestarts: 0,
     appVersion: '3.6.4',
     upd: state.upd || { status: 'idle', version: '', percent: 0, error: '' },
     dailyAz: state.dailyAz || { d: '', m: [], e: [], sl: [], wk: [], mq: [], pr: [], wu: [] },
+    khatma: state.khatma || { bits: '', start: '', days: 30, count: 0, today: { d: '', n: 0 } },
   });
 
   const api = {
@@ -199,10 +200,10 @@
     captureKey: () => {},
     cancelCaptureKey: () => {},
     onKeyCaptured: (cb) => on('keyCaptured', cb),
-    popupGet: () => Promise.resolve(null),
+    popupGet: () => { try { return window.__TAURI__?.core?.invoke('popup_get'); } catch (_) { return Promise.resolve(null); } },
     popupFit: () => {},
     popupPick: () => {},
-    popupClose: () => {},
+    popupClose: () => { try { window.__TAURI__?.core?.invoke('popup_close'); } catch (_) {} },
     popupDragStart: () => {},
     popupDragMove: () => {},
     popupDragEnd: () => {},
@@ -227,18 +228,47 @@
 
   // ── wzx (تنبيهات مخصصة) ────────────────────────────────────────────────
   window.wzx = {
-    getAlerts: () => Promise.resolve([]),
-    saveAlert: () => Promise.resolve(),
-    deleteAlert: () => Promise.resolve(),
-    toggleAlert: () => Promise.resolve(),
+    getAlerts: () => Promise.resolve(state.customAlerts || []),
+    saveAlert: (draft) => {
+      const list = state.customAlerts || [];
+      const d = draft || {};
+      if (d.id) {
+        const i = list.findIndex(a => a.id === d.id);
+        if (i >= 0) list[i] = Object.assign(list[i], d);
+      } else {
+        list.push(Object.assign({ id: 'c' + Date.now(), enabled: true, sound: null }, d));
+      }
+      state.customAlerts = list; save(); emit('state', publicState());
+      return Promise.resolve(list);
+    },
+    deleteAlert: (id) => {
+      state.customAlerts = (state.customAlerts || []).filter(a => a.id !== id);
+      save(); emit('state', publicState());
+      return Promise.resolve();
+    },
+    toggleAlert: (id, on) => {
+      state.customAlerts = (state.customAlerts || []).map(a => a.id === id ? Object.assign({}, a, { enabled: !!on }) : a);
+      save(); emit('state', publicState());
+      return Promise.resolve();
+    },
     testAz: () => {},
     copyMin: () => {},
     pickSound: () => Promise.resolve(null),
     previewAlert: () => {},
     onAlerts: (cb) => {},
-    backupList: () => Promise.resolve([]),
-    backupExport: () => Promise.resolve(''),
-    backupImport: () => Promise.resolve(),
+    backupList: () => { try { return window.__TAURI__?.core?.invoke('backup_list'); } catch (_) { return Promise.resolve([]); } },
+    backupExport: () => { try { return window.__TAURI__?.core?.invoke('backup_export', { data: JSON.stringify(state) }); } catch (_) { return Promise.resolve(''); } },
+    backupImport: (path) => {
+      try {
+        return window.__TAURI__?.core?.invoke('backup_import', { path }).then(txt => {
+          try {
+            const o = JSON.parse(txt);
+            if (o && typeof o === 'object') { Object.assign(state, o); save(); emit('state', publicState()); }
+          } catch (_) {}
+          return true;
+        });
+      } catch (_) { return Promise.resolve(); }
+    },
     backupNow: () => Promise.resolve(),
     backupPath: () => Promise.resolve(''),
     backupOpenDir: () => {},
@@ -250,8 +280,8 @@
     backupImportCancel: () => {},
     backupQuran: () => {},
     takePendingQuran: () => {},
-    khatmaPage: () => {},
-    khatmaNew: () => {},
+    khatmaPage: (p) => { const k = state.khatma || (state.khatma = { bits: '', start: '', days: 30, count: 0, today: { d: '', n: 0 } }); k.last = p; save(); return Promise.resolve(p); },
+    khatmaNew: (d) => { state.khatma = { bits: '', start: '', days: Number(d) || 30, count: 0, today: { d: '', n: 0 } }; save(); emit('state', publicState()); return Promise.resolve(); },
   };
 
   // ── Backup / Restore ─────────────────────────────────────────────────────
@@ -303,6 +333,25 @@
       api.tick();
     });
   } catch (_) {}
+
+  // ── تذكير الأذكار المنبثق (كل state.reminderEvery ثانية) ─────────────────
+  let reminderTimer = null;
+  const startReminder = () => {
+    if (reminderTimer) clearInterval(reminderTimer);
+    const every = Math.max(60, Number(state.reminderEvery) || 1800);
+    reminderTimer = setInterval(() => {
+      if (!state.reminderOn) return;
+      try {
+        window.__TAURI__?.core?.invoke('popup_show', {
+          kind: 'verse',
+          payload: JSON.stringify({ kind: 'verse', verse: 'أذكار الصباح', capSec: 120 }),
+        });
+      } catch (_) {}
+    }, every * 1000);
+  };
+  startReminder();
+  const origPatch = api.patch;
+  api.patch = (p) => { const r = origPatch(p); if (p && typeof p.reminderEvery === 'number') startReminder(); return r; };
 
   console.log('WZAKER Tauri shim loaded');
 })();
