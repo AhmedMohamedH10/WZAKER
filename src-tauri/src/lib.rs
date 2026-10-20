@@ -57,6 +57,7 @@ fn splash_done(app: tauri::AppHandle) {
     if let Some(m) = app.get_webview_window("main") {
         let _ = m.show();
         let _ = m.set_focus();
+        place_bottom_right(&m);
     }
 }
 
@@ -280,17 +281,25 @@ fn start_global_scroll(app: &tauri::AppHandle) {
 
 /// وضع النافذة في أسفل يمين الشاشة (زي نسخة ويندوز)
 fn place_bottom_right(w: &WebviewWindow) {
-    if let Ok(Some(monitor)) = w.current_monitor() {
-        let scale = monitor.scale_factor();
-        let size = w.outer_size().unwrap_or(tauri::PhysicalSize::new(0, 0));
-        let m = monitor.size();
-        let x = (m.width as f64) / scale - (size.width as f64) / scale - EDGE;
-        let y = (m.height as f64) / scale - (size.height as f64) / scale - EDGE;
-        let _ = w.set_position(PhysicalPosition::new(
-            (x.max(0.0) * scale) as i32,
-            (y.max(0.0) * scale) as i32,
-        ));
-    }
+    let monitor = w
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| w.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else { return };
+    let scale = monitor.scale_factor();
+    let size = w.outer_size().unwrap_or(tauri::PhysicalSize::new(0, 0));
+    let m = monitor.size();
+    let mp = monitor.position();
+    let wpx = (size.width as f64) / scale;
+    let hpx = (size.height as f64) / scale;
+    let x = (m.width as f64) / scale - wpx - EDGE + (mp.x as f64) / scale;
+    let y = (m.height as f64) / scale - hpx - EDGE + (mp.y as f64) / scale;
+    let _ = w.set_position(PhysicalPosition::new(
+        (x.max(0.0) * scale) as i32,
+        (y.max(0.0) * scale) as i32,
+    ));
+    eprintln!("[wzaker] placed at {}x{}", x as i32, y as i32);
 }
 
 pub struct AppState {
@@ -439,9 +448,19 @@ pub fn run() {
             {
                 let _ = sp.center();   // شاشة اللوجو في نص الشاشة (زي نسخة ويندوز)
             }
-            // المسبحة: أسفل يمين الشاشة
-            if let Some(mw) = app.get_webview_window("main") {
-                place_bottom_right(&mw);
+            // المسبحة: أسفل يمين الشاشة (بعد ما النافذة تاخد مقاسها النهائي)
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    for _ in 0..40 {
+                        std::thread::sleep(std::time::Duration::from_millis(150));
+                        if let Some(mw) = handle.get_webview_window("main") {
+                            if mw.outer_size().map(|s| s.width > 0).unwrap_or(false) {
+                                place_bottom_right(&mw);
+                            }
+                        }
+                    }
+                });
             }
             // شبكة أمان: لو اللوجو ما قفلتش بنفسها
             let handle = app.handle().clone();

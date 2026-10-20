@@ -2,7 +2,12 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default permissions for WZAKER",
-  "windows": ["main"],
+  "windows": [
+    "main",
+    "settings",
+    "popup",
+    "splash"
+  ],
   "permissions": [
     "core:default",
     "shell:default",
