@@ -108,6 +108,44 @@ if [ "$TYPE" = "gentoo" ] || [ "$TYPE" = "nix" ] || [ "$TYPE" = "solus" ]; then
   exit 0
 fi
 
+# ── نسخ احتياطي للبيانات + إزالة النسخة القديمة (بهدوء) ─────────────────────
+# السكربت بيتشغّل بـ sudo، فبنستخدم بيت المستخدم الحقيقي (مش root)
+USER_HOME="$HOME"
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+  USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+  [ -z "$USER_HOME" ] && USER_HOME="$HOME"
+fi
+BACKUP_ROOT="$USER_HOME/Documents/WZAKER-backups"
+DATA_DIRS=(
+  "$USER_HOME/.local/share/io.github.ahmedmohamedh10.wzaker"
+  "$USER_HOME/.config/WZAKER"
+  "$USER_HOME/.cache/io.github.ahmedmohamedh10.wzaker"
+)
+STAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="$BACKUP_ROOT/pre-install-$STAMP"
+HAS_DATA=0
+for d in "${DATA_DIRS[@]}"; do
+  [ -d "$d" ] && HAS_DATA=1
+done
+if [ "$HAS_DATA" = "1" ]; then
+  mkdir -p "$BACKUP_DIR" 2>/dev/null || { BACKUP_DIR="$USER_HOME/.wzaker-backups/pre-install-$STAMP"; mkdir -p "$BACKUP_DIR" 2>/dev/null; }
+  for d in "${DATA_DIRS[@]}"; do
+    [ -d "$d" ] && cp -a "$d" "$BACKUP_DIR/" 2>/dev/null
+  done
+  log "تم حفظ نسخة احتياطية من بياناتك في: $BACKUP_DIR"
+fi
+
+# إزالة النسخة القديمة إن وجدت (بهدوء، من غير سؤال)
+if command -v dpkg >/dev/null 2>&1 && dpkg -s wzaker >/dev/null 2>&1; then
+  dpkg --purge wzaker >/dev/null 2>&1
+elif command -v rpm >/dev/null 2>&1 && rpm -q wzaker >/dev/null 2>&1; then
+  rpm -e wzaker >/dev/null 2>&1
+elif command -v pacman >/dev/null 2>&1 && pacman -Qi wzaker >/dev/null 2>&1; then
+  pacman -Rns --noconfirm wzaker >/dev/null 2>&1
+elif command -v apk >/dev/null 2>&1 && apk info -e wzaker >/dev/null 2>&1; then
+  apk del wzaker >/dev/null 2>&1
+fi
+
 # ── التنزيل ────────────────────────────────────────────────────────────────
 log "تنزيل $FILE ..."
 if command -v curl >/dev/null 2>&1; then
@@ -203,5 +241,6 @@ EOF
 esac
 
 log "تم التثبيت بنجاح ✅"
+[ -n "$BACKUP_DIR" ] && log "نسخة بياناتك القديمة: $BACKUP_DIR"
 log "شغّل التطبيق بالأمر:  wzaker"
 exit 0

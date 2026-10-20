@@ -30,6 +30,8 @@ install -m755 "$BIN" "$STAGE/usr/lib/wzaker/wzaker"
 cat > "$STAGE/usr/bin/wzaker" <<'EOF'
 #!/bin/sh
 # WZAKER launcher
+# XWayland (X11) عشان التطبيق يقدر يحدّد مكانه (أسفل يمين) + عدّ عجلة الماوس العام
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
 export NO_AT_BRIDGE=1
 exec /usr/lib/wzaker/wzaker "$@"
 EOF
@@ -40,7 +42,6 @@ cat > "$STAGE/usr/share/applications/wzaker.desktop" <<'EOF'
 Type=Application
 Version=1.0
 Name=ذكر
-Name[en]=WZAKER
 GenericName=سبحة وأذكار
 Comment=سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
 Comment[en]=Tasbih, azkar, Quran and prayer times
@@ -104,11 +105,17 @@ cp "$STAGE/usr/share/icons/hicolor/256x256/apps/wzaker.png" "$WORK/AppDir/usr/sh
 cat > "$WORK/AppDir/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "${0}")")"
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
 export NO_AT_BRIDGE=1
 exec "$HERE/usr/bin/wzaker" "$@"
 EOF
 chmod +x "$WORK/AppDir/AppRun"
 (cd "$WORK" && "$APPIMAGETOOL" --sign AppDir "$DIST/WZAKER-${VER}-linux-x86_64.AppImage" 2>&1 | grep -iE "signing|Success" | head -2)
+
+# نسخ المثبّت
+cp "$ROOT/scripts/linux-installer.sh" "$DIST/linux-installer.sh"
+cp "$ROOT/scripts/wzaker-signing-key.asc" "$DIST/wzaker-signing-key.asc"
+chmod +x "$DIST/linux-installer.sh"
 
 echo "▶ 4/5 توقيع الحزم (GPG)"
 python3 "$ROOT/scripts/rpm-sign.py" "$DIST/WZAKER-${VER}-linux-x86_64.rpm" "$KEY_ID" | tail -1
