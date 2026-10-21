@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=WZAKER
+Name[ar]=ذكر
+GenericName=Tasbih Counter
+GenericName[ar]=سبحة إلكترونية
+Comment=Electronic tasbih, adhkar, Quran and prayer times
+Comment[ar]=سبحة إلكترونية وأذكار وقرآن وأوقات صلاة
+Exec=wzaker
+Icon=io.github.mohamed_zaitoon.wzaker
+Terminal=false
+Categories=Utility;
+Keywords=tasbih;dhikr;zikr;quran;prayer;islamic;
+Keywords[ar]=تسبيح;ذكر;أذكار;قرآن;صلاة;
+StartupNotify=true
+StartupWMClass=wzaker

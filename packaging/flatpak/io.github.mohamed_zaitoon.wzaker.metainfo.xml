@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.mohamed_zaitoon.wzaker</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>WZAKER</name>
+  <name xml:lang="ar">وذكر</name>
+  <summary>Electronic tasbih, adhkar, Quran and prayer times</summary>
+  <summary xml:lang="ar">سبحة إلكترونية وأذكار وقرآن وأوقات صلاة</summary>
+
+  <developer id="io.github.mohamed_zaitoon">
+    <name>Mohamed Zaitoon</name>
+  </developer>
+
+  <description>
+    <p>
+      WZAKER is a small always-on-top tasbih (dhikr counter) for the Linux desktop.
+      It stays in the corner of the screen and counts while you use any other
+      application: scroll the mouse wheel, click the beads or press the space bar.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Counts mouse-wheel and click events globally, without stealing focus from the app you are using</li>
+      <li>Adhkar library, Quran reader with tafsir, and prayer times</li>
+      <li>Daily target, statistics, streak and custom adhkar</li>
+      <li>Mini mode, adjustable opacity, custom keyboard shortcuts</li>
+      <li>Save an ayah as an image to your Pictures folder</li>
+    </ul>
+    <p xml:lang="ar">
+      وذكر تطبيق سبحة إلكترونية صغير يبقى دائمًا فوق النوافذ في زاوية الشاشة،
+      ويعدّ التسبيح أثناء استخدامك أي برنامج آخر: بعجلة الماوس أو بالنقر على
+      الحبات أو بمفتاح المسافة.
+    </p>
+    <p xml:lang="ar">المزايا:</p>
+    <ul>
+      <li xml:lang="ar">عدّ عجلة الماوس والنقر من أي تطبيق دون سرقة التركيز</li>
+      <li xml:lang="ar">مكتبة أذكار، وقارئ قرآن مع التفسير، ومواقيت الصلاة</li>
+      <li xml:lang="ar">هدف يومي وإحصائيات وسلسلة أيام وأذكار مخصصة</li>
+      <li xml:lang="ar">وضع مصغّر وشفافية قابلة للضبط واختصارات لوحة مفاتيح</li>
+      <li xml:lang="ar">حفظ الآية كصورة في مجلد الصور</li>
+    </ul>
+    <p>
+      This is the Linux port of the original Windows application by
+      AhmedMohamedH10, rebuilt with Tauri and Rust.
+    </p>
+    <p xml:lang="ar">
+      هذه نسخة لينكس من تطبيق ويندوز الأصلي لأحمد محمد (AhmedMohamedH10)،
+      أُعيد بناؤها بـ Tauri و Rust.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.mohamed_zaitoon.wzaker.desktop</launchable>
+
+  <url type="homepage">https://github.com/mohamed-zaitoon/WZAKER</url>
+  <url type="bugtracker">https://github.com/mohamed-zaitoon/WZAKER/issues</url>
+  <url type="vcs-browser">https://github.com/mohamed-zaitoon/WZAKER</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Tasbih counter staying on top of other windows</caption>
+      <caption xml:lang="ar">السبحة تبقى فوق باقي النوافذ</caption>
+      <image type="source" width="1280" height="720">https://raw.githubusercontent.com/mohamed-zaitoon/WZAKER/main/packaging/flatpak/screenshot-1.png</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="3.6.4" date="2026-10-21">
+      <description>
+        <p>First Flathub release of the Linux port.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+
+  <categories>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>tasbih</keyword>
+    <keyword>dhikr</keyword>
+    <keyword>zikr</keyword>
+    <keyword>quran</keyword>
+    <keyword>prayer</keyword>
+    <keyword xml:lang="ar">تسبيح</keyword>
+    <keyword xml:lang="ar">ذكر</keyword>
+    <keyword xml:lang="ar">أذكار</keyword>
+    <keyword xml:lang="ar">قرآن</keyword>
+    <keyword xml:lang="ar">صلاة</keyword>
+  </keywords>
+</component>

@@ -35,3 +35,8 @@ src-tauri/keys/updater.key
 
 # Snap
 *.snap
+
+# Flatpak build artifacts
+packaging/flatpak/build-dir/
+packaging/flatpak/.flatpak-builder/
+*.flatpak
