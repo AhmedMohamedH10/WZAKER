@@ -4,7 +4,6 @@ src-tauri/target/
 node_modules/
 dist/
 dist-*/
-build/
 *.AppImage
 *.deb
 *.rpm
@@ -14,14 +13,23 @@ build/
 *.pet
 *.tar
 *.zip
+*.snap
+
 # IDE
 .idea/
 .vscode/
+.claude/
 *.swp
+
+# Logs / temp
 *.log
 *.tmp
 *.bak
 *.orig
+.DS_Store
+Thumbs.db
+
+# Secrets
 .env
 .env.*
 *.key
@@ -32,6 +40,3 @@ build/
 
 # Tauri updater signing private key
 src-tauri/keys/updater.key
-
-# Snap
-*.snap
