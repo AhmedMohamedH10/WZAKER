@@ -35,6 +35,7 @@ jobs:
           sudo snap install rustup --classic || true
           sudo snap install gtk-common-themes || true
           sudo snap install gnome-42-2204 || true
+          sudo snap install gnome-42-2204-sdk || true
           snap list | tail -8
 
       - name: البناء
