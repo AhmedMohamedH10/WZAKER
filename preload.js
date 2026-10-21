@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('azkar', {
   onStartup: cb => on('startup:play', cb),
   onExitPlay: cb => on('exit:play', cb),
   onShown: cb => on('overlay:shown', cb),
+  onMiniMorph: cb => on('mini:morph', cb),            // بدء تحوّل المسبحة ⇄ Mini ('out' = للمصغّرة | 'in' = للكبيرة)
+  onMiniBlank: cb => on('mini:blank', cb),
+  onMiniApplied: cb => on('mini:applied', cb),
+  miniReady: () => ipcRenderer.send('mini:ready'),
   onHover: cb => on('hover', cb),                               // الماوس فوق نافذة المسبحة أو لأ (الشفافية عند عدم الاستخدام)
   onSettingsFocus: cb => on('settings:focus', cb),
   captureKey: target => ipcRenderer.send('key:capture', target),             // تسجيل زر/اختصار مخصص للتسبيح
@@ -48,12 +52,14 @@ contextBridge.exposeInMainWorld('azkar', {
   onKeyCaptured: cb => on('key:captured', cb),
   // الإشعارات المنبثقة (آية التذكير + بطاقات التحدي)
   popupGet: () => ipcRenderer.invoke('popup:get'),
-  popupFit: h => ipcRenderer.send('popup:fit', h),               // الإشعار بيبلّغ بارتفاعه الحقيقي
+  popupFit: (h, w, nh, nw) => ipcRenderer.send('popup:fit', h, w, nh, nw),               // الإشعار بيبلّغ بارتفاعه الحقيقي
   popupPick: i => ipcRenderer.send('popup:pick', i),             // اختيار بطاقة (0..2)
   popupClose: () => ipcRenderer.send('popup:close'),
   popupDragStart: () => ipcRenderer.send('popup:dragstart'),                // سحب الإشعار
   popupDragMove: () => ipcRenderer.send('popup:dragmove'),
   popupDragEnd: () => ipcRenderer.send('popup:dragend'),
+  onPopupLock: cb => on('popup:lock', cb),                                   // عرض الإشعار لما يتلزق في المسبحة (0 = رجوع للعرض الطبيعي)
+  onPopupEdges: cb => on('popup:edges', cb),                                 // الحواف اللي الإشعار لازق فيها (l/r/t/b)
   onPopupScale: cb => on('popup:scale', cb),                                 // حجم الإشعار (من الإعدادات)
   popupTest: kind => ipcRenderer.send('popup:test', kind),       // معاينة من الإعدادات: 'verse' | 'cards'
   onPopupReveal: cb => on('popup:reveal', cb),

@@ -2,3 +2,9 @@ node_modules/
 dist/
 dist-*/
 *.log
+*.zip
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
