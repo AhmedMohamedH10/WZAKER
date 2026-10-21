@@ -77,13 +77,24 @@ snapcraft whoami         # اتأكد اسم الناشر
 
 <div dir="rtl">
 
-### ج) ارفع النسخة الأولى
+### ج) سجّل الاسم (مرة واحدة) ثم ارفع
 
 </div>
 
 ```bash
+snapcraft register wzaker --yes      # مرة واحدة بس — بيسجّل الاسم باسمك
 cd packaging/snap
-snapcraft upload --release "3.6.4" wzaker_3.6.4_amd64.snap
+snapcraft upload wzaker_3.6.4_amd64.snap
+```
+
+<div dir="rtl">
+
+⚠️ `--release` في أمر `upload` مش رقم النسخة — ده اسم الـ channel. بعد ما المتجر يوافق على المراجعة:
+
+</div>
+
+```bash
+snapcraft release wzaker 1 stable
 ```
 
 <div dir="rtl">

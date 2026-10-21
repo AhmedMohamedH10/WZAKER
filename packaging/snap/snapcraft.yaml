@@ -20,6 +20,7 @@ grade: stable
 confinement: strict
 license: MIT
 compression: lzo
+icon: usr/share/icons/hicolor/256x256/apps/wzaker.png
 
 platforms:
   amd64:
