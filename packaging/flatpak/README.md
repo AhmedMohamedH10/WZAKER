@@ -47,8 +47,12 @@ flatpak run io.github.mohamed_zaitoon.wzaker
 
 ```bash
 cd packaging/flatpak
+curl -LO https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
 python3 flatpak-cargo-generator.py ../../src-tauri/Cargo.lock -o cargo-sources.json
 ```
+
+> الـ manifest يسحب كل الملفات (الشيفرة + الأيقونة + ملف `.desktop` + بيانات AppStream + سكربت التشغيل)
+> من أرشيف الوسم `v3.6.4-linux2`، فلا توجد ملفات محلية داخل مستودع Flathub سوى الـ manifest و`cargo-sources.json`.
 
 <div dir="rtl">
 
@@ -83,16 +87,55 @@ sudo usermod -aG input "$USER"   # ثم أعد تسجيل الدخول
 
 ## النشر على Flathub
 
-1. أنشئ fork لمستودع `flathub/flathub` وافرع منه فرعًا جديدًا.
-2. انسخ إلى جذر الفرع:
-   - `io.github.mohamed_zaitoon.wzaker.yml` (الـ manifest)
-   - `cargo-sources.json`
-   - `shared-modules` كـ git submodule:
-     ```bash
-     git submodule add https://github.com/flathub/shared-modules
-     ```
-3. افتح Pull Request بعنوان `Add io.github.mohamed_zaitoon.wzaker`.
-4. بعد الموافقة يُبنى التطبيق ويظهر في المتجر خلال ساعات.
+</div>
+
+```bash
+# 1) اعمل fork لـ flathub/flathub ثم:
+git clone git@github.com:mohamed-zaitoon/flathub.git
+cd flathub
+git checkout -b add-wzaker origin/new-pr
+
+# 2) انسخ الـ manifest وملف مصادر Cargo إلى جذر المستودع
+cp ~/Projects/WZAKER/packaging/flatpak/io.github.mohamed_zaitoon.wzaker.yaml \
+   ./io.github.mohamed_zaitoon.wzaker.yml
+cp ~/Projects/WZAKER/packaging/flatpak/cargo-sources.json ./
+
+# 3) أضف shared-modules (فيه مكتبة أيقونة الـ tray)
+git submodule add https://github.com/flathub/shared-modules
+
+# 4) ارفع وافتح Pull Request نحو فرع new-pr
+git add -A
+git commit -m "Add io.github.mohamed_zaitoon.wzaker"
+git push origin add-wzaker
+```
+
+<div dir="rtl">
+
+### نص مقترح لوصف الـ Pull Request
+
+</div>
+
+```text
+This PR adds WZAKER (وذكر), a tasbih / dhikr counter, to Flathub.
+
+Upstream: https://github.com/mohamed-zaitoon/WZAKER
+Linux port of https://github.com/AhmedMohamedH10/WZAKER (MIT, original author
+credited in LICENSE and in the AppStream description).
+
+Notes for reviewers:
+- --socket=x11: the always-on-top widget sets an X11 SHAPE input region so that
+  mouse clicks pass through everything except the beads, and it positions itself
+  in the screen corner. Neither is possible with the Wayland protocol, so the
+  launcher forces GDK_BACKEND=x11 (XWayland).
+- --device=all: the app counts mouse-wheel events coming from any application by
+  reading /dev/input/event* (evdev). Access is still gated by device permissions;
+  users need the input group or a udev rule (documented in the README). This is
+  the core feature of the app.
+- --filesystem=xdg-pictures: "save ayah as image" writes to ~/Pictures/WZAKER.
+- Autostart is not available inside the sandbox (documented in the README).
+```
+
+<div dir="rtl">
 
 ### شروط القبول
 
@@ -109,7 +152,10 @@ sudo usermod -aG input "$USER"   # ثم أعد تسجيل الدخول
 </div>
 
 ```bash
-pip install flatpak-builder-lint
+# أداة فحص Flathub (تحتاج PyGObject من النظام)
+pip install --user flatpak-builder-lint
 flatpak-builder-lint manifest packaging/flatpak/io.github.mohamed_zaitoon.wzaker.yaml
 flatpak-builder-lint appstream packaging/flatpak/io.github.mohamed_zaitoon.wzaker.metainfo.xml
+appstreamcli validate --no-net packaging/flatpak/io.github.mohamed_zaitoon.wzaker.metainfo.xml
+desktop-file-validate packaging/flatpak/io.github.mohamed_zaitoon.wzaker.desktop
 ```

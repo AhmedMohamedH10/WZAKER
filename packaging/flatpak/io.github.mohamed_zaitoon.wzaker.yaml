@@ -50,22 +50,14 @@ modules:
     build-commands:
       - cd wzaker-src/src-tauri && cargo build --release --offline --locked
       - install -Dm755 wzaker-src/src-tauri/target/release/wzaker ${FLATPAK_DEST}/bin/wzaker-bin
-      - install -Dm755 wzaker.sh ${FLATPAK_DEST}/bin/wzaker
-      - install -Dm644 io.github.mohamed_zaitoon.wzaker.desktop ${FLATPAK_DEST}/share/applications/io.github.mohamed_zaitoon.wzaker.desktop
-      - install -Dm644 io.github.mohamed_zaitoon.wzaker.metainfo.xml ${FLATPAK_DEST}/share/metainfo/io.github.mohamed_zaitoon.wzaker.metainfo.xml
-      - install -Dm644 io.github.mohamed_zaitoon.wzaker.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/io.github.mohamed_zaitoon.wzaker.png
+      - install -Dm755 wzaker-src/packaging/flatpak/wzaker.sh ${FLATPAK_DEST}/bin/wzaker
+      - install -Dm644 wzaker-src/packaging/flatpak/io.github.mohamed_zaitoon.wzaker.desktop ${FLATPAK_DEST}/share/applications/io.github.mohamed_zaitoon.wzaker.desktop
+      - install -Dm644 wzaker-src/packaging/flatpak/io.github.mohamed_zaitoon.wzaker.metainfo.xml ${FLATPAK_DEST}/share/metainfo/io.github.mohamed_zaitoon.wzaker.metainfo.xml
+      - install -Dm644 wzaker-src/packaging/flatpak/io.github.mohamed_zaitoon.wzaker.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/io.github.mohamed_zaitoon.wzaker.png
     sources:
       - type: archive
-        url: https://github.com/mohamed-zaitoon/WZAKER/archive/refs/tags/v3.6.4-linux.tar.gz
-        sha256: 64ae9cd13273a062699c97307f36b509467bb1074c5b05da4ff1684f2bbbbd20
+        url: https://github.com/mohamed-zaitoon/WZAKER/archive/refs/tags/v3.6.4-linux2.tar.gz
+        sha256: 1c8bcb72602c4123b7b91f8c198ad49fd42ce252364a2633ca05f6a841a837d8
         strip-components: 1
         dest: wzaker-src
       - cargo-sources.json
-      - type: file
-        path: wzaker.sh
-      - type: file
-        path: io.github.mohamed_zaitoon.wzaker.desktop
-      - type: file
-        path: io.github.mohamed_zaitoon.wzaker.metainfo.xml
-      - type: file
-        path: io.github.mohamed_zaitoon.wzaker.png
