@@ -51,7 +51,7 @@ apps:
 parts:
   wzaker:
     plugin: nil
-    source: .
+    source: ../..
     build-packages:
       - build-essential
       - pkg-config
