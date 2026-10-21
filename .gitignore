@@ -32,3 +32,6 @@ build/
 
 # Tauri updater signing private key
 src-tauri/keys/updater.key
+
+# Snap
+*.snap
