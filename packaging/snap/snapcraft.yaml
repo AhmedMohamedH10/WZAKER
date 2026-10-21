@@ -69,7 +69,7 @@ parts:
       - libwebkit2gtk-4.1-0
       - libayatana-appindicator3-1
       - librsvg2-2
-      - libxdo1
+      - libxdo3
     override-build: |
       craftctl default
       mkdir -p "${CRAFT_PART_INSTALL}/bin" "${CRAFT_PART_INSTALL}/usr/share/applications" \
