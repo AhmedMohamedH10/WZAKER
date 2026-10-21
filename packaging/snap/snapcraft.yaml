@@ -50,9 +50,8 @@ apps:
 
 parts:
   wzaker:
-    plugin: rust
+    plugin: nil
     source: .
-    rust-channel: stable
     build-packages:
       - build-essential
       - pkg-config
@@ -71,7 +70,10 @@ parts:
       - librsvg2-2
       - libxdo3
     override-build: |
-      craftctl default
+      set -eux
+      cd src-tauri
+      cargo build --release
+      cd ..
       mkdir -p "${CRAFT_PART_INSTALL}/bin" "${CRAFT_PART_INSTALL}/usr/share/applications" \
                "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/256x256/apps"
       install -m755 src-tauri/target/release/wzaker "${CRAFT_PART_INSTALL}/bin/wzaker"
