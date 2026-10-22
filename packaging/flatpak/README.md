@@ -52,7 +52,7 @@ python3 flatpak-cargo-generator.py ../../src-tauri/Cargo.lock -o cargo-sources.j
 ```
 
 > الـ manifest يسحب كل الملفات (الشيفرة + الأيقونة + ملف `.desktop` + بيانات AppStream + سكربت التشغيل)
-> من أرشيف الوسم `v3.6.4-linux2`، فلا توجد ملفات محلية داخل مستودع Flathub سوى الـ manifest و`cargo-sources.json`.
+> من أرشيف الوسم `v3.6.7-linux1`، فلا توجد ملفات محلية داخل مستودع Flathub سوى الـ manifest و`cargo-sources.json`.
 
 <div dir="rtl">
 
