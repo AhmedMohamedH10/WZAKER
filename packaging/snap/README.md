@@ -24,7 +24,7 @@ sudo systemctl enable --now snapd.socket
 
 - افتح: <https://github.com/AhmedMohamedH10/WZAKER/actions/workflows/snap.yaml>
 - اضغط **Run workflow** → علّم **publish** لو عايز النشر كمان (يحتاج secret ✗).
-- بعد انتهاء الـ run، نزّل الـ artifact `wzaker-snap` (فيه `wzaker_3.6.4_amd64.snap`).
+- بعد انتهاء الـ run، نزّل الـ artifact `wzaker-snap` (فيه `wzaker_3.6.7_amd64.snap`).
 
 > للنشر من CI: ضيف secret اسمه `SNAPCRAFT_STORE_CREDENTIALS` (من المتجر: Settings → Publish → get your store credentials ✗).
 
@@ -52,7 +52,7 @@ podman run --rm --privileged \
 
 <div dir="rtl">
 
-الناتج: `wzaker_3.6.4_amd64.snap` (موقّع تلقائيًا بمفتاح المتجر ✅).
+الناتج: `wzaker_3.6.7_amd64.snap` (موقّع تلقائيًا بمفتاح المتجر ✅).
 
 ## 3) النشر — Publish
 
@@ -84,7 +84,7 @@ snapcraft whoami         # اتأكد اسم الناشر
 ```bash
 snapcraft register wzaker --yes      # مرة واحدة بس — بيسجّل الاسم باسمك
 cd packaging/snap
-snapcraft upload wzaker_3.6.4_amd64.snap
+snapcraft upload wzaker_3.6.7_amd64.snap
 ```
 
 <div dir="rtl">
@@ -104,8 +104,8 @@ snapcraft release wzaker 1 stable
 </div>
 
 ```bash
-snapcraft release "3.6.4" wzaker_3.6.4_amd64.snap \
-  --release-notes="نسخة لينكس 3.6.4 — من تطوير محمد زيتون"
+snapcraft release "3.6.7" wzaker_3.6.7_amd64.snap \
+  --release-notes="نسخة لينكس 3.6.7 — من تطوير محمد زيتون"
 ```
 
 <div dir="rtl">
@@ -125,8 +125,8 @@ sudo snap install wzaker
 </div>
 
 ```bash
-snapcraft upload --release "3.6.4" wzaker_3.6.4_amd64.snap   # النسخة أرقام Semantic
-snapcraft release "3.6.4" wzaker_3.6.4_amd64.snap
+snapcraft upload --release "3.6.7" wzaker_3.6.7_amd64.snap   # النسخة أرقام Semantic
+snapcraft release "3.6.7" wzaker_3.6.7_amd64.snap
 ```
 
 <div dir="rtl">
