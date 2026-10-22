@@ -9,9 +9,11 @@ use tauri::{
     Emitter, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-const CURRENT_VERSION: &str = "3.6.4";
+const CURRENT_VERSION: &str = "3.6.7";
 const GLOW: f64 = 18.0;                       // هامش التوهج (زي main.js)
 const CARD_FULL: (f64, f64) = (258.0, 354.0);  // كارت المسبحة
 const CARD_MINI: (f64, f64) = (232.0, 48.0);
@@ -19,6 +21,9 @@ const EDGE: f64 = 24.0;                        // هامش من حافة الش�
 const SPLASH_SIZE: (f64, f64) = (640.0, 420.0);
 const SETTINGS_SIZE: (f64, f64) = (720.0, 720.0);
 const REPO: &str = "AhmedMohamedH10/WZAKER";
+const MORPH_MS: u64 = 620;
+const MORPH_SAFETY_MS: u64 = 1500;
+const EDGE_PUSH: f64 = 40.0;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateInfo {
@@ -94,13 +99,9 @@ fn splash_done(app: tauri::AppHandle) {
     if let Some(s) = app.get_webview_window("splash") {
         let _ = s.close();
     }
-    if let Some(m) = app.get_webview_window("main") {
-        let _ = m.show();
-        let _ = m.set_focusable(false);   // ما تسرقش تركيز الكيبورد من باقي التطبيقات
-        place_bottom_right(&m);
-        eprintln!("[wzaker] splash_done → main_shown");
-        let _ = app.emit("main_shown", ());
-    }
+    SPLASH_SYNC.lock().unwrap().done = true;
+    show_main_window(&app);
+    eprintln!("[wzaker] splash_done → main_shown");
 }
 
 /// فتح نافذة الإعدادات (settings.html) — زي نسخة ويندوز
@@ -109,6 +110,7 @@ fn open_settings(app: tauri::AppHandle, focus: Option<String>) {
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();
         let _ = w.set_focus();
+        if let Some(f) = focus { if !f.is_empty() { let _ = app.emit("settings:focus", f); } }
         return;
     }
     let url = match focus {
@@ -120,18 +122,71 @@ fn open_settings(app: tauri::AppHandle, focus: Option<String>) {
         .decorations(false)
         .transparent(true)
         .always_on_top(true)
-        .resizable(false)
+        .resizable(true)
         .build();
 }
 
-/// تصغير/تكبير المسبحة (mini mode) + إعادة تموضعها
+/// تصغير/تكبير المسبحة (mini mode) — بتبدأ حركة التحوّل، والحجم يتغيّر بعد mini:ready
 #[tauri::command]
 fn set_window_mode(app: tauri::AppHandle, mini: bool) {
-    *app.state::<AppState>().mini.lock().unwrap() = mini;
-    if let Some(w) = app.get_webview_window("main") {
-        let (cw, ch) = if mini { CARD_MINI } else { CARD_FULL };
-        let _ = w.set_size(LogicalSize::new(cw + GLOW * 2.0, ch + GLOW * 2.0));
-        place_bottom_right(&w);
+    let _ = request_mini(&app, mini, None);
+}
+
+/// الواجهة خلّصت حركة التحوّل — غيّر الحجم من نفس الركن
+#[tauri::command]
+fn mini_ready(app: tauri::AppHandle) {
+    let gen = { app.state::<AppState>().morph.lock().unwrap().as_ref().map(|m| m.gen) };
+    if let Some(g) = gen { commit_morph(&app, g); }
+}
+
+/// سحب النافذة يدويًا (بدل drag-region) — مع حصر الكارت داخل الشاشة
+#[tauri::command]
+fn drag_start(app: tauri::AppHandle) {
+    let st = app.state::<AppState>();
+    let Some(w) = app.get_webview_window("main") else { return };
+    let Some((x, y)) = win_pos(&w) else { return };
+    let (cw, ch) = win_size(&w);
+    *st.drag.lock().unwrap() = Some(DragState { ox: x, oy: y, w: cw, h: ch });
+    *st.hold.lock().unwrap() = true;
+    *st.hint.lock().unwrap() = false;
+}
+
+#[tauri::command]
+fn drag_move(app: tauri::AppHandle, dx: f64, dy: f64) {
+    if !dx.is_finite() || !dy.is_finite() { return; }
+    let st = app.state::<AppState>();
+    let d = { *st.drag.lock().unwrap() };
+    let Some(d) = d else { return };
+    let Some(w) = app.get_webview_window("main") else { return };
+    let (x, y, sides) = fit_to_screen(&w, d.ox + dx, d.oy + dy, d.w, d.h);
+    let sc = win_scale(&w);
+    let _ = w.set_position(PhysicalPosition::new((x * sc).round() as i32, (y * sc).round() as i32));
+    let mini = *st.mini.lock().unwrap();
+    let want_hint = !mini && !sides.is_empty();
+    *st.edge.lock().unwrap() = if mini { String::new() } else { sides };
+    let mut hint = st.hint.lock().unwrap();
+    if *hint != want_hint {
+        *hint = want_hint;
+        let _ = app.emit("inline:hint", want_hint);
+    }
+}
+
+#[tauri::command]
+fn drag_end(app: tauri::AppHandle) {
+    let st = app.state::<AppState>();
+    let d = { st.drag.lock().unwrap().take() };
+    *st.hold.lock().unwrap() = false;
+    let _ = app.emit("inline:hint", false);
+    let Some(_d) = d else { return };
+    let Some(w) = app.get_webview_window("main") else { return };
+    let sides = { std::mem::take(&mut *st.edge.lock().unwrap()) };
+    let (x, y) = win_pos(&w).unwrap_or((0.0, 0.0));
+    let mini = *st.mini.lock().unwrap();
+    let morphing = st.morph.lock().unwrap().is_some();
+    if !sides.is_empty() && !mini && !morphing {
+        dock_to_edge(&app, sides);
+    } else {
+        let _ = app.emit("window_pos", json!({ "mini": mini, "x": x, "y": y }));
     }
 }
 
@@ -275,8 +330,9 @@ fn popup_show(app: tauri::AppHandle, kind: String, payload: String) {
         .decorations(false)
         .transparent(true)
         .always_on_top(true)
-        .resizable(false)
-        .visible(true);
+        .resizable(true)
+        .skip_taskbar(true)
+        .visible(false);
     if let Some((x, y)) = pos {
         builder = builder.position(x as f64, y as f64);
     }
@@ -630,11 +686,288 @@ fn place_bottom_right(w: &WebviewWindow) {
     }
 }
 
+#[derive(Clone, Debug)]
+struct MorphState {
+    gen: u64,
+    to_mini: bool,
+    hold_w: f64,
+    hold_h: f64,
+    target_pos: Option<(f64, f64)>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct DragState {
+    ox: f64,
+    oy: f64,
+    w: f64,
+    h: f64,
+}
+
+static MORPH_SEQ: AtomicU64 = AtomicU64::new(0);
+
+
+#[derive(Clone, Copy, Debug)]
+struct MonBox { x: f64, y: f64, w: f64, h: f64, scale: f64 }
+
+fn win_scale(w: &WebviewWindow) -> f64 { w.scale_factor().unwrap_or(1.0).max(0.5) }
+
+fn win_pos(w: &WebviewWindow) -> Option<(f64, f64)> {
+    let p = w.outer_position().ok()?;
+    let s = win_scale(w);
+    Some((p.x as f64 / s, p.y as f64 / s))
+}
+
+fn win_size(w: &WebviewWindow) -> (f64, f64) {
+    let s = win_scale(w);
+    w.outer_size()
+        .map(|z| (z.width as f64 / s, z.height as f64 / s))
+        .unwrap_or((CARD_FULL.0 + GLOW * 2.0, CARD_FULL.1 + GLOW * 2.0))
+}
+
+fn saved_state() -> serde_json::Value {
+    std::fs::read_to_string(state_file())
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .unwrap_or_else(|| json!({}))
+}
+
+fn all_mons(w: &WebviewWindow) -> Vec<MonBox> {
+    w.available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(|m| {
+            let s = m.scale_factor().max(0.5);
+            MonBox {
+                x: m.position().x as f64 / s,
+                y: m.position().y as f64 / s,
+                w: m.size().width as f64 / s,
+                h: m.size().height as f64 / s,
+                scale: s,
+            }
+        })
+        .collect()
+}
+
+fn monitor_at(w: &WebviewWindow, px: f64, py: f64) -> Option<MonBox> {
+    let ms = all_mons(w);
+    for m in &ms {
+        if px >= m.x && px <= m.x + m.w && py >= m.y && py <= m.y + m.h {
+            return Some(*m);
+        }
+    }
+    if let Ok(Some(m)) = w.current_monitor() {
+        let s = m.scale_factor().max(0.5);
+        return Some(MonBox {
+            x: m.position().x as f64 / s,
+            y: m.position().y as f64 / s,
+            w: m.size().width as f64 / s,
+            h: m.size().height as f64 / s,
+            scale: s,
+        });
+    }
+    if let Ok(Some(m)) = w.primary_monitor() {
+        let s = m.scale_factor().max(0.5);
+        return Some(MonBox {
+            x: m.position().x as f64 / s,
+            y: m.position().y as f64 / s,
+            w: m.size().width as f64 / s,
+            h: m.size().height as f64 / s,
+            scale: s,
+        });
+    }
+    None
+}
+
+fn monitor_for_window(w: &WebviewWindow) -> Option<MonBox> {
+    let (x, y) = win_pos(w)?;
+    let (cw, ch) = win_size(w);
+    monitor_at(w, x + cw / 2.0, y + ch / 2.0)
+}
+
+fn edge_open(w: &WebviewWindow, side: &str, cur: MonBox, card: (f64, f64, f64, f64)) -> bool {
+    let (cl, ct, cr, cb) = card;
+    for e in all_mons(w) {
+        if (e.x - cur.x).abs() < 2.0 && (e.y - cur.y).abs() < 2.0 { continue; }
+        if side == "l" || side == "r" {
+            if (cb.min(e.y + e.h) - ct.max(e.y)) <= 0.0 { continue; }
+            if side == "l" {
+                if e.x + e.w <= cur.x + 2.0 && e.x + e.w >= cur.x - 40.0 { return true; }
+            } else if e.x >= cur.x + cur.w - 2.0 && e.x <= cur.x + cur.w + 40.0 { return true; }
+        } else {
+            if (cr.min(e.x + e.w) - cl.max(e.x)) <= 0.0 { continue; }
+            if side == "t" {
+                if e.y + e.h <= cur.y + 2.0 && e.y + e.h >= cur.y - 40.0 { return true; }
+            } else if e.y >= cur.y + cur.h - 2.0 && e.y <= cur.y + cur.h + 40.0 { return true; }
+        }
+    }
+    false
+}
+
+/// حصر الكارت داخل الشاشة + استخراج الحواف اللي اتزق برهها 40px أو أكثر.
+fn fit_to_screen(w: &WebviewWindow, rx: f64, ry: f64, sw: f64, sh: f64) -> (f64, f64, String) {
+    let Some(mb) = monitor_at(w, rx + sw / 2.0, ry + sh / 2.0).or_else(|| monitor_for_window(w)) else {
+        return (rx, ry, String::new());
+    };
+    let card = (rx + GLOW, ry + GLOW, rx + sw - GLOW, ry + sh - GLOW);
+    let (mut x, mut y, mut sides) = (rx, ry, String::new());
+    if card.0 < mb.x && !edge_open(w, "l", mb, card) {
+        x = mb.x - GLOW;
+        if mb.x - card.0 >= EDGE_PUSH { sides.push('l'); }
+    } else if card.2 > mb.x + mb.w && !edge_open(w, "r", mb, card) {
+        x = mb.x + mb.w - sw + GLOW;
+        if card.2 - (mb.x + mb.w) >= EDGE_PUSH { sides.push('r'); }
+    }
+    if card.1 < mb.y && !edge_open(w, "t", mb, card) {
+        y = mb.y - GLOW;
+        if mb.y - card.1 >= EDGE_PUSH { sides.push('t'); }
+    } else if card.3 > mb.y + mb.h && !edge_open(w, "b", mb, card) {
+        y = mb.y + mb.h - sh + GLOW;
+        if card.3 - (mb.y + mb.h) >= EDGE_PUSH { sides.push('b'); }
+    }
+    (x.round(), y.round(), sides)
+}
+
+/// وضع النافذة أولًا ثم تغيير الحجم مع تأكيد الموضع بعد ما الـ WM يطبّق الحجم.
+/// (على X11 ترتيب set_size ثم set_position كان بيسيب النافذة في مكانها القديم أحيانًا.)
+fn place_size(w: &WebviewWindow, x: f64, y: f64, ww: f64, wh: f64, scale: f64) {
+    let px = (x * scale).round() as i32;
+    let py = (y * scale).round() as i32;
+    // الحجم الأول، وبعده الموضع: لو عكسنا الترتيب الـ WM بيحسب حدود الشاشة
+    // بالحجم القديم ويرفض المكان الجديد.
+    let _ = w.set_size(LogicalSize::new(ww, wh));
+    let _ = w.set_position(PhysicalPosition::new(px, py));
+    // تصحيح مؤجّل من غير ما نجمّد الـ main loop (وإلا GTK مايطبّقش الحجم
+    // غير بعد ما الدالة تخلّص، فيتفلتر الموضع على الحجم القديم).
+    let w2 = w.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(280));
+        if let Ok(p) = w2.outer_position() {
+            if p.x != px || p.y != py {
+                let _ = w2.set_position(PhysicalPosition::new(px, py));
+            }
+        }
+    });
+}
+
+/// استعادة مكان/حجم المسبحة من الحالة المحفوظة (بدل 100 محاولة إعادة تموضع).
+fn restore_main_geometry(app: &tauri::AppHandle) {
+    let Some(w) = app.get_webview_window("main") else { return };
+    let v = saved_state();
+    let mini = v.get("miniMode").and_then(|x| x.as_bool()).unwrap_or(false);
+    let (cw, ch) = if mini { CARD_MINI } else { CARD_FULL };
+    let (ww, wh) = (cw + GLOW * 2.0, ch + GLOW * 2.0);
+    let mb = monitor_for_window(&w).or_else(|| monitor_at(&w, 0.0, 0.0));
+    let mb = mb.unwrap_or(MonBox { x: 0.0, y: 0.0, w: 1920.0, h: 1080.0, scale: 1.0 });
+    let pick = |k1: &str, k2: &str| -> Option<f64> {
+        v.get(k1).and_then(|x| x.as_f64())
+            .or_else(|| v.get(k2).and_then(|x| x.as_f64()))
+    };
+    let sx = if mini { pick("mx", "x") } else { pick("x", "mx") };
+    let sy = if mini { pick("my", "y") } else { pick("y", "my") };
+    let (mut x, mut y) = (sx.unwrap_or(mb.x + mb.w - ww - EDGE), sy.unwrap_or(mb.y + mb.h - wh - EDGE));
+    x = x.min(mb.x + mb.w - ww + GLOW).max(mb.x - GLOW);
+    y = y.min(mb.y + mb.h - wh + GLOW).max(mb.y - GLOW);
+    place_size(&w, x, y, ww, wh, mb.scale);
+    *app.state::<AppState>().mini.lock().unwrap() = mini;
+    eprintln!("[wzaker] restore geometry mini={} x={} y={} size={}x{}", mini, x, y, ww, wh);
+}
+
+/// تنفيذ التحوّل الفعلي: تغيير الحجم من نفس الركن + إبلاغ الواجهة.
+fn commit_morph(app: &tauri::AppHandle, gen: u64) {
+    let st = app.state::<AppState>();
+    let m = { st.morph.lock().unwrap().clone() };
+    let Some(m) = m else { return };
+    if m.gen != gen { return; }
+    let Some(w) = app.get_webview_window("main") else { return };
+    let (cw, ch) = if m.to_mini { CARD_MINI } else { CARD_FULL };
+    let (tw, th) = (cw + GLOW * 2.0, ch + GLOW * 2.0);
+    let (cx, cy) = win_pos(&w).unwrap_or((0.0, 0.0));
+    let (mut tx, mut ty) = m.target_pos.unwrap_or((cx, cy));
+    let mb = monitor_at(&w, tx + tw / 2.0, ty + th / 2.0)
+        .or_else(|| monitor_for_window(&w))
+        .unwrap_or(MonBox { x: 0.0, y: 0.0, w: 1920.0, h: 1080.0, scale: 1.0 });
+    tx = tx.min(mb.x + mb.w - tw).max(mb.x).round();
+    ty = ty.min(mb.y + mb.h - th).max(mb.y).round();
+    let (dx, dy) = (cx - tx, cy - ty);
+    if dx.abs() > 0.5 || dy.abs() > 0.5 {
+        let _ = app.emit("mini:blank", ());
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    // لو ظهر تحوّل أحدث أثناء الانتظار: نلغِي ده
+    if st.morph.lock().unwrap().as_ref().map(|x| x.gen) != Some(gen) { return; }
+    place_size(&w, tx, ty, tw, th, mb.scale);
+    *st.morph.lock().unwrap() = None;
+    let _ = app.emit("mini:applied", json!({ "dx": dx, "dy": dy }));
+    let _ = app.emit("window_pos", json!({ "mini": m.to_mini, "x": tx, "y": ty }));
+    *st.hold.lock().unwrap() = false;
+    eprintln!("[wzaker] morph committed mini={} x={} y={} dx={} dy={}", m.to_mini, tx, ty, dx, dy);
+}
+
+/// بدء تحوّل Mini (أو طلب إظهاره فورًا). target_pos = مكان النافذة النهائي عند اللزق بالحافة.
+fn request_mini(app: &tauri::AppHandle, to_mini: bool, target_pos: Option<(f64, f64)>) -> Option<u64> {
+    let st = app.state::<AppState>();
+    let old = { st.morph.lock().unwrap().take() };
+    if let Some(o) = old { commit_morph(app, o.gen); }
+    let Some(w) = app.get_webview_window("main") else { return None };
+    if *st.mini.lock().unwrap() == to_mini && target_pos.is_none() { return None; }
+    *st.mini.lock().unwrap() = to_mini;
+    if !w.is_visible().unwrap_or(false) {
+        let (cw, ch) = if to_mini { CARD_MINI } else { CARD_FULL };
+        let (tw, th) = (cw + GLOW * 2.0, ch + GLOW * 2.0);
+        let (mut tx, mut ty) = target_pos.unwrap_or_else(|| win_pos(&w).unwrap_or((0.0, 0.0)));
+        let mut sc = w.scale_factor().unwrap_or(1.0);
+        if let Some(mb) = monitor_for_window(&w).or_else(|| monitor_at(&w, tx, ty)) {
+            tx = tx.min(mb.x + mb.w - tw).max(mb.x).round();
+            ty = ty.min(mb.y + mb.h - th).max(mb.y).round();
+            sc = mb.scale;
+        }
+        place_size(&w, tx, ty, tw, th, sc);
+        *st.mini.lock().unwrap() = to_mini;
+        return None;
+    }
+    let (hold_w, hold_h) = win_size(&w);
+    let gen = MORPH_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
+    *st.morph.lock().unwrap() = Some(MorphState { gen, to_mini, hold_w, hold_h, target_pos });
+    *st.hold.lock().unwrap() = true;
+    let _ = app.emit("mini:morph", if to_mini { "out" } else { "in" });
+    let app2 = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(MORPH_MS + MORPH_SAFETY_MS));
+        commit_morph(&app2, gen);
+    });
+    Some(gen)
+}
+
+
+fn dock_to_edge(app: &tauri::AppHandle, sides: String) {
+    let Some(w) = app.get_webview_window("main") else { return };
+    let (bx, by) = win_pos(&w).unwrap_or((0.0, 0.0));
+    let _ = app.emit("window_pos", json!({ "mini": false, "x": bx, "y": by }));
+    let Some(mb) = monitor_for_window(&w).or_else(|| monitor_at(&w, bx, by)) else { return };
+    // الهدف هنا هو موضع النافذة الكاملة (بما فيها هامش التوهج) علشان يطابق
+    // اللي commit_morph بيحسبه، من غير قفزة صغيرة بعد التحوّل.
+    let ww = CARD_MINI.0 + GLOW * 2.0;
+    let wh = CARD_MINI.1 + GLOW * 2.0;
+    let tx = if sides.contains('l') { mb.x }
+             else if sides.contains('r') { mb.x + mb.w - ww }
+             else { bx.min(mb.x + mb.w - ww).max(mb.x) };
+    let ty = if sides.contains('t') { mb.y }
+             else if sides.contains('b') { mb.y + mb.h - wh }
+             else { by.min(mb.y + mb.h - wh).max(mb.y) };
+    let (tx, ty) = (tx.round(), ty.round());
+    let _ = app.emit("window_pos", json!({ "mini": true, "x": tx, "y": ty }));
+    let _ = request_mini(app, true, Some((tx, ty)));
+}
+
 pub struct AppState {
     pub upd: Mutex<UpdateInfo>,
     pub hit: Mutex<Vec<(f64, f64, f64, f64)>>,   // مناطق التفاعل (click-through)
     pub hold: Mutex<bool>,                        // ضغط مطوّل (سحب/سلايدر)
     pub mini: Mutex<bool>,
+    pub morph: Mutex<Option<MorphState>>,         // تحوّل Mini الجاري (ننتظر mini:ready من الواجهة)
+    pub drag: Mutex<Option<DragState>>,           // سحب النافذة اليدوي
+    pub hint: Mutex<bool>,                        // توهّج الحافة
+    pub edge: Mutex<String>,                      // الحواف اللي اتزق برهها أثناء آخر سحب
     pub popup: Mutex<Option<serde_json::Value>>,  // بيانات نافذة الإشعار
     pub custom: Mutex<Option<CustomKey>>,          // الزر/الاختصار المخصص للعدّ
     pub hotkeys: Mutex<std::collections::HashMap<String, CustomKey>>,  // اختصارات الأوامر
@@ -654,6 +987,73 @@ pub struct CustomKey {
 
 static CAPTURE_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static CAPTURE_TARGET: Mutex<String> = Mutex::new(String::new());
+
+/// تنسيق بدء التشغيل بين شاشة اللوجو ونافذة المسبحة (3.6.7)
+struct SplashSync { ready: bool, go_sent: bool, main_shown: bool, done: bool }
+static SPLASH_SYNC: Mutex<SplashSync> = Mutex::new(SplashSync { ready: false, go_sent: false, main_shown: false, done: false });
+
+fn show_main_window(app: &tauri::AppHandle) {
+    let Some(m) = app.get_webview_window("main") else { return };
+    let first = { !SPLASH_SYNC.lock().unwrap().main_shown };
+    if first {
+        // نجهّز المكان والحجم قبل الظهور علشان مايبانش قفزة/وميض.
+        restore_main_geometry(app);
+    }
+    let _ = m.show();
+    let _ = m.set_focusable(false);   // ما تسرقش تركيز الكيبورد من باقي التطبيقات
+    if first {
+        SPLASH_SYNC.lock().unwrap().main_shown = true;
+        eprintln!("[wzaker] main_shown");
+        let _ = app.emit("main_shown", ());
+    }
+}
+
+fn send_splash_go(app: &tauri::AppHandle) {
+    {
+        let mut s = SPLASH_SYNC.lock().unwrap();
+        if s.go_sent { return; }
+        s.go_sent = true;
+    }
+    eprintln!("[wzaker] splash → go");
+    let _ = app.emit("splash-go", ());
+    // احتياطي: لو حدث الويب ما وصلش، اقفل اللوجو بعد ما ياخد فرصة الـ fade
+    let h = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(1200));
+        if let Some(s) = h.get_webview_window("splash") {
+            let _ = s.close();
+        }
+        SPLASH_SYNC.lock().unwrap().done = true;
+        show_main_window(&h);
+    });
+}
+
+/// مرحلة شاشة اللوجو: ready (الإنميشن خلص) / fade / done
+#[tauri::command]
+fn splash_phase(app: tauri::AppHandle, phase: String) {
+    match phase.as_str() {
+        "ready" => {
+            SPLASH_SYNC.lock().unwrap().ready = true;
+            // المسبحة تتجهّز وتظهر ورا اللوجو، وصوت البدء يشتغل من غير ما يستنى الـ fade
+            show_main_window(&app);
+            // شبكة أمان: لو الصوت ما ردّش بإشارة الانتهاء
+            let h = app.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(8000));
+                send_splash_go(&h);
+            });
+        }
+        "fade" => show_main_window(&app),
+        "done" => splash_done(app),
+        _ => {}
+    }
+}
+
+/// صوت "فسبحان الله" خلص → ابدأ Fade Out للوجو
+#[tauri::command]
+fn startup_done(app: tauri::AppHandle) {
+    send_splash_go(&app);
+}
 
 /// هل المستخدم محتاج قراءة لوحة المفاتيح؟ (Space مفعّل أو زر مخصص)
 fn app3_needs_keys(app: &tauri::AppHandle) -> bool {
@@ -721,6 +1121,7 @@ fn install_update(state: tauri::State<'_, AppState>) {
     }
 }
 
+
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
@@ -728,6 +1129,10 @@ pub fn run() {
             hit: Mutex::new(Vec::new()),
             hold: Mutex::new(false),
             mini: Mutex::new(false),
+            morph: Mutex::new(None),
+            drag: Mutex::new(None),
+            hint: Mutex::new(false),
+            edge: Mutex::new(String::new()),
             popup: Mutex::new(None),
             custom: Mutex::new(None),
             hotkeys: Mutex::new(std::collections::HashMap::new()),
@@ -754,9 +1159,9 @@ pub fn run() {
             }
             let _ = shortcut;
         }).build())
-        .invoke_handler(tauri::generate_handler![quit_app, open_url, show_in_folder, save_image, set_settings_wide, check_update, install_update, trigger_tick, splash_done, open_settings, set_window_mode, set_autostart, hide_window,
+        .invoke_handler(tauri::generate_handler![quit_app, open_url, show_in_folder, save_image, set_settings_wide, check_update, install_update, trigger_tick, splash_done, splash_phase, startup_done, open_settings, set_window_mode, set_autostart, hide_window,
     set_hit_rects, set_hold, popup_show, popup_get, popup_close, popup_pick, log_msg, capture_key, set_keys, cancel_capture, load_state, save_state,
-    backup_export, backup_list, backup_import])
+    backup_export, backup_list, backup_import, mini_ready, drag_start, drag_move, drag_end])
         .setup(|app| {
             // Tray icon
             // Global shortcut Ctrl+Alt+W
@@ -838,31 +1243,17 @@ pub fn run() {
             {
                 let _ = sp.center();   // شاشة اللوجو في نص الشاشة (زي نسخة ويندوز)
             }
-            // المسبحة: أسفل يمين الشاشة (بعد ما النافذة تاخد مقاسها النهائي)
-            {
-                let handle = app.handle().clone();
-                std::thread::spawn(move || {
-                    for _ in 0..100 {
-                        std::thread::sleep(std::time::Duration::from_millis(150));
-                        if let Some(mw) = handle.get_webview_window("main") {
-                            place_bottom_right(&mw);
-                        }
-                    }
-                });
-            }
             // شبكة أمان: لو اللوجو ما قفلتش بنفسها
             let handle = app.handle().clone();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(9000));
+                std::thread::sleep(std::time::Duration::from_millis(11000));
+                if SPLASH_SYNC.lock().unwrap().done { return; }
+                send_splash_go(&handle);
                 if let Some(s) = handle.get_webview_window("splash") {
                     let _ = s.close();
                 }
-                if let Some(m) = handle.get_webview_window("main") {
-                    let _ = m.show();
-                    place_bottom_right(&m);
-                    eprintln!("[wzaker] safety → main_shown");
-                    let _ = handle.emit("main_shown", ());
-                }
+                SPLASH_SYNC.lock().unwrap().done = true;
+                show_main_window(&handle);
             });
 
             // Autostart: register (default off; controlled by settings)

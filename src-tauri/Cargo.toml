@@ -1,6 +1,6 @@
 [package]
 name = "wzaker"
-version = "3.6.4"
+version = "3.6.7"
 description = "وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة (Linux)"
 authors = ["AhmedMohamedH10"]
 license = "MIT"

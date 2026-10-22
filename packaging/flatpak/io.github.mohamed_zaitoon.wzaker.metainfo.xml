@@ -65,6 +65,11 @@
   </screenshots>
 
   <releases>
+    <release version="3.6.7" date="2026-10-22">
+      <description>
+        <p>Linux port updated to upstream WZAKER 3.6.7: mini mode with edge docking, draggable notifications, layout alignment, and animation/menu fixes.</p>
+      </description>
+    </release>
     <release version="3.6.4" date="2026-10-21">
       <description>
         <p>First Flathub release of the Linux port.</p>
