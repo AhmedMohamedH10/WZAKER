@@ -116,7 +116,7 @@ const DEFAULT_STATE = {
   popupVolume: 0.5,                                // مستوى صوت الإنبثاق (التحدي وغيره: صوت إنجاز التحدي، البطاقات)
   reminderSound: true, reminderVolume: 0.5,        // صوت تنبيه الأذكار (الآية العشوائية) لوحده: تشغيل/إيقاف + مستواه
   challengeOn: true, challengeEvery: 3600,         // بطاقات التحدي المخفية (تحت تنبيه الأذكار): كل كام ثانية (الافتراضي ساعة)
-  popupPos: 'corner', px: null, py: null, popupScale: 1,   // تنبيهات الأذكار (الآيات + المخصصة): المكان + آخر مكان اتسحب فيه + الحجم
+  popupPos: 'corner', px: null, py: null, pe: null, pm: '', popupScale: 1,   // تنبيهات الأذكار (الآيات + المخصصة): المكان + آخر مكان اتسحب فيه + الحجم
   cardsPos: 'corner', cx: null, cy: null, cardsScale: 1,   // بطاقات الذكر الخفي (التحدي): نفس الحاجات
   dailyAz: { d: '', m: [], e: [], sl: [], wk: [], mq: [], pr: [], wu: [], mf: false, ef: false, slf: false, wkf: false, wd: false, wf: false },   // أذكار اليوم: التاريخ + اللي اتقرا (صباح/مساء) + هل التنبيه اتبعت
   azSound: true, azVolume: 0.5,                    // صوت تنبيه أذكار الصباح والمساء (مستوى واحد للاتنين)
@@ -147,7 +147,8 @@ const popupTimers = { reminder: null, challenge: null };
 
 // ───────────── تخصيص المسبحة (الشكل الخارجي للمسبحة الكبيرة) ─────────────
 const LAYOUT_IDS = ['logo', 'tag', 'dial', 'num', 'of', 'dhikr', 'total', 'snd', 'btns', 'az', 'topL', 'topR'];
-const LAYOUT_NOHIDE = new Set(['topL']);                  // زر الإعدادات لازم يفضل ظاهر
+const LAYOUT_LOCKED = new Set(['logo', 'tag']);        // اللوجو والآية تحته: ثابتين بالكود (المسافة بينهم 40 بكسل في index.html و settings.html) — مفيش سحب ولا حجم ولا إخفاء، وأي قيمة محفوظة قديمة بتتجاهل
+const LAYOUT_NOHIDE = new Set(['logo']);                  // الشعار = فتح الإعدادات فلازم يفضل ظاهر
 const EXTRA_TYPES = ['clock', 'date', 'hijri', 'today', 'pct', 'prayer', 'text'];
 const LAYOUT_K_MIN = 0.8, LAYOUT_K_MAX = 1.6, EXTRAS_MAX = 8;
 function sanitizeLayout(L) {
@@ -157,6 +158,7 @@ function sanitizeLayout(L) {
   out.k = n(L.k, LAYOUT_K_MIN, LAYOUT_K_MAX, 1);
   const one = e => ({ dx: n(e && e.dx, -400, 400, 0), dy: n(e && e.dy, -400, 400, 0), s: n(e && e.s, 0.4, 3, 1) });
   for (const id of LAYOUT_IDS) {
+    if (LAYOUT_LOCKED.has(id)) continue;
     const e = L.els && L.els[id];
     if (!e || typeof e !== 'object') continue;
     const o = one(e);
@@ -236,6 +238,9 @@ function loadState() {
   state.challengeOn = state.challengeOn !== false;
   state.builtinVerses = state.builtinVerses !== false;
   if (!Number.isFinite(state.px) || !Number.isFinite(state.py)) { state.px = null; state.py = null; }
+  if (typeof state.pe !== 'string') { state.pe = ''; state.px = null; state.py = null; state.popupScale = 1; }   // مكان محفوظ بالشكل القديم: نبدأ من الافتراضي (يمين الشاشة)
+  else state.pe = state.pe.replace(/[^lrtb]/g, '').slice(0, 4);                              // الحواف اللازق فيها الإشعار وقت الحفظ
+  if (state.pm !== 't' && state.pm !== 'b') state.pm = '';                                  // الإشعار ملزوق فوق/تحت المسبحة (مغناطيس)
   if (!Number.isFinite(state.cx) || !Number.isFinite(state.cy)) { state.cx = null; state.cy = null; }
   if (!POPUP_POS_VERSE.includes(state.popupPos) || (state.popupPos === 'saved' && state.px === null)) state.popupPos = 'corner';
   if (!POPUP_POS_CARDS.includes(state.cardsPos) || (state.cardsPos === 'saved' && state.cx === null)) state.cardsPos = 'corner';
@@ -604,7 +609,8 @@ let settingsWin = null;
 let tray = null;
 let quitting = false;
 
-const size = () => (state.miniMode ? MINI : fullSize());
+let morphHold = null;   // أثناء تحوّل المسبحة ⇄ Mini: حجم النافذة الحالي (بيفضل ثابت لحد ما الأنيميشن يخلص)
+const size = () => morphHold || (state.miniMode ? MINI : fullSize());
 const posKeys = () => (state.miniMode ? ['mx', 'my'] : ['x', 'y']);
 
 function defaultPosition(s) {
@@ -810,6 +816,7 @@ function createWindow() {
 
   win.on('close', e => { if (!quitting) { e.preventDefault(); hideOverlay(); } });
   win.on('closed', () => { win = null; });
+  for (const ev of ['move', 'resize']) win.on(ev, () => followDialMag());   // الإشعار الملزوق في المسبحة بيمشي معاها
 }
 
 // إظهار النافذة (من الـ Tray / الـ Taskbar / أول تشغيل) وإعادتها تفاعلية بالكامل.
@@ -872,18 +879,51 @@ const isVisible = () => vis === 'shown';
 const toggleOverlay = () => (vis === 'shown' ? hideOverlay() : presentWindow(false));
 
 // Mini Mode = نفس النافذة بحجم مصغّر (نفس الـ renderer ونفس الـ hooks؛ مفيش listeners جديدة)
+// التحوّل بأنيميشن: الواجهة هي اللي بتعمل الحركة (الكارت بيصغر ويتحول لشريط Mini أو العكس) والنافذة بتفضل بحجمها لحد ما الحركة تخلص،
+// وبعدها الواجهة بتبلّغنا (mini:ready) فنغيّر حجم النافذة من نفس الركن (الشريط بيفضل في مكانه بالظبط) ونرد (mini:applied).
+const MINI_MORPH_MS = 620;
+let morphTimer = null, morphGen = 0;
+function commitMorph(immediate) {
+  clearTimeout(morphTimer); morphTimer = null;
+  if (edgeGlide && !immediate) {                           // الانزلاق لسه ماخلصش: نستنّاه يخلص بدل ما نقصّه ونصغّر النافذة والكارت لسه ظاهر
+    const wait = EDGE_GLIDE_MS + 40 - (Date.now() - edgeGlide.t0);
+    if (wait > 0) { morphTimer = setTimeout(() => commitMorph(false), wait); return; }
+  }
+  dbg('commitMorph', `mini=${state.miniMode} hold=${morphHold ? morphHold.w + 'x' + morphHold.h : 'none'} immediate=${!!immediate} glide=${!!edgeGlide}`);
+  if (edgeGlide) stopEdgeGlide(!!morphHold);               // انزلاق الحافة لسه شغّال: نوصّل النافذة لمكانها النهائي قبل ما حجمها يتغيّر
+  if (!morphHold) return;
+  if (!win || win.isDestroyed() || vis !== 'shown') { morphHold = null; return; }
+  const b = win.getBounds(), s = state.miniMode ? MINI : fullSize();
+  const wa = screen.getDisplayMatching(b).workArea;
+  const x = Math.min(Math.max(b.x, wa.x - GLOW), wa.x + wa.width - s.w + GLOW);     // نفس ركن النافذة، وتفضل جوه الشاشة (الكارت الكبير ممكن يتزحزح)
+  const y = Math.min(Math.max(b.y, wa.y - GLOW), wa.y + wa.height - s.h + GLOW);
+  const dx = b.x - x, dy = b.y - y, gen = ++morphGen;
+  const apply = () => {
+    if (gen !== morphGen) return;
+    morphHold = null;
+    if (!win || win.isDestroyed()) return;
+    win.setBounds({ x, y, width: s.w, height: s.h });
+    resetMouse(); rememberPosition();
+    send('mini:applied', { dx, dy });
+  };
+  if ((dx || dy) && !immediate) { send('mini:blank'); setTimeout(apply, 50); } else apply();   // لو النافذة اتزحزحت: لحظة فراغ قصيرة علشان ما يبانش قفز
+}
+ipcMain.on('mini:ready', e => { if (win && !win.isDestroyed() && e.sender === win.webContents) commitMorph(false); });
 function setMiniMode(on) {
   on = !!on;
   if (on === state.miniMode) return;
-  if (win && !win.isDestroyed() && vis === 'shown') capturePosition();   // نحفظ مكان الوضع الحالي قبل التبديل
+  if (morphHold) commitMorph(true);                        // تبديل سريع ورا بعض: نخلّص التحوّل المعلّق فورًا
+  const shown = !!win && !win.isDestroyed() && vis === 'shown' && !win.isMinimized();
+  if (shown) capturePosition();                            // نحفظ مكان الوضع الحالي قبل التبديل
   dbg(on ? 'enter Mini Mode' : 'exit Mini Mode');
   state.miniMode = on;
   if (on) dropInlineChoose();
-  if (win && !win.isDestroyed() && vis === 'shown') {
-    const { x, y } = resolvePosition();
-    const s = size();
-    win.setBounds({ x, y, width: s.w, height: s.h });
-    resetMouse();
+  if (shown) {
+    const b = win.getBounds();
+    morphHold = { w: b.width, h: b.height };
+    send('mini:morph', on ? 'out' : 'in');
+    if (popupMag && popup && popup.kind === 'verse') { popupEase(MINI_MORPH_MS + 450, 115); followDialMag(); }   // الإشعار الملزوق يصغّر/يكبّر مع المسبحة بنعومة وفي نفس اللحظة
+    clearTimeout(morphTimer); morphTimer = setTimeout(() => commitMorph(false), MINI_MORPH_MS + 1500);   // شبكة أمان: لو الواجهة ما ردّتش
   }
   refreshTrayMenu();
 }
@@ -1536,8 +1576,8 @@ function dailyAz() {                                       // اليوم الج�
 // لو الفترة اتفتح فيها البرنامج متأخر والإشعار لسه ما ظهرش النهاردة: بيظهر وقتها.
 
 // ───────────── إشعار سريع (شارة / تحديث / ملخص): بيدخل نفس طابور الإشعارات ─────────────
-function notice(key, text, ico, snd) {
-  enqueuePopup({ key: 'nt:' + key, prio: 4, run: () => azPopup({ text, snd, grp: 'az', ico }, false) });
+function notice(key, text, ico, snd, sub) {
+  enqueuePopup({ key: 'nt:' + key, prio: 4, run: () => azPopup({ text, sub, snd, grp: 'az', ico }, false) });
 }
 
 // ───────────── ملخص الأسبوع (للإحصائيات والشارات) ─────────────
@@ -1573,7 +1613,7 @@ ipcMain.on('khatma:page', (e, p) => {
   const t = dayKeyOf(new Date()); if (k.today.d !== t) k.today = { d: t, n: 0 }; k.today.n += 1;
   if (!k.bits.includes('0')) {                              // الختمة اكتملت
     k.count += 1; khatmaReset();
-    notice('khatma', 'ما شاء الله، أتممت ختمة كاملة للقرآن الكريم! تقبّل الله منك وبارك فيك', 'bd', 'completion');
+    notice('khatma', 'ما شاء الله أتممت ختمة كاملة للقرآن الكريم', 'bd', 'completion', 'تقبّل الله منك وبارك فيك');
   }
   checkAch(true); scheduleStats(); saveStateSoon();
 });
@@ -1624,8 +1664,8 @@ function checkAch(force) {
   if (!fresh.length) return;
   saveStateSoon(); scheduleStats();
   if (!state.achInit) { state.achInit = true; return; }      // أول تشغيل بعد التحديث: الشارات اللي مستحقها بالفعل بتتسجّل بصمت
-  if (fresh.length > 2) notice('ach:multi', 'فتحت ' + fresh.length + ' شارات جديدة، شوفها في صفحة الإحصائيات', 'bd', 'completion');
-  else for (const a of fresh) notice('ach:' + a[0], 'شارة جديدة: ' + a[1] + ' — ' + a[2], 'bd', 'completion');
+  if (fresh.length > 2) notice('ach:multi', 'فتحت ' + fresh.length + ' شارات جديدة', 'bd', 'completion', 'شوفها في صفحة الإحصائيات');
+  else for (const a of fresh) notice('ach:' + a[0], 'شارة جديدة: ' + a[1], 'bd', 'completion', a[2]);
 }
 function achView() {
   const c = achCtx();
@@ -1650,8 +1690,9 @@ function autoBackup(force) {
   if (restoringBackup || (!state.autoBackup && !force)) return;
   try {
     fs.mkdirSync(backupDir(), { recursive: true });
-    fs.writeFileSync(path.join(backupDir(), 'auto-' + todayKey() + '.json'), JSON.stringify(backupPayload()));
-    for (const f of backupFiles().slice(10)) { try { fs.unlinkSync(path.join(backupDir(), f)); } catch (_) {} }   // آخر 10 أيام بس
+    const keep = 'auto-' + todayKey() + '.json';
+    fs.writeFileSync(path.join(backupDir(), keep), JSON.stringify(backupPayload()));
+    for (const f of backupFiles()) { if (f !== keep) { try { fs.unlinkSync(path.join(backupDir(), f)); } catch (_) {} } }   // نسخة واحدة بس: أحدث نسخة، والقديمة بتتمسح
   } catch (_) {}
 }
 function backupList() {
@@ -1739,7 +1780,7 @@ function updInit() {
   autoUpdater.on('download-progress', p => setUpd({ status: 'downloading', percent: Math.round((p && p.percent) || 0) }));
   autoUpdater.on('update-downloaded', i => {
     setUpd({ status: 'ready', version: String((i && i.version) || upd.version), percent: 100 });
-    notice('upd:' + upd.version, 'تحديث جديد (' + upd.version + ') جاهز للتثبيت، افتح الإعدادات ← حول البرنامج وثبّته', 'up', 'completion');
+    notice('upd:' + upd.version, 'تحديث جديد جاهز للتثبيت', 'up', 'completion', 'من الإعدادات ثم حول البرنامج');
   });
   autoUpdater.on('error', err => setUpd({ status: 'error', error: updFriendly(err) }));
   setTimeout(() => { if (state.autoUpdateOn) updCheck(); }, 20_000);
@@ -1889,11 +1930,11 @@ const PRAYER_SLOTS = PRAYER_KEYS.map((k, i) => ({
   text: 'حان الآن موعد صلاة ' + PRAYER_NAMES[k]
 }));
 const AZ_SLOTS = [
-  { k: 'm', on: () => state.sabahAlert, at: () => state.sabahAt, end: () => state.sabahEnd, fired: 'mf', done: d => d.m.length >= AZ.m.length, grp: 'az', snd: 'birds', text: 'حان الآن موعد أذكار الصباح، اضغط هنا وابدأ القراءة' },
-  { k: 'e', on: () => state.masaaAlert, at: () => state.masaaAt, end: () => state.masaaEnd, fired: 'ef', done: d => d.e.length >= AZ.e.length, grp: 'az', snd: 'owl', text: 'حان الآن موعد أذكار المساء، اضغط هنا وابدأ القراءة' },
+  { k: 'm', on: () => state.sabahAlert, at: () => state.sabahAt, end: () => state.sabahEnd, fired: 'mf', done: d => d.m.length >= AZ.m.length, grp: 'az', snd: 'birds', text: 'حان الآن موعد أذكار الصباح' },
+  { k: 'e', on: () => state.masaaAlert, at: () => state.masaaAt, end: () => state.masaaEnd, fired: 'ef', done: d => d.e.length >= AZ.e.length, grp: 'az', snd: 'owl', text: 'حان الآن موعد أذكار المساء' },
   { k: 'w', on: () => state.wirdAlert, at: () => state.wirdAt, end: () => '24:00', fired: 'wf', done: d => d.wd === true, grp: 'wird', snd: 'wird', text: 'لا تنسَ وردك اليومي من القرآن الكريم' },
-  { k: 'sl', prio: 1.5, on: () => state.sleepAlert, at: () => state.sleepAt, end: () => state.sleepEnd, fired: 'slf', done: d => d.sl.length >= AZ.sl.length, grp: 'az', snd: 'sleep', alt: 'owl', text: 'حان الآن موعد أذكار النوم، اضغط هنا وابدأ القراءة' },
-  { k: 'wk', prio: -1, on: () => state.wakeAlert, at: () => state.wakeAt, end: () => state.wakeEnd, fired: 'wkf', done: d => d.wk.length >= AZ.wk.length, grp: 'az', snd: 'wake', alt: 'birds', text: 'حان الآن موعد أذكار الاستيقاظ، اضغط هنا وابدأ القراءة' },
+  { k: 'sl', prio: 1.5, on: () => state.sleepAlert, at: () => state.sleepAt, end: () => state.sleepEnd, fired: 'slf', done: d => d.sl.length >= AZ.sl.length, grp: 'az', snd: 'sleep', alt: 'owl', text: 'حان الآن موعد أذكار النوم' },
+  { k: 'wk', prio: -1, on: () => state.wakeAlert, at: () => state.wakeAt, end: () => state.wakeEnd, fired: 'wkf', done: d => d.wk.length >= AZ.wk.length, grp: 'az', snd: 'wake', alt: 'birds', text: 'حان الآن موعد أذكار الاستيقاظ' },
   ...PRAYER_SLOTS
 ];
 const nowMins = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
@@ -1922,7 +1963,7 @@ function azRest() {                                        // أيقونة ال�
 function wirdDue() { return state.wirdAlert && slotActive(AZ_SLOTS.find(s => s.k === 'w'), dailyAz()); }   // أيقونة المصحف (لما التنبيه مفعّل)
 let lastDue = '';
 function azPopup(s, preview) {
-  return showPopup('verse', { custom: { text: s.text, src: audioFiles[s.snd] || (s.alt && audioFiles[s.alt]) || null, grp: s.grp, ico: s.ico || s.k }, preview: !!preview });
+  return showPopup('verse', { custom: { text: s.text, sub: s.sub || '', src: audioFiles[s.snd] || (s.alt && audioFiles[s.alt]) || null, grp: s.grp, ico: s.ico || s.k }, preview: !!preview });
 }
 function azCheck() {
   const key = (azDue() || '-') + (azRest() || '-') + (wirdDue() ? 'w' : '-');
@@ -1954,9 +1995,160 @@ const POPUP_PAD = { l: 26, r: 26, t: 22, b: 34 };   // هوامش الـ Glow ا
 const popupScaleOf = k => (k === 'cards' ? state.cardsScale : state.popupScale);
 const popupPosOf = k => (k === 'cards' ? state.cardsPos : state.popupPos);
 let popupStartAt = null;     // مكان بداية إجباري (لما البطاقات بتطلع من المسبحة)
+let popupMag = '';           // مغناطيس المسبحة: 't' الإشعار فوقها | 'b' تحتها (بنفس عرضها)
+let popupFill = false;       // الصفحة في وضع "املا عرض النافذة" (الكارت ماشي مع عرض النافذة أثناء الانطباق على المسبحة)
+let popupNatW = 360;         // آخر عرض طبيعي (على قد النص) للإشعار قبل ما يتلزق
+let popupNatH = 0;           // ارتفاعه الطبيعي المقابل (الصفحة بتبلّغ بالاتنين): بيتحسب منهم ارتفاع النافذة لحظة بلحظة أثناء الانطباق على المسبحة، فالكارت عمره ما يتقص ولا يكبر وبعدين يصغر
+let popupEaseTau = 70;       // سرعة النعومة (ms): أقل = أسرع
+let popupEaseUntil = 0, popupGoal = null, popupView = null, popupEaseTimer = null, popupEaseLast = 0;
+let popupCssW = 360;         // عرض نافذة إشعار الأذكار: الصفحة بتبلّغ بيه على قد النص (البطاقات عرضها ثابت)
+const POPUP_SNAP = 28, POPUP_VW_MIN = 150, POPUP_VW_MAX = 720, POPUP_VY = 56;   // مغناطيس الحافة | حدود عرض النافذة | بُعد الإشعار عن أعلى الشاشة افتراضيًا
 function popupDims(kind) {
   const z = popupScaleOf(kind);
-  return { z, W: Math.ceil(POPUP_W * z), pad: { l: POPUP_PAD.l * z, r: POPUP_PAD.r * z, t: POPUP_PAD.t * z, b: POPUP_PAD.b * z } };
+  return { z, W: kind === 'cards' ? Math.ceil(POPUP_W * z) : popupCssW, pad: { l: POPUP_PAD.l * z, r: POPUP_PAD.r * z, t: POPUP_PAD.t * z, b: POPUP_PAD.b * z } };
+}
+// ───── حركة هادية للإشعار وهو بينطبق على المسبحة أو بيفارقها: النافذة بتتحرك وبتكبر/بتصغر بنعومة ─────
+const popupCur = () => popupGoal ? { ...popupGoal } : popupWin.getBounds();
+function popupEase(ms = 480, tau = 70) { popupEaseUntil = Date.now() + ms; popupEaseTau = tau; }
+function popupEaseStop() { clearInterval(popupEaseTimer); popupEaseTimer = null; popupGoal = null; popupView = null; popupEaseUntil = 0; }
+function setPopupBounds(b) {
+  if (!popupWin || popupWin.isDestroyed()) return;
+  if (Date.now() < popupEaseUntil || popupEaseTimer) {
+    popupGoal = { x: b.x, y: b.y, width: b.width, height: b.height };
+    if (!popupEaseTimer) { popupView = { ...popupWin.getBounds() }; popupEaseLast = Date.now(); popupEaseTimer = setInterval(popupEaseTick, 16); }
+    return;
+  }
+  popupWin.setBounds(b);
+}
+function popupEaseTick() {
+  if (!popupWin || popupWin.isDestroyed() || !popupGoal || !popupView) { popupEaseStop(); return; }
+  const now = Date.now(), dt = Math.min(64, now - popupEaseLast), k = 1 - Math.exp(-dt / popupEaseTau), g = popupGoal, v = popupView;
+  popupEaseLast = now;
+  const keys = ['x', 'y', 'width', 'height'];
+  for (const key of keys) v[key] += (g[key] - v[key]) * k;
+  const done = keys.every(key => Math.abs(g[key] - v[key]) < 0.6);
+  if (done) for (const key of keys) v[key] = g[key];
+  let X = Math.round(v.x), Y = Math.round(v.y), W = Math.round(v.width), H = Math.round(v.height);
+  if (!done && popup && popup.kind === 'verse' && popupNatW > 0 && popupNatH > 0) {
+    // الارتفاع بيتبع العرض الحالي (نفس معادلة الصفحة): الكارت بيصغّر/يكبّر كله مع بعضه من غير قص ولا قفزة
+    H = popupHeightFor(W, H);
+    if (popupMag === 't') Y = Math.round(v.y + v.height - H);   // فوق المسبحة: القاع هو الثابت
+  }
+  popupWin.setBounds({ x: X, y: Y, width: W, height: H });
+  if (done && now >= popupEaseUntil) {
+    popupEaseStop();
+    if (!popupMag && popupFill && popup && popup.kind === 'verse') { popupFill = false; sendPopup('popup:lock', { fill: false }); }   // خلّص الرجوع: العرض يبقى على قد النص تاني
+  }
+}
+const POPUP_MAG = 44;        // مدى المغناطيس حوالين المسبحة (بكسل)
+// أثناء تحوّل المسبحة ⇄ Mini النافذة بتفضل بحجمها القديم لحد ما حركة الكارت تخلص؛ فالإشعار الملزوق لازم يمشي على المقاس النهائي من أول لحظة
+// (مش على حجم النافذة الحالي) علشان يصغر/يكبر مع المسبحة بنفس الوقت بدل ما يستنى ويبان إنه متأخر.
+function morphRect() {
+  if (!morphHold || !win || win.isDestroyed()) return null;
+  const b = win.getBounds(), s = state.miniMode ? MINI : fullSize();
+  const wa = screen.getDisplayMatching(b).workArea;
+  let x = Math.min(Math.max(b.x, wa.x - GLOW), wa.x + wa.width - s.w + GLOW);     // نفس حساب commitMorph
+  let y = Math.min(Math.max(b.y, wa.y - GLOW), wa.y + wa.height - s.h + GLOW);
+  if (edgeGlide) { x = edgeGlide.to.x; y = edgeGlide.to.y; }                        // بينزلق للحافة: المكان النهائي
+  return { x: x + GLOW, y: y + GLOW, w: s.w - GLOW * 2, h: s.h - GLOW * 2 };
+}
+function dialMag() {         // مستطيل المسبحة الظاهر (من غير هامش الـ glow)
+  if (!dialShown()) return null;
+  const m = morphRect(); if (m) return m;
+  const b = win.getBounds();
+  return { x: b.x + GLOW, y: b.y + GLOW, w: b.width - GLOW * 2, h: b.height - GLOW * 2 };
+}
+function magWidth() {        // عرض نافذة الإشعار اللي كارته الظاهر بعرض المسبحة
+  const d = dialMag(), { pad } = popupDims('verse');
+  return d ? Math.min(POPUP_VW_MAX, Math.max(POPUP_VW_MIN, Math.ceil(d.w + pad.l + pad.r))) : popupCssW;
+}
+const POPUP_K_MIN = 0.55;    // أصغر تصغير للكارت وهو ملزوق في مسبحة ضيقة (تحته بيلف النص بدل ما يصغر أكتر)
+function popupHeightFor(w, fallback) {   // ارتفاع نافذة إشعار الأذكار لو عرضها w: الكارت بيتصغّر بنفس النسبة (نفس معادلة الصفحة)
+  if (!(popupNatW > 0 && popupNatH > 0) || !popup || popup.kind !== 'verse') return fallback;
+  const { pad } = popupDims('verse'), pLR = pad.l + pad.r, pTB = pad.t + pad.b;
+  const k = Math.min(1, Math.max(POPUP_K_MIN, (w - pLR) / Math.max(1, popupNatW - pLR)));
+  return Math.max(40, Math.round(pTB + (popupNatH - pTB) * k));
+}
+function magPlace(side, h) {   // فوق المسبحة أو تحتها بفرق صغير. لو مفيش مكان (المسبحة في حرف الشاشة) بيتقلب للجهة التانية بدل ما يتقص أو يتحشر
+  const d = dialMag(), { pad } = popupDims('verse');
+  const wa = screen.getDisplayMatching({ x: d.x, y: d.y, width: d.w, height: d.h }).workArea;
+  const cardH = h - pad.t - pad.b;
+  const fitT = d.y - POPUP_GAP - cardH >= wa.y, fitB = d.y + d.h + POPUP_GAP + cardH <= wa.y + wa.height;
+  if (side === 't' && !fitT && fitB) side = 'b';
+  else if (side === 'b' && !fitB && fitT) side = 't';
+  const x = d.x - pad.l;
+  const y = side === 't' ? d.y - POPUP_GAP - h + pad.b : d.y + d.h + POPUP_GAP - pad.t;
+  return { ...clampPopup('verse', x, y, h), side };
+}
+function magnetSide(x, y, W, h) {   // الإشعار قرّب من المسبحة (فوقها أو تحتها)؟
+  const d = dialMag(); if (!d) return '';
+  const { pad } = popupDims('verse'), ex = popupMag ? 26 : 0;
+  const L = x + pad.l, R = x + W - pad.r, T = y + pad.t, B = y + h - pad.b, cx = (L + R) / 2;
+  if (cx < d.x - 70 - ex || cx > d.x + d.w + 70 + ex) return '';
+  if (B > d.y - POPUP_GAP - POPUP_MAG - ex && B < d.y + d.h / 2) return 't';
+  if (T < d.y + d.h + POPUP_GAP + POPUP_MAG + ex && T > d.y + d.h / 2) return 'b';
+  return '';
+}
+function followDialMag() {   // المسبحة اتحرّكت/اتغيّر حجمها: الإشعار الملزوق فيها يتحرك معاها
+  if (!popupMag || !popup || popup.kind !== 'verse' || !popupWin || popupWin.isDestroyed() || popupDrag || !dialMag()) return;
+  const b = popupCur(), w = magWidth(), h = popupHeightFor(w, b.height);
+  popupCssW = w;
+  const p = magPlace(popupMag, h);
+  if (p.side !== popupMag) { popupMag = p.side; popupEase(); }   // اتقلب فوق/تحت علشان يلاقي مكان: ينزلق بنعومة
+  setPopupBounds({ x: p.x, y: p.y, width: w, height: h });
+}
+// الهوامش الشفافة حوالين كارت الإشعار ما تاخدش الضغطات: بتعدّي للي تحتها (المسبحة) — نفس فكرة الـ hit-test بتاع المسبحة
+let popupHitTimer = null, popupIgnore = null;
+function popupHitTick() {
+  if (!popupWin || popupWin.isDestroyed() || !popup || popup.kind !== 'verse') return;
+  let ignore = false;
+  if (!popupDrag) {
+    const p = screen.getCursorScreenPoint(), b = popupWin.getBounds(), { pad } = popupDims('verse');
+    ignore = !(p.x >= b.x + pad.l && p.x < b.x + b.width - pad.r && p.y >= b.y + pad.t && p.y < b.y + b.height - pad.b);
+  }
+  if (ignore !== popupIgnore) { popupIgnore = ignore; popupWin.setIgnoreMouseEvents(ignore, { forward: true }); }
+}
+// ───── إشعار الأذكار المنبثق: بيلزق في حافة الشاشة (الحافة دي بتبقى مسطّحة كأنه طالع منها) ─────
+function popupEdgesOf(kind, b) {                    // الحواف اللي الكارت الظاهر لازق فيها: 'l' 'r' 't' 'b'
+  if (kind === 'verse' && popupMag && dialMag()) return '';   // قاعد على المسبحة: يحافظ على شكله كامل مهما قربت المسبحة من الحافة (مفيش تسطيح ولا قص)
+  const { pad } = popupDims(kind);
+  const wa = screen.getDisplayMatching(b).workArea;
+  let e = '';
+  if (b.x + pad.l <= wa.x + 1) e += 'l';
+  if (b.x + b.width - pad.r >= wa.x + wa.width - 1) e += 'r';
+  if (b.y + pad.t <= wa.y + 1) e += 't';
+  if (b.y + b.height - pad.b >= wa.y + wa.height - 1) e += 'b';
+  return e;
+}
+function snapVerse(x, y, W, h) {                    // مغناطيس: لو الكارت قرّب من حافة الشاشة بيلزق فيها
+  const { pad } = popupDims('verse');
+  const wa = screen.getDisplayMatching({ x: Math.round(x), y: Math.round(y), width: W, height: h }).workArea;
+  const L = x + pad.l, R = x + W - pad.r, T = y + pad.t, B = y + h - pad.b;
+  if (L - wa.x <= POPUP_SNAP) x = wa.x - pad.l;
+  else if (wa.x + wa.width - R <= POPUP_SNAP) x = wa.x + wa.width - W + pad.r;
+  if (T - wa.y <= POPUP_SNAP) y = wa.y - pad.t;
+  else if (wa.y + wa.height - B <= POPUP_SNAP) y = wa.y + wa.height - h + pad.b;
+  return { x: Math.round(x), y: Math.round(y) };
+}
+function verseXY(a, W, h) {                         // a = { wa?, edges, cx, cy | y }: مكان النافذة من الحواف أو من مركز الكارت (علشان تغيّر عرض/ارتفاع النص ما يزحزحوش المكان)
+  const { pad } = popupDims('verse');
+  const wa = a.wa || screen.getDisplayNearestPoint({ x: Math.round(a.cx), y: Math.round(a.cy) }).workArea;
+  const e = a.edges || '';
+  let x, y;
+  if (e.includes('r')) x = wa.x + wa.width - W + pad.r;
+  else if (e.includes('l')) x = wa.x - pad.l;
+  else x = a.cx - W / 2;
+  if (e.includes('b')) y = wa.y + wa.height - h + pad.b;
+  else if (e.includes('t')) y = wa.y - pad.t;
+  else y = a.y !== undefined ? a.y : a.cy - pad.t - (h - pad.t - pad.b) / 2;
+  return clampPopup('verse', x, y, h);
+}
+function syncPopupEdges(target) {                   // نبلّغ الصفحة بالحواف اللازق فيها (علشان تسطّح الزوايا وتختار اتجاه الحركة). target = المكان المستهدف: التسطيح يبدأ مع الحركة مش بعد ما توصل
+  if (!popup || popup.kind !== 'verse' || !popupWin || popupWin.isDestroyed()) return;
+  const e = popupEdgesOf('verse', target || popupWin.getBounds());
+  if (popup.edgesSent && e === popup.edges) return;
+  popup.edges = e; popup.edgesSent = true;
+  sendPopup('popup:edges', e);
 }
 function clampPopup(kind, x, y, h) {                 // الكارت الظاهر يفضل جوه الشاشة (الهامش الشفاف ممكن يطلع بره)
   const { W, pad } = popupDims(kind);
@@ -1974,6 +2166,13 @@ const dockOk = () => dialShown() && !state.miniMode;                            
 // اختيار البطاقات لسه شغّال والمسبحة اتصغّرت/اتخبّت: نلغيه بدل ما يفضل معلّق من غير ما حد يشوفه
 function dropInlineChoose() { if (popup && popup.inline && popup.phase === 'choose') closePopup(); }
 function popupPlace(kind, h) {
+  if (kind !== 'cards') {                                     // إشعار الأذكار: منبثق من يمين الشاشة، أو آخر مكان اتسحب فيه
+    if (popupMag && dialMag()) return magPlace(popupMag, h);   // ملزوق في المسبحة
+    const { W } = popupDims(kind);
+    if (state.popupPos === 'saved' && state.px !== null && state.py !== null) return verseXY({ cx: state.px, cy: state.py, edges: state.pe || '' }, W, h);
+    const wa = screen.getPrimaryDisplay().workArea;
+    return verseXY({ wa, edges: 'r', y: wa.y + POPUP_VY }, W, h);
+  }
   if (popupStartAt) return clampPopup(kind, popupStartAt.x, popupStartAt.y, h);
   const mode = popupPosOf(kind);
   const { W, pad } = popupDims(kind);
@@ -2006,7 +2205,9 @@ function popupPlace(kind, h) {
 }
 function popupReplace(keep) {                         // إعادة ضبط مكان وحجم الإشعار الظاهر (تغيير المكان أو الحجم من الإعدادات)
   if (!popup || !popupWin || popupWin.isDestroyed()) return;
-  const kind = popup.kind, { z, W } = popupDims(kind);
+  const kind = popup.kind;
+  if (kind !== 'cards') popupCssW = Math.min(POPUP_VW_MAX, Math.max(POPUP_VW_MIN, Math.ceil(popupCssW / popupHz * popupScaleOf(kind))));   // العرض بيتناسب مع الحجم الجديد لحد ما الصفحة تبلّغ بالحقيقي
+  const { z, W } = popupDims(kind);
   popupZSent = z; sendPopup('popup:scale', z);                // الصفحة بتكبّر/تصغّر نفسها (transform) وبترجّع ارتفاعها الجديد
   const H = Math.ceil(popupCssH / popupHz * z);              // تقدير مؤقت لحد ما الصفحة تبلّغ بالارتفاع الحقيقي
   const cur = popupWin.getBounds();
@@ -2042,8 +2243,14 @@ function showPopup(kind, opts) {
     send('inline:open');
     return true;
   }
+  popupMag = '';
+  if (kind !== 'cards') {
+    popupCssW = 360;
+    if (state.popupPos === 'saved' && (state.pm === 't' || state.pm === 'b') && dialShown()) { popupMag = state.pm; popupCssW = magWidth(); }   // آخر مرة اتسحب ولزق في المسبحة
+  }
+  popupEaseStop(); popupFill = !!popupMag; popupNatW = 360; popupNatH = 0;
   const dm = popupDims(kind);
-  popupCssH = Math.ceil((kind === 'cards' ? 280 : 170) * dm.z); popupHz = dm.z; popupZSent = dm.z;
+  popupCssH = Math.ceil((kind === 'cards' ? 280 : 110) * dm.z); popupHz = dm.z; popupZSent = dm.z;
   const h0 = popupCssH;
   const p0 = popupPlace(kind, h0);
   const w = popupWin = new BrowserWindow({
@@ -2061,6 +2268,8 @@ function showPopup(kind, opts) {
   w.setMenu(null);
   w.setAlwaysOnTop(true, 'screen-saver');
   w.loadFile('popup.html');
+  clearInterval(popupHitTimer); popupHitTimer = null; popupIgnore = null;
+  if (kind === 'verse') popupHitTimer = setInterval(popupHitTick, 30);
   updateDialCover();
   w.on('closed', () => { if (popupWin === w) { popupWin = null; if (popup) closePopup(); } });
   popupShowTimer = setTimeout(() => { if (popupWin === w && !w.isDestroyed() && !w.isVisible()) w.showInactive(); finishUndockSwap(); }, 1200);
@@ -2069,6 +2278,8 @@ function showPopup(kind, opts) {
 }
 
 function closePopup() {
+  popupEaseStop(); popupFill = false;
+  clearInterval(popupHitTimer); popupHitTimer = null; popupIgnore = null;
   clearInterval(undockTimer); undockTimer = null; resetDock();
   clearTimeout(popupSafety); popupSafety = null;
   clearTimeout(popupShowTimer); popupShowTimer = null;
@@ -2112,6 +2323,7 @@ function checkDock() {
 }
 function dockPopup() {
   resetDock();
+  if (state.cardsPos !== 'dial') { state.cardsPos = 'dial'; saveStateSoon(); broadcastState(); }   // دخلت المسبحة بالسحب = المكان المفضّل بقى "مكان المسبحة نفسها"، فتظهر جواها كل مرة
   const w = popupWin; popupWin = null; popupDrag = null;
   clearInterval(undockTimer); undockTimer = null;
   popup.inline = true; popup.free = false; popupMoved = false;
@@ -2155,10 +2367,20 @@ function undockPopup() {
 }
 function finishPopupDrag() {                               // نهاية السحب: تثبيت المكان وحفظه (لكل نوع لوحده)
   if (!popup || !popupWin || popupWin.isDestroyed() || !popupMoved) return;
-  const b = popupWin.getBounds(), p = clampPopup(popup.kind, b.x, b.y, b.height);
-  popupWin.setBounds({ x: p.x, y: p.y, width: b.width, height: b.height });
+  const b = popupCur();
+  let p = clampPopup(popup.kind, b.x, b.y, b.height);
+  const bh = popup.kind === 'verse' ? popupHeightFor(b.width, b.height) : b.height;
+  if (popup.kind === 'verse') p = (popupMag && dialMag()) ? magPlace(popupMag, bh) : snapVerse(p.x, p.y, b.width, bh);
+  setPopupBounds({ x: p.x, y: p.y, width: b.width, height: bh });
   if (popup.kind === 'cards') { state.cx = p.x; state.cy = p.y; state.cardsPos = 'saved'; }
-  else { state.px = p.x; state.py = p.y; state.popupPos = 'saved'; }
+  else {                                                   // بنحفظ مركز الكارت + الحواف اللازق فيها: لو النص اتغيّر مرة تانية يفضل لازق / في نفس المكان
+    const { pad } = popupDims('verse');
+    const tb = { x: p.x, y: p.y, width: b.width, height: bh };
+    state.px = Math.round(p.x + b.width / 2); state.py = Math.round(p.y + pad.t + (bh - pad.t - pad.b) / 2);
+    state.pe = popupEdgesOf('verse', tb); state.popupPos = 'saved';
+    state.pm = popupMag && dialMag() ? popupMag : '';
+    syncPopupEdges(tb);
+  }
   saveStateSoon(); broadcastState();
 }
 
@@ -2245,7 +2467,7 @@ ipcMain.handle('popup:get', e => {
   if (!popup || !fromPopup(e)) return null;
   const cgrp = popup.custom && popup.custom.grp;
   return {                                                 // نص الأذكار العشوائية ما بيتبعتش إلا بعد اختيار البطاقة
-    kind: popup.kind, scale: popupScaleOf(popup.kind), cards: popup.cards ? popup.cards.length : 0,
+    kind: popup.kind, scale: popupScaleOf(popup.kind), fill: popup.kind === 'verse' && popupFill, cards: popup.cards ? popup.cards.length : 0,
     verse: popup.verse, custom: popup.custom, capSec: cgrp === 'pray' ? 120 : CUSTOM_PLAY_CAP_S,
     reminderSound: popup.preview ? true : (cgrp === 'az' ? state.azSound : cgrp === 'wird' ? state.wirdSound : cgrp === 'pray' ? state.prayerSound : state.reminderSound),
     reminderVolume: cgrp === 'az' ? state.azVolume : cgrp === 'wird' ? state.wirdVolume : cgrp === 'pray' ? state.prayerVolume : state.reminderVolume,   // المعاينة بتشغّل الصوت حتى لو صوت التنبيه مقفول
@@ -2253,15 +2475,29 @@ ipcMain.handle('popup:get', e => {
     challengeMs: CHALLENGE_MS, revealMs: REVEAL_MS
   };
 });
-ipcMain.on('popup:fit', (e, h) => {
+ipcMain.on('popup:fit', (e, h, w, nh, nw) => {
   if (!fromPopup(e) || !Number.isFinite(h)) return;
-  if (!popup) return;
+  if (!popup || !popupWin || popupWin.isDestroyed()) return;
   popupCssH = Math.min(720, Math.max(60, Math.ceil(h))); popupHz = popupZSent;   // الصفحة بتبلّغ بارتفاعها بعد الحجم (بكسل نافذة فعلي)
-  const { W } = popupDims(popup.kind), height = popupCssH;
-  const cur = popupWin.getBounds();
-  const p = popupMoved ? clampPopup(popup.kind, cur.x, cur.y, height) : popupPlace(popup.kind, height);   // لو اتسحب يفضل في مكانه
-  popupWin.setBounds({ x: p.x, y: p.y, width: W, height });
+  const verse = popup.kind === 'verse';
+  const natOk = verse && Number.isFinite(nw) && Number.isFinite(nh) && nw > 0 && nh > 0;
+  if (natOk) {                                           // مقاسه الطبيعي (على قد النص) بيتبلّغ دايمًا حتى وهو ملزوق أو النافذة أضيق منه
+    popupNatW = Math.min(POPUP_VW_MAX, Math.max(POPUP_VW_MIN, Math.ceil(nw))); popupNatH = Math.min(720, Math.max(60, Math.ceil(nh)));
+  }
+  if (verse && popupMag && dialMag()) popupCssW = magWidth();   // ملزوق في المسبحة: عرضه عرضها (والارتفاع الفعلي من الصفحة)
+  else if (verse && popupFill) { if (natOk) popupCssH = popupHeightFor(popupCssW, popupCssH); }   // راجع لمقاسه الطبيعي: الارتفاع بنفس نسبة العرض
+  else if (natOk) { popupCssW = popupNatW; popupCssH = popupNatH; }   // إشعار الأذكار: العرض والارتفاع على قد النص (من غير ما نتأثر بعرض النافذة الحالي)
+  else if (verse && Number.isFinite(w)) { popupCssW = Math.min(POPUP_VW_MAX, Math.max(POPUP_VW_MIN, Math.ceil(w))); popupNatW = popupCssW; }
+  const { W, pad } = popupDims(popup.kind), height = popupCssH;
+  const cur = popupCur();
+  let p;
+  if (verse && popupMag && dialMag()) { p = magPlace(popupMag, height); popupMag = p.side; }
+  else if (verse && popupMoved) {                          // اتسحب: يفضل لازق في حافته (لو لازق) أو على نفس مركزه حتى لو عرض/ارتفاع النص اتغيّر
+    p = verseXY({ wa: screen.getDisplayMatching(cur).workArea, edges: popup.edges || '', cx: cur.x + cur.width / 2, cy: cur.y + pad.t + (cur.height - pad.t - pad.b) / 2 }, W, height);
+  } else p = popupMoved ? clampPopup(popup.kind, cur.x, cur.y, height) : popupPlace(popup.kind, height);   // لو اتسحب يفضل في مكانه
+  setPopupBounds({ x: p.x, y: p.y, width: W, height });
   if (!popupWin.isVisible()) { clearTimeout(popupShowTimer); popupWin.showInactive(); }
+  syncPopupEdges();
   finishUndockSwap();
 });
 ipcMain.on('popup:pick', (e, i) => {
@@ -2273,14 +2509,38 @@ ipcMain.on('popup:close', e => { if (fromPopup(e)) closePopup(); });
 // سحب الإشعار بالماوس (بنحسب الحركة من مكان الماوس على الشاشة علشان تفضل دقيقة مهما كان حجم الإشعار)
 ipcMain.on('popup:dragstart', e => {
   if (!fromPopup(e)) return;
-  const b = popupWin.getBounds(), c = screen.getCursorScreenPoint();
+  const b = popupCur(), c = screen.getCursorScreenPoint();
   popupDrag = { x: b.x, y: b.y, cx: c.x, cy: c.y };
 });
 ipcMain.on('popup:dragmove', e => {
   if (!fromPopup(e) || !popupDrag || !popup) return;
-  const c = screen.getCursorScreenPoint(), b = popupWin.getBounds();
+  const c = screen.getCursorScreenPoint(), b = popupCur();
   popupMoved = true;
-  popupWin.setBounds({ x: Math.round(popupDrag.x + c.x - popupDrag.cx), y: Math.round(popupDrag.y + c.y - popupDrag.cy), width: b.width, height: b.height });
+  let nx = Math.round(popupDrag.x + c.x - popupDrag.cx), ny = Math.round(popupDrag.y + c.y - popupDrag.cy);
+  let bw = b.width, bh = b.height;
+  if (popup.kind === 'verse') {
+    const q0 = clampPopup('verse', nx, ny, b.height), side = magnetSide(q0.x, q0.y, b.width, b.height);
+    if (side) {                                            // مغناطيس المسبحة: ينطبق فوقها/تحتها بعرضها (الكارت كله بيصغّر بنسبته من غير ما النص يلف)
+      if (popupMag !== side) { popupEase(); popupFill = true; sendPopup('popup:lock', { fill: true, pulse: 'in' }); }
+      popupMag = side; popupCssW = magWidth();
+      bw = popupCssW; bh = popupHeightFor(bw, b.height);
+      const q = magPlace(side, bh); nx = q.x; ny = q.y; popupMag = q.side;
+    } else {
+      if (popupMag) {                                      // بعّده: يرجع لمقاسه الطبيعي بسرعة وبنعومة (العرض والارتفاع والحواف بنفس النسبة)
+        popupMag = ''; popupEase(); popupCssW = popupNatW; bw = popupCssW;
+        sendPopup('popup:lock', { fill: true, pulse: 'out' });
+      }
+      bh = popupHeightFor(bw, b.height);
+      const q = snapVerse(q0.x, q0.y, bw, bh); nx = q.x; ny = q.y;   // مغناطيس الحافة
+    }
+  }
+  setPopupBounds({ x: nx, y: ny, width: bw, height: bh });
+  if (popup.kind === 'verse') {
+    const tb = { x: nx, y: ny, width: bw, height: bh };
+    const ek = popupEdgesOf('verse', tb);                  // الحواف بتتحسب من المكان المستهدف: التسطيح بيبدأ مع حركة الانزلاق نفسها
+    if (popup.dragEdges !== ek) { if (popup.dragEdges !== undefined) popupEase(380); popup.dragEdges = ek; }   // دخل/خرج من حافة: الانزلاق ناعم مش قفزة
+    syncPopupEdges(tb);
+  }
   if (popup.kind === 'cards' && !popup.free) { popup.free = true; updateDialCover(); }   // اتسحبت: المسبحة تظهر تاني
   checkDock();                                             // قرّبته من المسبحة؟ يدخل جواها
 });
@@ -2405,13 +2665,91 @@ ipcMain.on('exit:done', () => { if (exiting) finalizeExit(); });   // الـ ren
 
 // سحب النافذة يدويًا (drag-region مش بتتوافق مع click-through)
 let dragOrigin = null;
-ipcMain.on('drag:start', () => { if (state.dialLocked) return; if (win && !win.isDestroyed() && vis === 'shown') { const [x, y] = win.getPosition(); dragOrigin = { x, y }; setIgnore(false); } });
+ipcMain.on('drag:start', () => { if (state.dialLocked) return; if (win && !win.isDestroyed() && vis === 'shown') { const [x, y] = win.getPosition(); dragOrigin = { x, y }; edgePush = ''; setIgnore(false); } });
 ipcMain.on('drag:move', (_e, d) => {
   if (!win || win.isDestroyed() || !dragOrigin || !d || !Number.isFinite(d.dx) || !Number.isFinite(d.dy)) return;
   const s = size();
-  win.setBounds({ x: Math.round(dragOrigin.x + d.dx), y: Math.round(dragOrigin.y + d.dy), width: s.w, height: s.h });
+  if (popupEaseTimer || popupEaseUntil) popupEaseStop();                    // السحب اليدوي: الإشعار الملزوق يمشي مع المسبحة لحظيًا (من غير نعومة متأخرة)
+  const f = fitToScreen(dragOrigin.x + d.dx, dragOrigin.y + d.dy, s);       // الكارت يفضل جوه الشاشة مهما سحبت
+  win.setBounds({ x: f.x, y: f.y, width: s.w, height: s.h });
+  edgePush = state.miniMode ? '' : f.sides;                                 // زقّيته بره حافة (ولسه ماسك)؟ نفتكر ونوهّج المسبحة بهدوء = "سيب هنا وهتتصغّر"
+  setEdgeHint(!!edgePush);
 });
-ipcMain.on('drag:end', () => { dragOrigin = null; rememberPosition(); });
+ipcMain.on('drag:end', () => {
+  const sides = edgePush, wasDragging = !!dragOrigin;
+  dragOrigin = null; edgePush = ''; setEdgeHint(false);
+  if (wasDragging && sides && win && !win.isDestroyed() && vis === 'shown' && !state.miniMode && !morphHold && !state.dialLocked) return dockToEdge(sides);
+  rememberPosition();
+});
+
+// ───── حواف الشاشة أثناء سحب المسبحة ─────
+// • الكارت الظاهر (من غير هامش الـ glow الشفاف) ما بيخرجش بره الشاشة: بنحصره جوه المساحة المتاحة (workArea).
+//   الحافة اللي جنبها شاشة تانية بتفضل مفتوحة علشان السحب بين الشاشات يفضل شغّال.
+// • زقّيت الكارت بره حافة مقفولة بمسافة EDGE_PUSH وفلتّ: بيتحوّل لـ Mini Mode (نفس حركة التصغير) وبينزلق بهدوء ويلزق في الحافة دي.
+const EDGE_PUSH = 40;         // لازم تزق الكارت بالمسافة دي بره الحافة (بكسل) علشان يتحوّل (مفيش تحوّل بالغلط لو لمست الحافة بس)
+const EDGE_GAP = 10;          // الفرق بين شريط الـ Mini وحافة الشاشة بعد ما يلزق
+const EDGE_GLIDE_MS = 600;    // مدة الانزلاق لحد الحافة (قريبة من مدة تحوّل الـ Mini علشان الاتنين يخلصوا مع بعض)
+let edgePush = '', edgeHint = false, edgeGlide = null;
+function setEdgeHint(on) { if (on === edgeHint) return; edgeHint = on; send('inline:hint', on); }   // نفس توهّج الدخول الهادي بتاع المسبحة
+function edgeOpen(side, D, c) {   // في شاشة تانية لازقة في الحافة دي (وعلى مستوى الكارت)؟ يبقى الحافة مفتوحة
+  const d = D.bounds;
+  for (const E of screen.getAllDisplays()) {
+    if (E.id === D.id) continue;
+    const e = E.bounds;
+    if (side === 'l' || side === 'r') {
+      if (Math.min(c.b, e.y + e.height) - Math.max(c.t, e.y) <= 0) continue;
+      if (side === 'l' ? (e.x + e.width <= d.x + 2 && e.x + e.width >= d.x - 40) : (e.x >= d.x + d.width - 2 && e.x <= d.x + d.width + 40)) return true;
+    } else {
+      if (Math.min(c.r, e.x + e.width) - Math.max(c.l, e.x) <= 0) continue;
+      if (side === 't' ? (e.y + e.height <= d.y + 2 && e.y + e.height >= d.y - 40) : (e.y >= d.y + d.height - 2 && e.y <= d.y + d.height + 40)) return true;
+    }
+  }
+  return false;
+}
+function fitToScreen(rx, ry, s) {   // المكان المطلوب ← المكان المحصور جوه الشاشة + الحواف اللي اتزق بره منها بمسافة EDGE_PUSH أو أكتر
+  const D = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()), wa = D.workArea;
+  const c = { l: rx + GLOW, t: ry + GLOW, r: rx + s.w - GLOW, b: ry + s.h - GLOW };   // الكارت الظاهر
+  let x = rx, y = ry, sides = '';
+  if (c.l < wa.x && !edgeOpen('l', D, c)) { x = wa.x - GLOW; if (wa.x - c.l >= EDGE_PUSH) sides += 'l'; }
+  else if (c.r > wa.x + wa.width && !edgeOpen('r', D, c)) { x = wa.x + wa.width - s.w + GLOW; if (c.r - (wa.x + wa.width) >= EDGE_PUSH) sides += 'r'; }
+  if (c.t < wa.y && !edgeOpen('t', D, c)) { y = wa.y - GLOW; if (wa.y - c.t >= EDGE_PUSH) sides += 't'; }
+  else if (c.b > wa.y + wa.height && !edgeOpen('b', D, c)) { y = wa.y + wa.height - s.h + GLOW; if (c.b - (wa.y + wa.height) >= EDGE_PUSH) sides += 'b'; }
+  return { x: Math.round(x), y: Math.round(y), sides, wa };
+}
+function stopEdgeGlide(snap) {   // snap: نوصّل النافذة لمكانها النهائي فورًا (لو التحوّل خلّص قبل الانزلاق)
+  if (!edgeGlide) return;
+  const g = edgeGlide; edgeGlide = null; clearInterval(g.iv);
+  if (snap && win && !win.isDestroyed()) win.setBounds({ x: g.to.x, y: g.to.y, width: g.w, height: g.h });
+}
+function startEdgeGlide(from, tx, ty) {   // النافذة (والكارت بيصغّر جواها) بتنزلق لمكان الشريط النهائي بحركة ease-in-out هادية
+  stopEdgeGlide(false);
+  if (from.x === tx && from.y === ty) return;
+  const t0 = Date.now();
+  edgeGlide = {
+    t0, to: { x: tx, y: ty }, w: from.width, h: from.height,
+    iv: setInterval(() => {
+      if (!win || win.isDestroyed() || vis !== 'shown') return stopEdgeGlide(false);
+      const k = Math.min(1, (Date.now() - t0) / EDGE_GLIDE_MS);
+      const e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      win.setBounds({ x: Math.round(from.x + (tx - from.x) * e), y: Math.round(from.y + (ty - from.y) * e), width: from.width, height: from.height });
+      if (k >= 1) stopEdgeGlide(false);
+    }, 16)
+  };
+}
+function dockToEdge(sides) {   // sides: 'l' | 'r' | 't' | 'b' (أو ركن زي 'rb')
+  rememberPosition();                                           // مكان الكارت الكبير (بعد ما اتحصر جوه الشاشة)
+  const b = win.getBounds();
+  const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const rx = [wa.x + EDGE_GAP, wa.x + wa.width - CARD_MINI.w - EDGE_GAP], ry = [wa.y + EDGE_GAP, wa.y + wa.height - CARD_MINI.h - EDGE_GAP];
+  const cl = b.x + GLOW, ct = b.y + GLOW;                       // ركن الكارت الكبير = مكان ظهور شريط الـ Mini في حركة التحوّل
+  const mx = sides.includes('l') ? rx[0] : sides.includes('r') ? rx[1] : Math.min(Math.max(cl, rx[0]), rx[1]);
+  const my = sides.includes('t') ? ry[0] : sides.includes('b') ? ry[1] : Math.min(Math.max(ct, ry[0]), ry[1]);
+  const wx = Math.round(mx - GLOW), wy = Math.round(my - GLOW);
+  state.mx = wx; state.my = wy;                                 // لو مفيش حركة (النافذة مش ظاهرة) الشريط يفتح في الحافة برضه
+  setMiniMode(true);                                            // الكارت بيصغر ويتحوّل لشريط (نفس حركة زر "–")
+  if (morphHold) startEdgeGlide(b, wx, wy);                     // وفي نفس الوقت النافذة بتنزلق للحافة
+  if (morphHold) followDialMag();                               // والإشعار الملزوق يتجه لمكان الشريط النهائي عند الحافة
+}
 
 // ───────────── دورة حياة التطبيق + الإغلاق النهائي ─────────────
 app.on('second-instance', () => { if (!exiting) showOverlay(); });

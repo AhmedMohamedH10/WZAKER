@@ -105,12 +105,13 @@
   .ibtn:hover { color: var(--accent); background: rgba(var(--accent-rgb), .08); }
   .ibtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
   /* Header: اللوجو في المنتصف (وهو نفسه مقبض السحب) + سطر صغير تحته */
-  .grip { width: 108px; height: 33px; display: grid; place-items: center; cursor: grab; border-radius: 12px; transition: background .15s; }
+  .grip { width: 108px; height: 33px; display: grid; place-items: center; cursor: pointer; border-radius: 12px; transition: background .15s; }
   .grip:hover { background: rgba(var(--accent-rgb), .06); }
   .grip:active { cursor: grabbing; }
   .brand { height: 35px; width: auto; display: block; pointer-events: none; -webkit-user-drag: none; opacity: .95; }
   .tagline {
     width: 100%; margin-top: -1px; height: 15px; padding: 0 6px; text-align: center;
+    translate: 0 7px;                                   /* المسافة بين اللوجو والآية = 39 بكسل (ثابتة: مش من التخصيص) */
     font-size: 11px; line-height: 15px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     pointer-events: none;
   }
@@ -207,12 +208,29 @@
   .dhikr:hover { background: rgba(var(--accent-rgb), .08); }
   .total { margin-top: 3px; font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; pointer-events: none; }
 
-  /* التحكم السفلي */
-  .ctrl {
-    margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    opacity: .6; transition: opacity .15s;
-  }
-  .card:hover .ctrl { opacity: 1; }
+  /* التحكم السفلي: زر دايري (أيقونة ضبط) في النص. على الماوس عليه: الصوت يمين + الهدف والتصفير شمال بيتفتحوا منه بنعومة.
+     الفتح/الإغلاق بيتحكم فيه JS (class .open) علشان الترتيب يبقى: الأيقونات اللي في الطريق تتلاشى الأول ← الأزرار تظهر، وعند الإغلاق الأزرار تتجمّع ← بعدها الأيقونات ترجع بهدوء */
+  .ctrl { position: relative; margin-top: auto; width: 100%; height: 30px; display: flex; align-items: center; justify-content: center; pointer-events: none; --dk-shift: 26px; }
+  .dk-dot { position: relative; z-index: 1; width: 30px; height: 30px; display: grid; place-items: center; pointer-events: auto; cursor: pointer; color: var(--accent); }   /* نجمة بدون إطار: الشكل نفسه هو الزر */
+  .dk-dot svg { width: 20px; height: 20px; overflow: visible; opacity: .55; transform: scale(.95) rotate(0deg); transition: opacity .4s ease, transform .7s cubic-bezier(.22, 1, .36, 1), filter .4s ease; }
+  .dk-dot .st { fill: rgba(var(--accent-rgb), 0); stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; transition: fill .4s ease; }
+  .dk-dot .core { fill: currentColor; transform-origin: 12px 12px; animation: dkTwinkle 3.4s ease-in-out infinite; }   /* قلب النجمة بيرمّش هادي */
+  @keyframes dkTwinkle { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+  .dk-dot:hover svg, .ctrl.open .dk-dot svg { opacity: 1; transform: scale(1.18) rotate(22.5deg); filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), .95)) drop-shadow(0 0 8px rgba(var(--accent-rgb), .55)); }   /* لما الماوس يقرّب: تلمع وتلف نص دورة */
+  .dk-dot:hover .st, .ctrl.open .dk-dot .st { fill: rgba(var(--accent-rgb), .22); }
+  .dk-dot:hover .core, .ctrl.open .dk-dot .core { animation: none; opacity: 1; transform: scale(1.2); }
+  .ctrl.open .dk-dot::after { content: ''; position: absolute; top: -8px; bottom: -8px; left: -140px; right: -140px; border-radius: 22px; }   /* جسر شفاف: الماوس وهو رايح للأزرار ما يفقدش الفتح */
+  .ctrl .snd, .ctrl .btns { position: absolute; top: 0; bottom: 0; z-index: 2; display: flex; align-items: center; opacity: 0; visibility: hidden; pointer-events: none; filter: blur(3px);
+    transition: opacity .26s ease, transform .3s cubic-bezier(.5, 0, .75, 0), filter .26s ease, visibility 0s linear .3s; }   /* الإغلاق: بيتجمّعوا ناحية الزر بسرعة */
+  .ctrl .snd { right: 0; transform-origin: 100% 50%; transform: translateX(calc(var(--dk-shift) * -1)) scale(.86); }
+  .ctrl .btns { left: 0; gap: 6px; transform-origin: 0 50%; transform: translateX(var(--dk-shift)) scale(.86); }
+  .ctrl.open .snd, .ctrl.open .btns { opacity: 1; visibility: visible; pointer-events: auto; filter: blur(0); transform: none;
+    transition: opacity .4s ease .1s, transform .55s cubic-bezier(.22, 1, .36, 1) .1s, filter .4s ease .1s, visibility 0s; }   /* الفتح: بعد ما الأيقونات اللي في الطريق تبدأ تتلاشى بلحظة */
+  .ctrl .snd > *, .ctrl .btns > * { opacity: 0; transform: scale(.9); transition: opacity .2s ease, transform .2s ease, color .15s, border-color .15s, background .15s; }
+  .ctrl.open .snd > *, .ctrl.open .btns > * { opacity: 1; transform: none; transition: opacity .35s ease .2s, transform .5s cubic-bezier(.22, 1, .36, 1) .2s, color .15s, border-color .15s, background .15s; }
+  .ctrl.open .snd.muted .rng { opacity: .3; }
+  .ctrl.open .snd > :nth-child(2), .ctrl.open .btns > :nth-child(2) { transition-delay: .27s; }   /* ظهور متتابع خفيف */
+  @media (prefers-reduced-motion: reduce) { .ctrl .snd, .ctrl .btns, .ctrl .snd > *, .ctrl .btns > *, .dk-dot svg { transition: none !important; } .dk-dot .core { animation: none; } }
   .pill {
     height: 26px; padding: 0 10px; border-radius: 13px; font-size: 12px;
     background: transparent; color: var(--dim); border: 1px solid var(--line);
@@ -240,15 +258,17 @@
     background: var(--bg); border: 1px solid var(--line);
     box-shadow: 0 0 14px rgba(var(--accent-rgb), .09);
     opacity: var(--mini-op, .85);
-    display: flex; align-items: center; gap: 12px; padding: 0 8px 0 14px;
+    display: flex; align-items: center; gap: 12px; padding: 0 14px;
     cursor: grab; overflow: hidden;
   }
   .mini:active { cursor: grabbing; }
   .m-num { font-size: 28px; line-height: 1; color: var(--accent); min-width: 34px; text-align: center;
            font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(var(--accent-rgb), .32); }
   .m-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .m-dhikr { font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-dhikr { font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: clip; }   /* من غير نقط أبدًا: الضبط التلقائي (fitMini) هو اللي بيخلّي النص يتّسع */
+  .m-dhikr.two { white-space: normal; line-height: 1.15; max-height: 30px; }   /* ذكر طويل: سطرين بخط أصغر بدل القطع بنقط */
   .m-of { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .m-exp { flex: none; margin-inline-start: auto; }
   .m-bar { position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; background: rgba(var(--accent-rgb), .09); }
   .m-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 2px;
              box-shadow: 0 0 6px rgba(var(--accent-rgb), .5); transition: width .18s ease-out; margin-inline-start: 0; }
@@ -277,8 +297,6 @@
   body.cards-open .dial, body.cards-open .dhikr, body.cards-open .total { opacity: 0; transform: scale(.9); pointer-events: none !important; transition-duration: .3s, .3s; transition-timing-function: ease, cubic-bezier(.4, 0, .2, 1); }
   /* إتمام الهدف: الدايرة بتصغر وتتلاشى (نفس حركة الأذكار المخفية)، الرقم بيتبدّل وهي مخفية، وترجع بـ Pop */
   body.dip .dial, body.dip .dhikr, body.dip .total { opacity: 0; transform: scale(.9); pointer-events: none !important; transition-duration: .3s, .3s; transition-timing-function: ease, cubic-bezier(.4, 0, .2, 1); }
-  .card { transition: opacity .25s ease, border-color .45s ease, box-shadow .45s ease; }
-
   /* تلميح الدخول: لما البطاقات تتقرّب من المسبحة، الإطار يتوهّج بهدوء ويتنفّس لحد ما تدخل (أو تبعد فيرجع) */
   .card { transition: opacity .25s ease, border-color .45s ease, box-shadow .45s ease, transform .5s cubic-bezier(.2, .8, .2, 1); }
   body.dock-hint:not(.is-mini) .card { animation: none; border-color: rgba(var(--accent-rgb), .75); box-shadow: 0 0 14px rgba(var(--accent-rgb), .28), inset 0 0 22px rgba(var(--accent-rgb), .12); transform: scale(calc(var(--ks, 1) * 1.012)); }
@@ -293,6 +311,7 @@
   .azdue[data-k="m"] .moon, .azdue[data-k="e"] .sun { display: none; }
   #azRest[data-k="sl"] .dawn, #azRest[data-k="wk"] .bed { display: none; }
   .azdue .dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: #ff6b6b; box-shadow: 0 0 0 0 rgba(255, 107, 107, .6); animation: azPulse 1.8s ease-out infinite; }
+  .azdue.dk-yield { transform: scale(.82); }
   @keyframes azPulse { 0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, .55); } 70%, 100% { box-shadow: 0 0 0 7px rgba(255, 107, 107, 0); } }
   body.cards-open .azstack, body.is-challenge .azstack { opacity: 0; pointer-events: none !important; }
   .azstack { transition: opacity .3s ease; }
@@ -375,16 +394,68 @@
   @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
   @media (prefers-reduced-motion: reduce) { body.is-challenge .card, body.is-challenge .mini { animation: none; } }
 
+  /* ═════ تحوّل المسبحة الكبيرة ⇄ Mini ═════
+     الكارت بيصغر ويتلاشى ناحية مكان الشريط، والشريط بيظهر في مكانه بالتدريج (والعكس). النافذة بتفضل بحجمها لحد ما الحركة تخلص،
+     فالشريط بيتثبّت في الركن (--htx/--hty) بنفس مكانه النهائي. المتغيرات --ms/--mtx/--mty بتتحسب من JS (حجم الكارت الفعلي). */
+  :root { --morph-ms: 620ms; }
+  body.morphing .card, body.morphing .mini { pointer-events: none; }
+  body.morph-out.morph-out .mini, body.morph-in.morph-in .mini, body.morph-hold.morph-hold .mini {
+    display: flex; inset: auto; left: var(--htx, var(--gm)); top: var(--hty, var(--gm)); width: 232px; height: 48px;
+  }
+  body.morph-blank .card, body.morph-blank .mini { opacity: 0 !important; animation: none !important; transition: none !important; }
+  /* كبيرة → مصغّرة */
+  body.morph-out .card { animation: morphCardOut var(--morph-ms) cubic-bezier(.45, 0, .2, 1) forwards; }
+  body.morph-out .mini { animation: morphMiniIn var(--morph-ms) cubic-bezier(.22, 1, .36, 1) backwards; }
+  @keyframes morphCardOut {
+    0%   { opacity: 1; }
+    55%  { opacity: 0; }
+    100% { opacity: 0; scale: var(--ms, .4); translate: var(--mtx, 0px) var(--mty, 0px); }
+  }
+  @keyframes morphMiniIn { 0%, 30% { opacity: 0; scale: .78; } }
+  /* مصغّرة → كبيرة */
+  body.morph-in .card { animation: morphCardIn var(--morph-ms) cubic-bezier(.22, 1, .36, 1) backwards; }
+  body.morph-in .mini { animation: morphMiniOut calc(var(--morph-ms) * .7) cubic-bezier(.4, 0, .2, 1) forwards; }
+  @keyframes morphCardIn {
+    0%   { opacity: 0; scale: var(--ms, .4); translate: var(--mtx, 0px) var(--mty, 0px); }
+    35%  { opacity: 1; }
+  }
+  @keyframes morphMiniOut { to { opacity: 0; scale: 1.12; } }
+  @media (prefers-reduced-motion: reduce) {
+    body.morph-out .card, body.morph-in .card, body.morph-out .mini, body.morph-in .mini { animation: none; }
+    body.morph-out .card { opacity: 0; }   /* من غير حركة: الكارت يختفي فورًا قبل ما النافذة تصغر */
+  }
+
   /* ═════ تخصيص المسبحة: عناصر مضافة + عناصر مخفية ═════ */
   .lx-off { visibility: hidden !important; pointer-events: none !important; }
   .xbox { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
   .xel { position: absolute; left: 50%; top: 50%; white-space: nowrap; font-size: 14px; color: var(--dim); font-variant-numeric: tabular-nums; pointer-events: none; }
   .xel[data-type="clock"], .xel[data-type="pct"] { color: var(--accent); font-size: 16px; }
-  .xel[data-type="prayer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--accent); }
-  .xel[data-type="prayer"] svg { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .xel .xp { display: flex; flex-direction: column; align-items: center; gap: 0; line-height: 1.2; }
-  .xel .xp b { font-weight: normal; font-size: 21px; color: var(--accent); }
-  .xel .xp small { font-size: 14px; color: var(--accent); opacity: .85; }
+  /* الصلاة القادمة: الأيقونة بس ظاهرة، وعلى الماوس بتتمدّد منها كبسولة: [الأيقونة] اسم الصلاة · التوقيت (ناحية الجهة اللي فيها مساحة فمتتقصّش) */
+  .xel { transition: opacity .7s cubic-bezier(.33, 0, .2, 1), filter .7s cubic-bezier(.33, 0, .2, 1); }
+  .azdue { transition: opacity .7s cubic-bezier(.33, 0, .2, 1), filter .7s cubic-bezier(.33, 0, .2, 1), background .2s, transform .2s; }
+  .xel.dk-yield, .azdue.dk-yield { opacity: 0 !important; filter: blur(4px); pointer-events: none !important; transition: opacity .22s ease, filter .22s ease, background .2s, transform .2s; }   /* بيتلاشى بسرعة لما الأزرار تفتح، وبيرجع بالتدريج (التعريف الأصلي .55s) بعد ما الأزرار تتجمّع */
+  .xel[data-type="prayer"] { display: block; width: 26px; height: 26px; color: var(--accent); pointer-events: auto; cursor: default; }
+  .xel[data-type="prayer"]::before { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb), .35); background: linear-gradient(rgba(var(--accent-rgb), .08), rgba(var(--accent-rgb), .08)), var(--bg); transition: background .2s, box-shadow .25s ease, border-color .2s; }   /* نفس شكل أيقونات الصباح والمساء */
+  .xel[data-type="prayer"]:hover::before { border-color: rgba(var(--accent-rgb), .6); box-shadow: 0 0 10px rgba(var(--accent-rgb), .35); }
+  .xel[data-type="prayer"] svg { position: absolute; left: 50%; top: 50%; margin: -8px 0 0 -8px; z-index: 3; display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; transition: filter .25s ease; }
+  .xel[data-type="prayer"]:hover svg { filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), .7)); }
+  .xel .xp {
+    position: absolute; top: 50%; height: 30px; margin-top: -15px; z-index: 1; display: flex; align-items: center; gap: 7px; white-space: nowrap;
+    border-radius: 15px; border: 1px solid rgba(var(--accent-rgb), .3);
+    background: linear-gradient(135deg, rgba(18, 44, 33, .94), rgba(7, 18, 14, .94));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .42), 0 0 14px rgba(var(--accent-rgb), .14);
+    visibility: hidden; opacity: 0; pointer-events: none;
+    transition: clip-path .4s cubic-bezier(.22, 1, .36, 1), opacity .22s ease, visibility 0s linear .4s;
+  }
+  .xel.ex-l .xp { right: -7px; padding: 0 41px 0 14px; direction: rtl; clip-path: inset(0 0 0 100% round 15px); }   /* بتتمدّد لليسار والأيقونة على يمينها */
+  .xel.ex-r .xp { left: -7px; padding: 0 14px 0 41px; direction: ltr; clip-path: inset(0 100% 0 0 round 15px); }   /* بتتمدّد لليمين والأيقونة على شمالها */
+  .xel:hover .xp { visibility: visible; opacity: 1; clip-path: inset(0 0 0 0 round 15px); transition-delay: 0s; }
+  .xel .xp small, .xel .xp b { opacity: 0; transition: opacity .2s ease; }
+  .xel:hover .xp small, .xel:hover .xp b { opacity: 1; transition-delay: .13s; }
+  .xel .xp small { font-size: 13.5px; color: var(--accent); }
+  .xel .xp small::after { content: '·'; margin-inline-start: 7px; opacity: .55; }
+  .xel .xp b { font-weight: normal; font-size: 15px; color: var(--text); }
+  @media (prefers-reduced-motion: reduce) { .xel .xp, .xel .xp small, .xel .xp b, .xel[data-type="prayer"] svg { transition: none; } }
   body.cards-open .xbox, body.is-challenge .xbox { opacity: 0; }
   .xbox { transition: opacity .3s ease; }
 </style>
@@ -412,11 +483,8 @@
         <button class="ibtn" id="hide" data-hit aria-label="تصغير إلى Mini Mode">
           <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
         </button>
-        <button class="ibtn" id="gear" data-hit aria-label="الإعدادات">
-          <svg viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg>
-        </button>
       </div>
-      <div class="grip" id="grip" data-lx="logo" data-hit aria-label="اسحب لتحريك النافذة"><img class="brand" src="assets/logo.png" alt="WZAKER" draggable="false"></div>
+      <div class="grip" id="grip" data-lx="logo" data-hit title="الإعدادات" aria-label="افتح الإعدادات (واسحب لتحريك النافذة)"><img class="brand" src="assets/logo.png" alt="WZAKER" draggable="false"></div>
       <button class="ibtn tr" id="close" data-lx="topR" data-hit aria-label="إغلاق التطبيق">
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -449,14 +517,17 @@
       <div class="total" id="total" data-lx="total"></div>
     </div>
 
-    <div class="ctrl">
+    <div class="ctrl" id="ctrl" data-hit>
       <div class="snd" id="snd" data-lx="snd">
         <button class="ibtn" id="sound" data-hit aria-label="تشغيل أو كتم الصوت">
           <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="wave" d="M16.5 8.5a5 5 0 010 7"/></svg>
         </button>
         <input type="range" class="rng" id="vol" data-hit min="0" max="100" step="1" aria-label="مستوى الصوت">
       </div>
-      <div style="display:flex; gap:6px" data-lx="btns">
+      <div class="dk-dot" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path class="st" d="M12.00 2.40 L13.99 7.20 L18.79 5.21 L16.80 10.01 L21.60 12.00 L16.80 13.99 L18.79 18.79 L13.99 16.80 L12.00 21.60 L10.01 16.80 L5.21 18.79 L7.20 13.99 L2.40 12.00 L7.20 10.01 L5.21 5.21 L10.01 7.20Z"/><circle class="core" cx="12" cy="12" r="1.5"/></svg>
+      </div>
+      <div class="btns" data-lx="btns">
         <button class="pill" id="goal" data-hit aria-label="عدد التسابيح">33</button>
         <button class="pill" id="reset" data-hit>تصفير</button>
       </div>
@@ -477,7 +548,7 @@
   <div class="mini" id="mini" data-hit>
     <div class="m-num" id="mNum">0</div>
     <div class="m-mid"><div class="m-dhikr" id="mDhikr"></div><div class="m-of" id="mOf"></div></div>
-    <button class="ibtn" id="mExpand" data-hit aria-label="العودة للوضع الكامل">
+    <button class="ibtn m-exp" id="mExpand" aria-label="تكبير المسبحة" title="تكبير المسبحة">
       <svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>
     </button>
     <div class="m-bar"><i id="mBar"></i></div>
@@ -779,7 +850,6 @@
   function progFx(count, target) {
     const dl = $('dial'), p = target ? Math.min(1, count / target) : 0, off = C * (1 - p), len = C * p;
     dl.style.setProperty('--glide', p >= .9 ? '.7s cubic-bezier(.22, 1, .36, 1)' : '.65s cubic-bezier(.25, 1.2, .4, 1)');   // قرب الآخر من غير تعدّي (عشان ما يظهرش فراغ عند البداية)
-    const beadStyle = dl.classList.contains('strand') || dl.classList.contains('beads');
     const isBeads = dl.classList.contains('beads');
     if (rewAnims.length && fxPrev !== null && count > fxPrev) rewEnd(true);        // ضغطة جديدة وهو راجع: يكمل للأمام من مكانه الحالي
     if (isBeads && !reduceMotion && fxPrev !== null && count < fxPrev && off > C * 0.02 && p === 0) {   // رجوع للصفر (إتمام/تصفير): حركة الرجوع الفخمة
@@ -816,6 +886,103 @@
     fxPrev = count;
   }
 
+  // ───── تحوّل المسبحة الكبيرة ⇄ Mini (الـ main بيبدأه بـ mini:morph وبيغيّر حجم النافذة بعد ما الحركة تخلص) ─────
+  const MORPH_MS = 620;                                           // لازم = --morph-ms في الـ CSS
+  const MORPH_SCALE = .42;                                        // الكارت بيصغر لحد النسبة دي قبل ما يختفي جوه الشريط
+  let miniShown = null, morph = null;                             // miniShown: العرض الظاهر فعلًا | morph: { dir: 'out'|'in', t: timer }
+  const gmPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gm')) || 18;
+  // الذكر الطويل في الشريط المصغّر: نصغّر الخط (سطر واحد) وبعدها سطرين، علشان النص يبان كله من غير ما يتقطع
+  let miniFs = 16, miniTwo = false, miniKey = '';                              // آخر مقاس اتضبط عليه النص (علشان الانتقال للمقاس الجديد يبقى بنعومة)
+  function fitMini(anim) {
+    const el = $('mDhikr'); if (!el) return;
+    const key = el.textContent + '|' + el.clientWidth;
+    if (anim && key === miniKey) return;                          // نفس النص ونفس العرض (ضغطة عادية): مفيش داعي نقطع الحركة الشغّالة
+    miniKey = key;
+    el.getAnimations().forEach(a => a.cancel());                  // نقيس على المقاس الحقيقي مش على نص حركة شغّالة
+    el.classList.remove('two'); el.style.fontSize = '';
+    if (!el.clientWidth) return;                                  // الشريط مخفي (المسبحة الكبيرة): هنعيد القياس أول ما يظهر
+    const one = () => el.scrollWidth <= el.clientWidth + 1;
+    let fs = 16, two = false;
+    if (!one()) {
+      fs = 0;
+      for (let f = 15; f >= 12; f--) { el.style.fontSize = f + 'px'; if (one()) { fs = f; break; } }
+      if (!fs) {
+        two = true; el.classList.add('two'); el.style.maxHeight = 'none';
+        const fits = () => el.offsetHeight <= 30 && el.scrollWidth <= el.clientWidth + 1;
+        for (let f = 13; f >= 10; f--) { el.style.fontSize = f + 'px'; fs = f; if (fits()) break; }
+        el.style.maxHeight = '';
+      }
+    }
+    // انتقال هادي من المقاس القديم للجديد: الخط يصغّر/يكبّر بنعومة مع Fade خفيف (مفيش قفزة)
+    if (anim && !reduceMotion && (fs !== miniFs || two !== miniTwo) && !document.body.classList.contains('morphing')) {
+      el.animate([{ fontSize: miniFs + 'px', opacity: .3 }, { fontSize: fs + 'px', opacity: 1 }], { duration: 460, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+    }
+    miniFs = fs; miniTwo = two;
+  }
+  if (document.fonts) { if (document.fonts.ready) document.fonts.ready.then(() => fitMini()); document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => fitMini()); }
+  if (window.ResizeObserver) { let lw = 0; new ResizeObserver(() => { const w = $('mDhikr').clientWidth; if (w && w !== lw) { lw = w; fitMini(true); } }).observe(document.querySelector('.m-mid')); }   // عرض الذكر اتغيّر (العدّاد زاد خانة / الشريط ظهر): نعيد الضبط
+  function flipMini(m) {
+    miniShown = m; document.body.classList.toggle('is-mini', m);
+    if (m) { fitMini(); requestAnimationFrame(fitMini); }   // فورًا (قبل أول رسم) علشان مايبانش النص مقطوع لحظة
+    requestAnimationFrame(reportRects);
+  }
+  function reconcileView() {                                      // أمان: النافذة بحجم الـ Mini لكن الكارت الكبير ظاهر (الجلتش) ← نبدّل للشريط فورًا
+    if (morph || miniShown !== false) return;
+    if (window.innerHeight > 0 && window.innerHeight <= 110) flipMini(true);
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(reconcileView));
+  function syncMiniView(m) {                                      // تبديل عادي (من غير حركة): أول رسم، أو الوضع اتغيّر والنافذة مخفية
+    if (morph || miniShown === m) return;
+    flipMini(m);
+    reconcileView();
+  }
+  function endMorph() {                                           // نهاية التحوّل (أو إلغاؤه): العرض النهائي حسب الاتجاه
+    if (!morph) return;
+    clearTimeout(morph.t);
+    const toMini = morph.dir === 'out'; morph = null;
+    document.body.classList.remove('morphing', 'morph-out', 'morph-in', 'morph-hold', 'morph-blank');
+    flipMini(toMini);
+    reconcileView();
+  }
+  function setMorphVars(r, hx, hy) {                              // الكارت بيتصغّر/بيكبر من مركز الشريط: نحسب الإزاحة من حجمه الفعلي
+    const st = document.body.style, cx = hx + 116, cy = hy + 24;  // مركز الشريط (232×48)
+    st.setProperty('--htx', hx + 'px'); st.setProperty('--hty', hy + 'px');
+    st.setProperty('--ms', String(MORPH_SCALE));
+    st.setProperty('--mtx', (cx - r.left - (r.width / 2) * MORPH_SCALE) + 'px');
+    st.setProperty('--mty', (cy - r.top - (r.height / 2) * MORPH_SCALE) + 'px');
+  }
+  function startMorph(dir) {
+    const b = document.body;
+    if (morph) endMorph();
+    if (miniShown === null || b.classList.contains('pre-show')) { flipMini(dir === 'out'); return window.azkar.miniReady(); }   // لسه ما اترسمتش: تبديل من غير حركة
+    const dur = reduceMotion ? 0 : MORPH_MS, gm = gmPx();
+    const ready = () => { morph.t = setTimeout(endMorph, 1500); window.azkar.miniReady(); };   // 1500ms شبكة أمان لو الـ main ما ردّش
+    if (dir === 'out') {
+      if (miniShown) { flipMini(true); return window.azkar.miniReady(); }   // كان مصغّر أصلًا
+      setMorphVars(document.querySelector('.card').getBoundingClientRect(), gm, gm);
+      b.classList.add('morphing', 'morph-out'); fitMini();      // الشريط بيظهر أثناء الحركة: نضبط النص قبل أول رسم
+      morph = { dir, t: setTimeout(ready, dur) };
+    } else {
+      if (!miniShown) { flipMini(false); return window.azkar.miniReady(); }
+      b.style.setProperty('--htx', gm + 'px'); b.style.setProperty('--hty', gm + 'px');
+      b.classList.add('morphing', 'morph-hold');                  // الشريط بيتثبّت في الركن (شكله ما بيتغيّرش) قبل ما النافذة تكبر
+      morph = { dir, t: 0 };
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (morph && morph.dir === dir) ready(); }));
+    }
+  }
+  function morphApplied(d) {                                      // الـ main غيّر حجم النافذة
+    if (!morph) return;
+    clearTimeout(morph.t);
+    const b = document.body, gm = gmPx();
+    if (morph.dir === 'out') { endMorph(); return; }              // الشريط في نفس مكانه بالظبط: نبدّل للعرض المصغّر من غير ما يبان حاجة
+    const hx = gm + ((d && d.dx) || 0), hy = gm + ((d && d.dy) || 0);
+    b.classList.remove('morph-hold');
+    flipMini(false);                                              // الكارت يظهر (display) علشان نقيس حجمه الفعلي
+    setMorphVars(document.querySelector('.card').getBoundingClientRect(), hx, hy);
+    b.classList.remove('morph-blank'); b.classList.add('morph-in');
+    morph = { dir: 'in', t: setTimeout(endMorph, reduceMotion ? 0 : MORPH_MS) };
+  }
+
   function render(s0, countOverride) {
     REAL = s0;
     let s = s0;
@@ -823,7 +990,7 @@
     S = s;
     const target = s.target;
     const count = countOverride ?? s.count;
-    document.body.classList.toggle('is-mini', !!s.miniMode);
+    syncMiniView(!!s.miniMode);
     document.body.classList.toggle('is-challenge', !!s.challenge);
     document.documentElement.style.setProperty('--mini-op', String(s.miniOpacity ?? .85));
     document.documentElement.style.setProperty('--idle-op', String(s.idleOpacity ?? 1));
@@ -849,7 +1016,7 @@
     // Mini
     applyLayout(s);
     $('mNum').textContent = fmt(count);
-    $('mDhikr').textContent = s.dhikrText;
+    $('mDhikr').textContent = s.dhikrText; fitMini(true);
     $('mOf').textContent = target ? '/ ' + fmt(target) : 'بدون هدف';
     $('mBar').style.width = target ? Math.min(100, (count / target) * 100) + '%' : '0%';
     setRange($('vol'), s.volume);
@@ -883,6 +1050,7 @@
     document.querySelectorAll('[data-hit]').forEach(el => {
       if (el.closest('.cbox') && !el.closest('.cbox.in')) return;                  // مربع الأذكار لسه ما ظهرش / بيختفي
       if (el.closest('.lx-off')) return;                                           // عنصر مخفي بالتخصيص
+      if (el.closest('.xbox') && (cardsOpen || document.body.classList.contains('is-challenge'))) return;   // العناصر المضافة مخفية وقتها
       if (cardsOpen && el.matches('#dial, #dhikr')) return;                        // الدايرة مخفية: مش منطقة تفاعل
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) rects.push({ x: r.left - 2, y: r.top - 2, w: r.width + 4, h: r.height + 4 });
@@ -920,19 +1088,34 @@
       if (mode === 'pop') {                                // Pop ناعم: الرقم الجديد يظهر مكان القديم فورًا ويتكبّر بنطّة خفيفة ويستقر (من غير لفّ ولا تقلّص خانات)
         let s0 = 1; try { s0 = new DOMMatrix(getComputedStyle(nv).transform).a || 1; } catch (_) {}   // نبدأ من الحجم الحالي: لو التسبيحة اللي قبلها لسه بتستقر مفيش قفزة
         const widthChange = prev !== null && [...prev].length !== chars.length;   // 9→10 / 100→0: عدد الخانات اتغيّر فالرقم هيتنقل من مكانه: بنعمل تلاشي متقاطع ناعم بدل قفزة
+        const oldLen = [...prev].length, grow = widthChange && chars.length > oldLen, seq = widthChange && !grow;   // grow: 9→10 / 99→100 (الأرقام القديمة بتفضل في مكانها) | seq: 100→0 (القديم يختفي وبعده الجديد)
+        const oldW = grow ? nv.offsetWidth : 0;
         nv.getAnimations().forEach(a => a.cancel());
         host.querySelectorAll(':scope > .o').forEach(g => g.remove());
-        if (widthChange) {
-          const g = document.createElement('i'); g.className = 'o'; g.dataset.o = prev; g.style.cssText = 'left:50%;right:auto;white-space:nowrap';
+        if (seq) {
+          // الرقم القديم بيتلاشى الأول (150ms) وبعده الجديد بيظهر: كده عمرهم ما بيبقوا ظاهرين فوق بعض (100 → 0 → 1)
+          // وبنثبّت حجم خط النسخة القديمة: layout.js بيغيّر --nk للرقم الجديد في نفس اللحظة فكانت النسخة القديمة بتقفز لحجم تاني
+          const g = document.createElement('i'); g.className = 'o'; g.dataset.o = prev;
+          g.style.cssText = 'left:50%;right:auto;white-space:nowrap;font-size:' + getComputedStyle(host).fontSize;
           host.appendChild(g);
-          g.animate([{ opacity: .85, transform: 'translateX(-50%) scale(1)' }, { opacity: 0, transform: 'translateX(-50%) scale(.94)' }], { duration: 240, easing: 'ease-out', fill: 'both' }).onfinish = () => g.remove();
+          g.animate([{ opacity: .85, transform: 'translateX(-50%) scale(1)' }, { opacity: 0, transform: 'translateX(-50%) scale(.94)' }], { duration: 150, easing: 'ease-out', fill: 'both' }).onfinish = () => g.remove();
         }
         nv.replaceChildren(...chars.map(mkSlot));
-        nv.animate([
-          { transform: `scale(${Math.min(s0, .96).toFixed(3)})`, opacity: widthChange ? 0 : .7 },
-          { transform: 'scale(1.04)', opacity: 1, offset: widthChange ? .4 : .5 },
+        nv.animate(seq ? [
+          { transform: 'scale(.96)', opacity: 0 },
+          { transform: 'scale(.96)', opacity: 0, offset: .36 },        // الجديد مستني لحد ما القديم يختفي
+          { transform: 'scale(1.04)', opacity: 1, offset: .66 },
           { transform: 'scale(1)', opacity: 1 }
-        ], { duration: widthChange ? 380 : fast ? 220 : 340, easing: 'cubic-bezier(.22, 1, .36, 1)' });
+        ] : [
+          { transform: `scale(${Math.min(s0, .96).toFixed(3)})`, opacity: .7 },
+          { transform: 'scale(1.04)', opacity: 1, offset: .5 },
+          { transform: 'scale(1)', opacity: 1 }
+        ], { duration: seq ? 420 : fast ? 220 : 340, easing: seq ? 'linear' : 'cubic-bezier(.22, 1, .36, 1)' });
+        if (grow) {   // خانة جديدة: الأرقام القديمة تفضل مكانها والرقم يتوسّط بانسيابية (من غير ما يختفي)، والخانة الجديدة بتظهر بهدوء
+          const dx = (nv.offsetWidth - oldW) / 2;
+          if (dx) nv.animate([{ translate: -dx + 'px 0' }, { translate: '0 0' }], { duration: 320, easing: EASE });
+          [...nv.children].slice(0, chars.length - oldLen).forEach(sp => sp.firstChild && sp.firstChild.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 280, easing: 'ease-out' }));
+        }
         return;
       }
       const olds = [...nv.children].filter(e => !e.classList.contains('gone')), lead = chars.length - olds.length, w = olds.length ? olds[0].offsetWidth : 0, fresh = [];
@@ -1121,6 +1304,9 @@
   };
   setTimeout(() => playEntrance(false), 25000);      // شبكة أمان: المسبحة ماتفضلش مخفية لو الإشارة ماوصلتش
   window.azkar.onShown(() => { requestAnimationFrame(reportRects); playEntrance(); });
+  window.azkar.onMiniMorph(dir => startMorph(dir === 'in' ? 'in' : 'out'));
+  window.azkar.onMiniBlank(() => document.body.classList.add('morph-blank'));
+  window.azkar.onMiniApplied(morphApplied);
   window.azkar.onHover(inside => document.body.classList.toggle('idle', !inside));   // الماوس خارج النافذة = idle
 
 
@@ -1340,7 +1526,6 @@
   $('azDue').onclick = () => window.azkar.openSettings('daily:' + (S && S.azDue || 'm'));   // ... وهنا
   $('azWird').onclick = () => window.azkar.openSettings('quranread');                                  // يفتح القرآن عند آخر صفحة اتقرت
   $('azWird').oncontextmenu = e => { e.preventDefault(); window.azkar.patch({ wirdDone: true }); };   // كليك يمين = تم الورد: الأيقونة تختفي لحد بكرة
-  //    // قريت الورد: الأيقونة تختفي لحد بكرة   // يفتح أذكار الصباح/المساء مباشرة
   window.azkar.onInlineOpen(inlineOpen);
   window.azkar.onInlineClose(inlineReset);
   window.azkar.onInlineHint(on => document.body.classList.toggle('dock-hint', !!on));
@@ -1354,12 +1539,10 @@
     window.azkar.patch({ dhikrId: list[(i + 1) % list.length].id });
   };
   $('goal').onclick  = () => window.azkar.openSettings('target');
-  $('gear').onclick  = () => window.azkar.openSettings(null);
   $('sound').onclick = () => window.azkar.patch({ sound: !S.sound });
   $('vol').oninput   = e => window.azkar.patch({ volume: Number(e.target.value) / 100 });
   $('hide').onclick  = () => window.azkar.minimize();         // "–" = Mini Mode
   $('close').onclick = () => window.azkar.quit();             // "✕" = إغلاق كامل
-  $('mExpand').onclick = () => window.azkar.patch({ miniMode: false });
 
   // التصفير بخطوتين علشان ما يحصلش بالغلط
   let resetTimer = null;
@@ -1405,11 +1588,61 @@
     el.addEventListener('lostpointercapture', end);
   }
   attachDrag($('grip'));
+  (() => {                                                // زر التحكم السفلي: الفتح/الإغلاق بالترتيب (الأيقونات اللي في الطريق تتلاشى الأول، وترجع بهدوء بعد ما الأزرار تتجمّع)
+    const ctrl = $('ctrl'); let yielded = [], tOpen = 0, tClose = 0, tBack = 0;
+    const SHIFT = 26;                                     // نفس --dk-shift في الـ CSS
+    const zones = () => {                                 // مكان الأزرار وهي مفتوحة + الزر نفسه (مش الصف كله، علشان أيقونة الصلاة جنبه تفضل شغّالة)
+      const k = ctrl.getBoundingClientRect().width / (ctrl.offsetWidth || 1) || 1, z = [];
+      const d = ctrl.querySelector('.dk-dot'), s = ctrl.querySelector('.snd'), b = ctrl.querySelector('.btns');
+      if (d) z.push(d.getBoundingClientRect());
+      if (s) { const q = s.getBoundingClientRect(); z.push({ left: q.left, right: q.right + SHIFT * k, top: q.top, bottom: q.bottom }); }
+      if (b) { const q = b.getBoundingClientRect(); z.push({ left: q.left - SHIFT * k, right: q.right, top: q.top, bottom: q.bottom }); }
+      return z;
+    };
+    const hit = (a, z) => a.right > z.left - 6 && a.left < z.right + 6 && a.bottom > z.top - 6 && a.top < z.bottom + 6;
+    const busy = () => ctrl.matches(':hover') || ctrl.querySelector('.pill.confirm') || ctrl.querySelector('.rng:active') || ctrl.contains(document.activeElement) && document.activeElement.matches('.rng:focus-visible');
+    const open = () => {
+      clearTimeout(tClose); clearTimeout(tBack);
+      yielded.forEach(e => { e.style.transitionDelay = ''; });
+      let any = false;
+      if (!ctrl.classList.contains('open')) {
+        const z = zones();
+        document.querySelectorAll('.azdue:not([hidden]), .xbox .xel').forEach(el => {
+          const b = el.getBoundingClientRect();
+          if (b.width && !el.classList.contains('dk-yield') && z.some(q => hit(b, q))) { el.classList.add('dk-yield'); yielded.push(el); any = true; }
+        });
+      }
+      clearTimeout(tOpen);
+      tOpen = setTimeout(() => ctrl.classList.add('open'), any ? 70 : 0);       // الأيقونات تبدأ تتلاشى الأول بلحظة ثم الأزرار تفتح
+    };
+    const close = () => {
+      clearTimeout(tOpen); clearTimeout(tClose);
+      tClose = setTimeout(function again() {
+        if (busy()) { tClose = setTimeout(again, 400); return; }
+        ctrl.classList.remove('open');
+        clearTimeout(tBack);
+        tBack = setTimeout(() => {                                                 // رجوع متتابع وهادي (كل أيقونة بعد اللي قبلها بشوية)
+          const list = yielded; yielded = [];
+          list.forEach((e, i) => { e.style.transitionDelay = (i * 80) + 'ms'; e.classList.remove('dk-yield'); });
+          setTimeout(() => list.forEach(e => { if (!e.classList.contains('dk-yield')) e.style.transitionDelay = ''; }), 1400);
+        }, 300);   // الأزرار تخلص تجمّعها ← الأيقونات ترجع
+      }, 280);
+    };
+    ctrl.addEventListener('pointerenter', open);
+    ctrl.addEventListener('pointerleave', close);
+  })();
+  (() => {                                                // ضغطة (من غير سحب) على شعار "وذكّر" = فتح الإعدادات؛ السحب بيحرّك النافذة زي ما كان
+    const g = $('grip'); let p0 = null;
+    g.addEventListener('pointerdown', e => { if (e.button === 0) p0 = { x: e.screenX, y: e.screenY }; });
+    g.addEventListener('pointerup', e => {
+      const p = p0; p0 = null;
+      if (p && Math.hypot(e.screenX - p.x, e.screenY - p.y) < 5) window.azkar.openSettings(null);
+    });
+    g.addEventListener('pointercancel', () => { p0 = null; });
+  })();
   attachDrag($('mini'), 'button');
-  $('mini').addEventListener('dblclick', e => {
-    if (S && S.clickOn) return;                          // التسبيح بالنقر مفعّل: النقر المزدوج مش للتكبير (فيه زر التكبير)
-    if (!e.target.closest('button')) window.azkar.patch({ miniMode: false });
-  });
+  // زر التكبير في الوضع المصغر: بيرجّع المسبحة الكبيرة (نفس إيقاف Mini Mode من الإعدادات)
+  $('mExpand').addEventListener('click', e => { e.stopPropagation(); window.azkar.patch({ miniMode: false }); });
 
   // ───── التسبيح بالنقر على العدّاد (اختياري من الإعدادات) ─────
   $('dial').addEventListener('click', e => {

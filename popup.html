@@ -52,7 +52,7 @@
     border: 1px solid var(--line);
     box-shadow: 0 8px 22px rgba(0, 0, 0, .42), 0 0 18px rgba(var(--accent-rgb), .09);
     animation: popIn .55s cubic-bezier(.2, .8, .2, 1) backwards;
-    transition: opacity .6s ease, transform .6s ease, border-color .5s, box-shadow .5s;
+    transition: opacity .6s ease, transform .6s ease, border-color .3s ease, box-shadow .5s, border-radius .3s ease;
   }
   @keyframes popIn { from { opacity: 0; transform: translateY(-18px) scale(.97); } to { opacity: 1; transform: none; } }
   body.out .pop { opacity: 0; transform: translateY(-10px) scale(.985); }
@@ -101,14 +101,35 @@
   .verse {
     font-family: var(--font-verse); font-size: 31px; line-height: 1.75; color: var(--text); text-wrap: balance;
     text-shadow: 0 0 20px rgba(var(--accent-rgb), .38);
-    animation: verseIn 1.1s .15s ease-out backwards;
+    animation: verseIn 2s .3s cubic-bezier(.33, .1, .25, 1) backwards;
   }
   /* تنبيه مخصص: النص الطويل بيصغر شوية علشان يفضل متناسق جوه الإشعار */
   .verse.len-m { font-size: 26px; line-height: 1.7; }
   .verse.len-l { font-size: 22px; line-height: 1.75; }
   .verse.len-xl { font-size: 19px; line-height: 1.8; }
-  .verse { overflow-wrap: anywhere; }
-  @keyframes verseIn { from { opacity: 0; filter: blur(7px); } to { opacity: 1; filter: blur(0); } }   /* بدون letter-spacing: بيفكّ اتصال حروف العربي */
+  .verse { overflow-wrap: break-word; hyphens: none; }   /* مش anywhere: بيقطّع الكلمة العربية نص نص */
+  /* السطر التوضيحي (بدل الفاصلة جوه الجملة): أصغر وأهدى من النص الأساسي */
+  .verse-sub { margin-top: 6px; font-family: var(--font-verse); font-size: 17px; line-height: 1.7; color: rgba(233, 255, 244, .66);
+               text-wrap: balance; overflow-wrap: break-word; animation: verseIn 2s .65s cubic-bezier(.33, .1, .25, 1) backwards; }
+  .verse-sub[hidden] { display: none; }
+  /* إشعار بيتضغط عليه (أذكار/ورد): وهج هادي بيتنفّس حوالين الإطار بدل جملة "اضغط هنا" */
+  .pop.clickable::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; z-index: 4; opacity: 0;
+    border: 1px solid rgba(var(--accent-rgb), .6);
+    box-shadow: 0 0 14px rgba(var(--accent-rgb), .38), inset 0 0 16px rgba(var(--accent-rgb), .13);
+    animation: clickGlow 2.8s ease-in-out 1.3s infinite; }
+  .pop.clickable:hover::after { animation: none; opacity: 1; }
+  @keyframes clickGlow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .pop.clickable::after { animation: none; opacity: .55; } }
+  @keyframes verseIn {   /* ظهور هادي: Fade بطيء من نص الكلام ناحية الجنبين بحواف ناعمة + تكبير خفيف جدًا بدون ارتداد */
+    0%   { opacity: 0; transform: scale(.965);
+           -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 30%, #000 70%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 30%, #000 70%, transparent 100%);
+           -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
+           -webkit-mask-size: 45% 300%; mask-size: 45% 300%; }
+    100% { opacity: 1; transform: none;
+           -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 30%, #000 70%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 30%, #000 70%, transparent 100%);
+           -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
+           -webkit-mask-size: 340% 300%; mask-size: 340% 300%; }
+  }   /* بدون letter-spacing: بيفكّ اتصال حروف العربي */
   .orn { margin: 12px auto 0; width: 120px; height: 10px; position: relative; opacity: .8; }
   .orn::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 1px;
                  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), .7), transparent); }
@@ -181,8 +202,73 @@
   .meta { margin-top: 12px; text-align: center; font-size: 12.5px; color: var(--dim); min-height: 18px; transition: color .4s; }
   .pop.success .meta { color: var(--accent); }
 
+
+  /* ───── إشعار الأذكار: Toast مدمج بيكبر على قد النص، وبينبثق من حافة الشاشة ───── */
+  body[data-kind="verse"] .stage { --nat-max: 472px; width: max-content; max-width: min(var(--nat-max), calc(100vw / var(--z, 1))); }   /* عمره ما يزيد عن عرض النافذة (وهي بتضيق وهو بيلزق في المسبحة) */
+  body[data-kind="verse"].wide .stage { --nat-max: 640px; }   /* العناوين القصيرة (الاستيقاظ/النوم...) تفضل في سطر واحد مطاول زي الباقي */
+  body[data-kind="verse"] .pop { --r: 22px; }
+  body[data-kind="verse"]:not(.shown) .pop { opacity: 0; animation: none; }      /* مخفي لحد ما النافذة تظهر ونعرف لازقة في أنهي حافة */
+  body[data-kind="verse"] #vVerse { padding: 13px 16px 13px 34px; }               /* مساحة على الشمال لزر الإغلاق */
+  body[data-kind="verse"] .vrow { gap: 12px; }
+  body[data-kind="verse"] .vico { width: 40px; height: 40px; }
+  body[data-kind="verse"] .vico svg { width: 22px; height: 22px; }
+  body[data-kind="verse"] .verse { font-size: 22px; line-height: 1.65; }
+  body[data-kind="verse"] .verse.len-m { font-size: 19px; line-height: 1.7; }
+  body[data-kind="verse"] .verse.len-l { font-size: 17px; line-height: 1.75; }
+  body[data-kind="verse"] .verse.len-xl { font-size: 15px; line-height: 1.8; }
+  body[data-kind="verse"] .verse-sub { font-size: 15px; margin-top: 3px; }
+  body[data-kind="verse"] .x { top: 7px; left: 9px; width: 22px; height: 22px; }
+
+  /* زر الإغلاق: حلقة صغيرة متوهّجة وحواليها حلقات بتنبثق وتتلاشى (بدل علامة X) */
+  .x { background: transparent !important; }
+  .x::before, .x::after, .x i { content: ''; position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; pointer-events: none; }
+  .x::before { border: 1.5px solid var(--accent); box-shadow: 0 0 7px rgba(var(--accent-rgb), .8), inset 0 0 4px rgba(var(--accent-rgb), .45); transition: transform .2s ease, box-shadow .2s ease; }
+  .x::after, .x i { border: 1px solid rgba(var(--accent-rgb), .7); animation: xRing 2.6s ease-out infinite; }
+  .x i { animation-delay: 1.3s; }
+  .x:hover::before { transform: scale(1.25); box-shadow: 0 0 11px rgba(var(--accent-rgb), 1), inset 0 0 6px rgba(var(--accent-rgb), .7); }
+  @keyframes xRing { 0% { transform: scale(1); opacity: .75; } 100% { transform: scale(2.5); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .x::after, .x i { animation: none; opacity: 0; } }
+  /* إشعار الأذكار: الحلقة في نص الكارت رأسيًا وأكبر شوية */
+  body[data-kind="verse"] .x { top: 50%; margin-top: -14px; left: 8px; width: 28px; height: 28px; }
+  body[data-kind="verse"] .x::before, body[data-kind="verse"] .x::after, body[data-kind="verse"] .x i { width: 12px; height: 12px; margin: -6px 0 0 -6px; }
+  body[data-kind="verse"] #vVerse { padding-left: 40px; }
+  /* نبضة توهّج هادية لما الإشعار ينطبق على المسبحة أو يفارقها */
+  body.mag-pulse .stage { animation: magGlow 1.4s ease-in-out; }
+  @keyframes magGlow {
+    0%   { filter: drop-shadow(0 0 0 rgba(var(--accent-rgb), 0)); }
+    40%  { filter: drop-shadow(0 0 11px rgba(var(--accent-rgb), .5)); }
+    100% { filter: drop-shadow(0 0 0 rgba(var(--accent-rgb), 0)); }
+  }
+
+  /* دخول: بينزلق من حافة الشاشة اللي لازق فيها (أو من اليمين لو في نص الشاشة) */
+  body[data-kind="verse"].shown .pop { animation: tIn .55s cubic-bezier(.2, .85, .25, 1) backwards; }
+  body[data-enter="r"].shown .pop { animation-name: tInR; }
+  body[data-enter="l"].shown .pop { animation-name: tInL; }
+  body[data-enter="t"].shown .pop { animation-name: tInT; }
+  body[data-enter="b"].shown .pop { animation-name: tInB; }
+  @keyframes tIn  { from { opacity: 0; transform: translateX(34px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes tInR { from { transform: translateX(calc(100% + 44px)); } to { transform: none; } }
+  @keyframes tInL { from { transform: translateX(calc(-100% - 44px)); } to { transform: none; } }
+  @keyframes tInT { from { transform: translateY(calc(-100% - 44px)); } to { transform: none; } }
+  @keyframes tInB { from { transform: translateY(calc(100% + 44px)); } to { transform: none; } }
+  /* خروج: بيرجع جوه الحافة اللي طلع منها */
+  body[data-kind="verse"].e-r.out .pop { transform: translateX(calc(100% + 44px)); opacity: .3; }
+  body[data-kind="verse"].e-l.out .pop { transform: translateX(calc(-100% - 44px)); opacity: .3; }
+  body[data-kind="verse"].e-t.out .pop { transform: translateY(calc(-100% - 44px)); opacity: .3; }
+  body[data-kind="verse"].e-b.out .pop { transform: translateY(calc(100% + 44px)); opacity: .3; }
+
+  /* لازق في حافة الشاشة: الجنب ده مسطّح من غير حدود ولا زوايا مقوّسة، كأنه طالع من الشاشة نفسها */
+  body.e-r .pop { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-color: transparent; }
+  body.e-l .pop { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-color: transparent; }
+  body.e-t .pop { border-top-left-radius: 0; border-top-right-radius: 0; border-top-color: transparent; }
+  body.e-b .pop { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+  body.e-r .pop.clickable::after { border-right-color: transparent; }
+  body.e-l .pop.clickable::after { border-left-color: transparent; }
+  body.e-t .pop.clickable::after { border-top-color: transparent; }
+  body.e-b .pop.clickable::after { border-bottom-color: transparent; }
+
   @media (prefers-reduced-motion: reduce) {
-    .pop, .flip, .verse, .front img, .front::after { animation: none !important; }
+    .pop, .flip, .verse, .verse-sub, .front img, .front::after { animation: none !important; }
     .fl-inner { transition-duration: .01s; }
   }
 </style>
@@ -194,16 +280,14 @@
         <path class="e-track" id="eTrack" pathLength="100"/>
         <path class="e-prog" id="eProg" pathLength="100"/>
       </svg>
-      <button class="x" id="x" aria-label="إغلاق">
-        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
+      <button class="x" id="x" aria-label="إغلاق"><i></i></button>
 
       <section id="vVerse">
         <div class="vrow">
           <div class="vico" id="vIco" hidden></div>
           <div class="vcol">
             <div class="verse" id="verseText">أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ</div>
-            <div class="orn"></div>
+            <div class="verse-sub" id="verseSub" hidden></div>
           </div>
         </div>
       </section>
@@ -222,8 +306,55 @@
   const pop = $('pop'), stage = $('stage');
   let openAz = null;   // إشعار الصباح/المساء/النوم/الاستيقاظ: الضغط عليه يفتح الذكر مباشرة
   let openQuran = false;   // إشعار الورد: الضغط عليه يفتح القرآن عند آخر صفحة اتقرت
-  const applyScale = z => { z = Number(z); if (!(z > 0)) z = 1; stage.style.transform = z === 1 ? '' : 'scale(' + z + ')'; requestAnimationFrame(() => fit()); };
+  let zoom = 1;
+  let fillOn = false, pulseT = null, popAnim = null;
+  const softPop = kind => {                                // Pop ناعم وهادي للكارت نفسه: بينفخ شوية ويستقر (WAAPI + خاصية scale علشان أنيميشن الدخول بتاع الـ CSS ما يتأثرش)
+    const el = document.querySelector('.pop');
+    if (!el || !el.animate) return;
+    try { if (popAnim) popAnim.cancel(); } catch (_) {}
+    const ease = 'cubic-bezier(.4, 0, .2, 1)', out = kind === 'out';
+    const frames = out
+      ? [{ scale: 1, offset: 0, easing: ease }, { scale: .985, offset: .4, easing: ease }, { scale: 1, offset: 1 }]
+      : [{ scale: 1, offset: 0, easing: ease }, { scale: 1.04, offset: .4, easing: ease }, { scale: .993, offset: .74, easing: ease }, { scale: 1, offset: 1 }];
+    const a = el.animate(frames, { duration: out ? 520 : 720, delay: out ? 0 : 120, easing: 'linear' });   // delay: النافذة تكون قربت تستقر في مكانها وقت قمة الـ Pop
+    popAnim = a; a.onfinish = () => { if (popAnim === a) popAnim = null; };
+  };
+  const lockMode = o => {                                  // الإشعار الملزوق في المسبحة: الكارت بيملا عرض النافذة (والنافذة هي اللي بتتحرك بنعومة) + نبضة توهّج هادية
+    o = o || {};
+    if ('fill' in o) {
+      fillOn = !!o.fill;
+      if (fillOn) { stage.style.boxSizing = 'border-box'; stage.style.maxWidth = 'none'; stage.style.width = (100 / zoom) + 'vw'; }
+      else { stage.style.boxSizing = ''; stage.style.maxWidth = ''; stage.style.width = ''; }
+    }
+    if (o.pulse && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.body.classList.remove('mag-pulse'); void document.body.offsetWidth; document.body.classList.add('mag-pulse');
+      clearTimeout(pulseT); pulseT = setTimeout(() => document.body.classList.remove('mag-pulse'), 1500);
+      softPop(o.pulse === 'out' ? 'out' : 'in');            // 'in' = اتلزق في المسبحة (Pop ناعم) | 'out' = فارقها (انكماشة خفيفة)
+    }
+  };
+  const applyScale = z => { z = Number(z); if (!(z > 0)) z = 1; zoom = z; document.documentElement.style.setProperty('--z', String(z)); stage.style.transform = z === 1 ? '' : 'scale(' + z + ')'; if (fillOn) lockMode({ fill: true }); requestAnimationFrame(() => fit()); };
+  // ───── مقاسه الطبيعي (على قد النص) + تصغير الكارت بنسبته لما النافذة تضيق (ملزوق في المسبحة) ─────
+  // بدل ما النص يلف ويطلع الكارت طويل: نفس الكارت بنفس سطوره بيتصغّر بنسبة عرض النافذة (الحواف والخط والمسافات كلها بنفس النسبة)، فيفضل مطاول ومتماشي مع المقاس.
+  let natW = 0, natH = 0;   // بكسل CSS قبل الحجم (zoom) | عرض الكارت الطبيعي + ارتفاعه
+  const DOCK_PAD = 52, DOCK_K_MIN = 0.55;   // هوامش الـ Glow الجانبية (26 × 2) | أصغر نسبة تصغير
+  const measureNat = () => {
+    const sv = [stage.style.width, stage.style.maxWidth, stage.style.boxSizing, pop.style.zoom];
+    stage.style.width = ''; stage.style.maxWidth = ''; stage.style.boxSizing = ''; pop.style.zoom = '';
+    stage.style.maxWidth = 'var(--nat-max)';
+    const r = stage.getBoundingClientRect();
+    natW = r.width / zoom; natH = r.height / zoom;
+    stage.style.width = sv[0]; stage.style.maxWidth = sv[1]; stage.style.boxSizing = sv[2]; pop.style.zoom = sv[3];
+  };
+  const applyDock = () => {
+    if (document.body.dataset.kind !== 'verse' || !(natW > DOCK_PAD + 40)) { if (pop.style.zoom) pop.style.zoom = ''; return; }
+    const ratio = (innerWidth / zoom - DOCK_PAD) / (natW - DOCK_PAD);
+    const k = ratio >= 1 ? 1 : Math.max(DOCK_K_MIN, Math.floor(ratio * 997) / 1000);   // ×0.997: هامش أمان صغير علشان السطر الواحد ما يلفش بسبب كسور البكسل
+    const z = k >= 1 ? '' : String(k);
+    if (pop.style.zoom !== z) pop.style.zoom = z;
+  };
+  window.addEventListener('resize', applyDock);
   window.azkar.onPopupScale(applyScale);
+  window.azkar.onPopupLock(lockMode);                        // ملزوق في المسبحة: عرضه = عرضها
   // ───── سحب الإشعار لأي مكان (من أي منطقة فاضية؛ الأزرار والبطاقات لسه بتشتغل كالمعتاد) ─────
   (() => {
     let d = null;
@@ -276,10 +407,14 @@
   };
 
   // ───── ضبط ارتفاع النافذة على حجم المحتوى (علشان مفيش مساحة شفافة بتبلع الضغطات) ─────
-  let fitT = null;
-  const fit = () => { clearTimeout(fitT); fitT = setTimeout(() => window.azkar.popupFit(stage.getBoundingClientRect().height), 30); };
+  let fitT = null, fitOn = false;   // ما نبلّغش بالمقاس قبل ما المحتوى والخطوط يجهزوا: النافذة ما تظهرش فاضية أو بمقاس غلط
+  const fit = () => {
+    if (!fitOn) return;
+    clearTimeout(fitT);
+    fitT = setTimeout(() => { measureNat(); applyDock(); const r = stage.getBoundingClientRect(); window.azkar.popupFit(r.height, r.width, natH * zoom, natW * zoom); }, 30);   // الارتفاع + العرض (إشعار الأذكار بيكبر على قد النص)
+  };
   new ResizeObserver(fit).observe(stage);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  const goFit = () => { if (fitOn) return; fitOn = true; fit(); };
 
   // ───── الإطار (حدود الإشعار نفسها = المؤقت) ─────
   const eTrack = $('eTrack'), eProg = $('eProg'), edge = $('edge');
@@ -362,6 +497,15 @@
     'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
     'فَسُبۡحَٰنَ ٱللَّهِ حِينَ تُمۡسُونَ وَحِينَ تُصۡبِحُونَ'
   ];
+  // تنضيف نص الإشعار قبل العرض: بنشيل التطويل (ـــــ) وصفوف الرموز الفاصلة (--- ___ === *** ─── •••) والشرطة اللي بين مسافتين،
+  // وبنحوّل الأسطر الجديدة لمسافة، ونوحّد المسافات. نص المستخدم المحفوظ نفسه ما بيتغيّرش، التنضيف وقت العرض بس.
+  const cleanText = t => String(t == null ? '' : t)
+    .replace(/\u0640+/g, '')
+    .replace(/[-\u2010-\u2015_=*~\u2022\u00B7\u2500-\u257F\u25A0-\u25FF\u2605\u2606\u2726\u2727|]{2,}/g, ' ')
+    .replace(/\s[-\u2010-\u2015]\s/g, ' ')
+    .replace(/\s*[\r\n]+\s*/g, ' ')
+    .replace(/[ \t\u00A0]{2,}/g, ' ')
+    .trim();
   function runVerse() {
     document.body.dataset.kind = 'verse';
     const custom = cfg.custom && cfg.custom.text ? cfg.custom : null;      // تنبيه مخصص (نص المستخدم + صوت اختياري)
@@ -380,15 +524,20 @@
     };
     if (custom && custom.grp === 'wird') { openQuran = true; document.body.style.cursor = 'pointer'; }
     if (custom && ['m', 'e', 'sl', 'wk'].includes(custom.ico)) { openAz = custom.ico; document.body.style.cursor = 'pointer'; }
+    if (openQuran || openAz) pop.classList.add('clickable');            // وهج يوحي إنه بيتضغط عليه
     if (custom && ICO[custom.ico]) { $('vIco').innerHTML = ICO[custom.ico]; $('vIco').hidden = false; }
     if (custom) {
-      vt.textContent = custom.text;                                       // textContent: نص المستخدم ما بيتفسّرش HTML أبدًا
-      const n = [...custom.text].length;
-      if (n > 28) vt.classList.add(n > 100 ? 'len-xl' : n > 60 ? 'len-l' : 'len-m');   // أسماء مميزة (len-*): اسم قصير زي 'x' بيتصادم مع .x بتاع زرار الإغلاق
+      const txt = cleanText(custom.text) || String(custom.text).trim();      // من غير تطويل (ـــ) ولا خطوط/رموز فاصلة
+      vt.textContent = txt;                                               // textContent: نص المستخدم ما بيتفسّرش HTML أبدًا
+      const sub = cleanText(custom.sub);
+      if (sub) { $('verseSub').textContent = sub; $('verseSub').hidden = false; }
+      const n = [...txt].length;
+      if (n <= 48 && !sub) document.body.classList.add('wide');            // عنوان قصير: سطر واحد عريض بدل ما يلف ويطلع الكارت طويل
+      if (n > 70) vt.classList.add(n > 200 ? 'len-xl' : n > 130 ? 'len-l' : 'len-m');   // أسماء مميزة (len-*): اسم قصير زي 'x' بيتصادم مع .x بتاع زرار الإغلاق
     } else vt.textContent = VERSES[idx];
     const src = custom ? custom.src : (idx === 1 ? cfg.audio.reminder2 : cfg.audio.reminder);
     const capMs = (cfg.capSec || 45) * 1000;                              // سقف تشغيل الصوت المخصص (ملف طويل / بث بدون نهاية)
-    const readMs = custom ? Math.min(18000, 5500 + [...custom.text].length * 80) : 7500;   // بدون صوت: وقت قراءة على قد النص
+    const readMs = custom ? Math.min(18000, 5500 + [...custom.text].length * 80 + [...String(custom.sub || '')].length * 60) : 7500;   // بدون صوت: وقت قراءة على قد النص
     const fallback = setTimeout(() => fadeAndClose(650), readMs);        // لو الصوت اتقفل/مش موجود/ما بدأش
     if (!src || cfg.reminderSound === false) return;                     // صوت التنبيه متقفل من الإعدادات (أو مفيش صوت): النص يظهر بدون صوت
     const a = verseAudio = new Audio(src);
@@ -505,12 +654,28 @@
     if (Number.isFinite(s[key])) rvol = s[key];
   });
 
+  // ───── الإشعار منبثق من حافة الشاشة: الحافة اللازق فيها بتبقى مسطّحة، واتجاه الدخول بيتحدد مرة واحدة ─────
+  let entered = false;
+  const setEdges = e => {
+    const s = String(e || '');
+    ['l', 'r', 't', 'b'].forEach(k => document.body.classList.toggle('e-' + k, s.includes(k)));
+    if (entered) return;
+    entered = true;
+    document.body.dataset.enter = s.includes('r') ? 'r' : s.includes('l') ? 'l' : s.includes('t') ? 't' : s.includes('b') ? 'b' : 'x';
+    document.body.classList.add('shown');
+  };
+  window.azkar.onPopupEdges(setEdges);
+  setTimeout(() => { if (!entered) setEdges(''); }, 3000);   // احتياطي لو الرسالة ما وصلتش
+
   window.azkar.popupGet().then(c => {
     if (!c) return window.azkar.popupClose();
     applyScale(c.scale);
+    if (c.fill) lockMode({ fill: true });
     cfg = c; vol = c.popupVolume; rvol = Number.isFinite(c.reminderVolume) ? c.reminderVolume : vol;
     if (c.kind === 'cards') runCards(); else runVerse();
-    requestAnimationFrame(fit);
+    void stage.offsetHeight;                                               // نجبر الـ layout علشان الخطوط تبدأ تتحمّل قبل ما نستنى جهوزيتها
+    const fr = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    Promise.race([fr, new Promise(r => setTimeout(r, 700))]).then(() => requestAnimationFrame(goFit));
   });
 })();
 </script>

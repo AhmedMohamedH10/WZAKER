@@ -8,8 +8,8 @@
 (() => {
   'use strict';
   const ELS = [
-    { id: 'logo',  label: 'اللوجو' },
-    { id: 'tag',   label: 'الآية تحت اللوجو' },
+    { id: 'logo',  label: 'اللوجو (ضغطة عليه = الإعدادات)', noHide: true, locked: true },
+    { id: 'tag',   label: 'الآية تحت اللوجو', locked: true },
     { id: 'dial',  label: 'دايرة التسبيح (كلها)' },
     { id: 'num',   label: 'رقم العدّاد' },
     { id: 'of',    label: 'الهدف (/ 100)' },
@@ -18,7 +18,7 @@
     { id: 'snd',   label: 'الصوت' },
     { id: 'btns',  label: 'أزرار الهدف والتصفير' },
     { id: 'az',    label: 'إشعارات الصباح والمساء والورد' },
-    { id: 'topL',  label: 'زر التصغير والإعدادات', noHide: true },
+    { id: 'topL',  label: 'زر التصغير' },
     { id: 'topR',  label: 'زر الإغلاق' }
   ];
   const EXTRA_TYPES = [
@@ -31,6 +31,8 @@
     { type: 'text',  label: 'نص من عندك' }
   ];
   const EXTRAS_MAX = 8;
+  // المكان الافتراضي ("رجّعه مكانه"): الصلاة القادمة تحت أيقونة الصباح/المساء على الحافة اليمين (نفس عمود azstack)
+  const homePos = type => type === 'prayer' ? { dx: 106, dy: 25 } : { dx: 0, dy: 0 };
   const el$ = (root, id) => root.querySelector('[data-lx="' + id + '"]');
 
   const fmtDate = (loc, o) => { try { return new Intl.DateTimeFormat(loc, o).format(new Date()); } catch (_) { return ''; } };
@@ -38,13 +40,22 @@
   // ───── الصلاة القادمة: اسم أقرب صلاة فرض (من الفجر للعشاء) وتوقيتها، وبعد العشاء بترجع لفجر بكرة ─────
   const NEXT_KEYS = ['fj', 'dh', 'as', 'mg', 'is'];
   const NEXT_NAMES = { fj: 'الفجر', dh: 'الظهر', as: 'العصر', mg: 'المغرب', is: 'العشاء' };
-  const MOSQUE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M6 20v-5a6 6 0 0112 0v5"/><path d="M12 9V5M10.5 6.5h3"/></svg>';
+  const MOSQUE_SVG = '<svg viewBox="0 0.5 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M6 20v-5a6 6 0 0112 0v5"/><path d="M12 9V5M10.5 6.5h3"/></svg>';
   const fmt12 = m => { const h = Math.floor(m / 60), mi = m % 60; return ((h % 12) || 12) + ':' + String(mi).padStart(2, '0') + ' ' + (h < 12 ? 'ص' : 'م'); };
   function nextPrayer(S) {
     const t = S && S.prayerInfo && S.prayerInfo.times; if (!t) return null;
     const d = new Date(), now = d.getHours() * 60 + d.getMinutes();
     const k = NEXT_KEYS.find(x => Number.isFinite(t[x]) && t[x] > now) || 'fj';
-    return Number.isFinite(t[k]) ? { name: NEXT_NAMES[k], min: t[k] } : null;
+    return Number.isFinite(t[k]) ? { name: NEXT_NAMES[k], full: 'صلاة ' + NEXT_NAMES[k], min: t[k] } : null;
+  }
+  function placePrayer(n) {                                        // الكبسولة بتتمدّد ناحية الجهة اللي فيها مساحة (ناحية نص المسبحة أولًا) فمتتقصّش أبدًا
+    const card = n.closest('.card, .pvcard'), xp = n.querySelector('.xp'); if (!card || !xp) return;
+    const c = card.getBoundingClientRect(), r = n.getBoundingClientRect(), k = r.width / 26 || 1, w = xp.offsetWidth * k, m = 6 * k, e = 7 * k;
+    const fitL = r.right + e - w >= c.left + m, fitR = r.left - e + w <= c.right - m;
+    const preferR = (r.left + r.right) / 2 < (c.left + c.right) / 2;
+    const roomL = r.right + e - w - c.left, roomR = c.right - (r.left - e + w);
+    const right = preferR ? (fitR || !fitL) : (!fitL && fitR) || (!fitL && !fitR && roomR > roomL);
+    n.classList.toggle('ex-r', right); n.classList.toggle('ex-l', !right);
   }
   function fillPrayer(n, S) {
     const p = nextPrayer(S), sig = p ? p.name + '|' + p.min : '-';
@@ -52,8 +63,11 @@
     n.dataset.sig = sig; n.textContent = ''; n.insertAdjacentHTML('afterbegin', MOSQUE_SVG);
     const box = document.createElement('span'), t = document.createElement('b'), l = document.createElement('small');
     box.className = 'xp';
-    t.textContent = p ? fmt12(p.min) : '—'; l.textContent = p ? p.name : '';   // الأيقونة فوق، الوقت كبير في النص، واسم الصلاة تحته
-    box.append(t, l); n.appendChild(box);
+    t.textContent = p ? fmt12(p.min) : '—'; l.textContent = p ? p.full : '';   // الأيقونة ظاهرة دايمًا، وعلى الماوس بيظهر تحتها: اسم الصلاة (صلاة الظهر) ثم التوقيت
+    box.append(l, t); n.appendChild(box);
+    n.setAttribute('data-hit', ''); n.setAttribute('aria-label', p ? 'الصلاة القادمة: ' + p.full + ' ' + fmt12(p.min) : 'الصلاة القادمة');   // data-hit: المسبحة تحسّ بالماوس عليها (click-through)
+    if (!n._pp) { n._pp = 1; n.addEventListener('pointerenter', () => placePrayer(n)); }
+    requestAnimationFrame(() => placePrayer(n));
   }
   function extraText(x, S) {
     S = S || {};
@@ -76,6 +90,7 @@
     for (const d of ELS) {
       const e = el$(root, d.id);
       if (!e) continue;
+      if (d.locked) continue;                                   // اللوجو والآية: مكانهم من الـ CSS بس (ثابت)
       const c = els[d.id];
       if (c && (c.dx || c.dy)) e.style.translate = (c.dx || 0) + 'px ' + (c.dy || 0) + 'px'; else e.style.translate = '';
       if (c && c.s && c.s !== 1) e.style.scale = String(c.s); else e.style.scale = '';
@@ -96,30 +111,44 @@
     const n = el$(root, 'num'); if (!n) return;
     const dial = n.closest('.dial');
     const mode = !dial ? 'ring' : dial.classList.contains('beads') ? 'beads' : dial.classList.contains('strand') ? 'strand' : 'ring';
-    n.style.setProperty('--nk', '1'); n.style.setProperty('--nfy', (-NUM_LIFT) + 'px'); n.style.setProperty('--nfx', '0px');
+    // القيم الحالية (قبل التعديل): بنحسب منها حجم الخط الأصلي من غير ما نرجّع --nk لـ 1 (ده كان بيسبّب قفزة وبيمنع أي انتقال ناعم)
+    const prevNk = parseFloat(n.style.getPropertyValue('--nk')) || 1, pf = parseFloat(n.style.getPropertyValue('--nfy'));
+    const prevNfy = isFinite(pf) ? pf : 0, nv = n.querySelector('.nv'), first = !n.dataset.fitted;
+    let nk = 1, nfy = -NUM_LIFT;
     try {
       cvx = cvx || document.createElement('canvas').getContext('2d');
-      const cs = getComputedStyle(n), fs = parseFloat(cs.fontSize) || 60;
-      const lh = parseFloat(cs.lineHeight); const LH = isFinite(lh) ? lh : fs;
+      const cs = getComputedStyle(n), fs = (parseFloat(cs.fontSize) || 60) / prevNk;
+      const lh = parseFloat(cs.lineHeight); const LH = (isFinite(lh) ? lh : fs * prevNk) / prevNk;
       cvx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
       cvx.textBaseline = 'alphabetic'; cvx.textAlign = 'left'; cvx.direction = 'ltr';
       const txt = n.textContent || '0', arabic = /[\u0660-\u0669]/.test(txt);
+      // عرض الخانة الواحدة = أعرض رقم في الخط (الخانات ثابتة العرض فمفيش اهتزاز أفقي لما الرقم يتغيّر)
+      let dw = 0; for (const d of (arabic ? '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669' : '0123456789')) dw = Math.max(dw, cvx.measureText(d).width);
+      if (dw > 0) n.style.setProperty('--dw', (dw / fs * .97).toFixed(3) + 'em');
       // 1) الرقم الطويل يصغر عشان يفضل جوه الدايرة
-      const mt = cvx.measureText(txt), inkW = (mt.actualBoundingBoxLeft || 0) + (mt.actualBoundingBoxRight || mt.width);
-      const nk = Math.max(.55, Math.min(1, (NUM_MAXW[mode] || 112) / (inkW || 1)));
-      n.style.setProperty('--nk', nk.toFixed(3));
+      const mt = cvx.measureText(txt);
+      const inkW = nv && dw > 0 ? txt.length * dw * .97 : (mt.actualBoundingBoxLeft || 0) + (mt.actualBoundingBoxRight || mt.width);
+      nk = Math.max(.55, Math.min(1, (NUM_MAXW[mode] || 112) / (inkW || 1)));
       const f2 = fs * nk;
       cvx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + f2 + 'px ' + cs.fontFamily;
       // 2) توسيط رأسي لشكل الأرقام نفسه (مش صندوق الخط)
       const ref = cvx.measureText(arabic ? '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669' : '0123456789');
-      if (ref.fontBoundingBoxAscent == null || ref.actualBoundingBoxAscent == null) return;
-      const LH2 = LH * nk;
-      const half = (LH2 - (ref.fontBoundingBoxAscent + ref.fontBoundingBoxDescent)) / 2;
-      const baseY = half + ref.fontBoundingBoxAscent;                       // مكان خط القاعدة جوه صندوق السطر
-      const inkC = baseY - (ref.actualBoundingBoxAscent - ref.actualBoundingBoxDescent) / 2;   // منتصف شكل الأرقام
-      const dy = LH2 / 2 - inkC - NUM_LIFT;
-      if (isFinite(dy) && Math.abs(dy) < 40) n.style.setProperty('--nfy', dy.toFixed(2) + 'px');
+      if (ref.fontBoundingBoxAscent != null && ref.actualBoundingBoxAscent != null) {
+        const LH2 = LH * nk;
+        const half = (LH2 - (ref.fontBoundingBoxAscent + ref.fontBoundingBoxDescent)) / 2;
+        const baseY = half + ref.fontBoundingBoxAscent;                       // مكان خط القاعدة جوه صندوق السطر
+        const inkC = baseY - (ref.actualBoundingBoxAscent - ref.actualBoundingBoxDescent) / 2;   // منتصف شكل الأرقام
+        const dy = LH2 / 2 - inkC - NUM_LIFT;
+        if (isFinite(dy) && Math.abs(dy) < 40) nfy = dy;
+      }
     } catch (_) {}
+    n.style.setProperty('--nk', nk.toFixed(3)); n.style.setProperty('--nfy', nfy.toFixed(2) + 'px'); n.style.setProperty('--nfx', '0px');
+    n.dataset.fitted = '1';
+    // لو حجم الرقم/مكانه اتغيّر (مثلًا 99 → 100): الرقم بيتحرك للوضع الجديد بنعومة بدل ما يقفز
+    if (nv && !first && (Math.abs(nk - prevNk) > .004 || Math.abs(nfy - prevNfy) > .3) && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      nv.animate([{ transform: 'translateY(' + (prevNfy - nfy).toFixed(2) + 'px) scale(' + (prevNk / nk).toFixed(4) + ')' }, { transform: 'translateY(0) scale(1)' }],
+        { duration: 380, easing: 'cubic-bezier(.22, 1, .36, 1)', composite: 'add' });
+    }
   }
   const watched = new WeakSet();
   function watchNum(root) {
@@ -154,5 +183,5 @@
     for (const n of have.values()) n.remove();
   }
 
-  window.WZLayout = { ELS, EXTRA_TYPES, EXTRAS_MAX, apply, renderExtras, extraText, fixNum };
+  window.WZLayout = { ELS, EXTRA_TYPES, EXTRAS_MAX, homePos, apply, renderExtras, extraText, fixNum };
 })();

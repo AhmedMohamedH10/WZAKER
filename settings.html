@@ -150,13 +150,10 @@
   .prbar .pc.next { background: rgba(var(--accent-rgb), .1); }
   .prbar .pc.next::before, .prbar .pc.next + .pc::before { opacity: 0; }
   .prbar .pc.next .n, .prbar .pc.next .t { color: var(--accent); }
-  .prbar .pc .n svg { display: inline-block; width: 0; height: 15px; margin-inline-end: 0; opacity: 0; transform: scale(.35) rotate(-35deg); color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; overflow: visible;
-    transition: width .34s cubic-bezier(.34, 1.3, .64, 1), margin-inline-end .34s cubic-bezier(.34, 1.3, .64, 1), opacity .22s ease, transform .45s cubic-bezier(.34, 1.56, .64, 1); }
-  .prbar:hover .pc .n svg, .prbar .pc.next .n svg { width: 15px; margin-inline-end: 5px; opacity: 1; transform: none; }
-  .prbar:hover .pc:nth-child(2) .n svg { transition-delay: .05s; }
-  .prbar:hover .pc:nth-child(3) .n svg { transition-delay: .10s; }
-  .prbar:hover .pc:nth-child(4) .n svg { transition-delay: .15s; }
-  .prbar:hover .pc:nth-child(5) .n svg { transition-delay: .20s; }
+  /* أيقونة كل صلاة: بتظهر بس على الخلية اللي الماوس عليها (والصلاة القادمة دايمًا). الدخول أسرع من الخروج، فلما الماوس يتحرك يمين وشمال الأيقونات بتظهر بالتدريج وتسيب أثر هادي وراها */
+  .prbar .pc .n svg { display: inline-block; width: 0; height: 15px; margin-inline-end: 0; opacity: 0; transform: translateY(3px) scale(.82); filter: blur(1.5px); color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; overflow: visible;
+    transition: width 1s cubic-bezier(.22, .61, .36, 1), margin-inline-end 1s cubic-bezier(.22, .61, .36, 1), opacity .9s ease, transform 1s cubic-bezier(.22, .61, .36, 1), filter .9s ease; }
+  .prbar .pc:hover .n svg, .prbar .pc.next .n svg { width: 15px; margin-inline-end: 5px; opacity: 1; transform: none; filter: none; transition-duration: .55s, .55s, .5s, .6s, .5s; }
   .prbar .pc:not(.next):hover { background: rgba(var(--accent-rgb), .05); }
   @media (prefers-reduced-motion: reduce) { .prbar .pc .n svg { transition: none; } }
   .prbar .pe { display: none; grid-column: 1 / -1; padding: 14px 12px; font-size: 12.5px; color: var(--dim); }
@@ -169,6 +166,18 @@
     background: rgba(var(--accent-rgb), .02); display: flex; flex-direction: column; gap: 7px;
   }
   .grp-h { font-size: 14.5px; color: var(--text); }
+  .onoff { display: flex; align-items: center; gap: 9px; }
+  .onoff b { font-size: 11px; font-weight: normal; letter-spacing: .06em; min-width: 24px; text-align: center; color: var(--dim); transition: color .25s; }
+  .onoff.on b { color: var(--accent); }
+  .grp-h.acc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; user-select: none; }
+  .grp-h.acc-h svg { width: 16px; height: 16px; flex: none; stroke: var(--dim); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .4s cubic-bezier(.34, 1.5, .5, 1), stroke .2s; }
+  .grp-h.acc-h .acc-t { flex: 1; min-width: 0; text-align: start; text-align-last: auto; text-justify: none; }
+  .grp-h.acc-h:hover svg { stroke: var(--accent); }
+  .grp-h.acc-h[aria-expanded="true"] svg { transform: rotate(180deg); stroke: var(--accent); }
+  .grp-h.acc-h:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+  .grp.acc-g { gap: 0; }                                  /* مجموعة قابلة للطي: مقفولة = العنوان بس */
+  .grp.acc-g > .fold { margin-top: 0; transition: grid-template-rows .42s cubic-bezier(.22, 1, .36, 1), opacity .22s ease, margin-top .3s ease; }
+  .grp.acc-g.open > .fold { margin-top: 9px; }
   .grp-h.hh { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .info { position: relative; flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb), .55); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: bold; line-height: 1; cursor: help; outline: none; transition: background .2s; }
   .info:hover, .info:focus { background: rgba(var(--accent-rgb), .15); }
@@ -452,7 +461,7 @@
   .fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .42s cubic-bezier(.22, 1, .36, 1), opacity .22s ease; }
   .fold.open { grid-template-rows: 1fr; opacity: 1; }
   .fold-in { overflow: hidden; min-height: 0; display: flex; flex-direction: column; gap: 7px; visibility: hidden; transform-origin: top center; transform: translateY(-8px) scale(.97); transition: visibility 0s .42s, transform .26s ease; }
-  .fold.open > .fold-in { visibility: visible; transform: none; transition: visibility 0s 0s, transform .5s cubic-bezier(.34, 1.4, .64, 1); }
+  .fold.open > .fold-in { visibility: visible; transform: none; transition: visibility 0s 0s, transform .6s cubic-bezier(.22, .61, .36, 1); }
   .fold .fold-in > .plabel:first-child { margin-top: 8px; }
   .sub { padding-inline-start: 10px; border-inline-start: 1px solid var(--line); margin-inline-start: 4px; }
   .sel {
@@ -508,7 +517,9 @@
   .pvcard * { pointer-events: none; }
   .pvcard [data-lx], .pvcard .xel { pointer-events: auto; cursor: grab; }
   .pvcard.dragging [data-lx], .pvcard.dragging .xel { cursor: grabbing; }
+  .pvcard [data-lx="logo"], .pvcard [data-lx="tag"] { cursor: default !important; }
   .pvcard [data-lx]:hover, .pvcard .xel:hover { outline: 1px dashed rgba(var(--accent-rgb), .4); outline-offset: 3px; }
+  .pvcard [data-lx="logo"]:hover, .pvcard [data-lx="tag"]:hover { outline: none; }
   .pvcard .pvsel { outline: 1.5px solid var(--accent) !important; outline-offset: 3px; border-radius: 6px; }
   .pvcard .lx-off { visibility: visible !important; opacity: .22; }
   .pvcard .ibtn { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--dim); }
@@ -518,7 +529,7 @@
   .pvcard .top .tr { justify-self: end; }
   .pvcard .grip { width: 108px; height: 33px; display: grid; place-items: center; }
   .pvcard .grip img { height: 35px; width: auto; display: block; opacity: .95; -webkit-user-drag: none; }
-  .pvcard .tagline { width: 100%; margin-top: -1px; height: 15px; padding: 0 6px; text-align: center; font-size: 11px; line-height: 15px; color: var(--dim); white-space: nowrap; overflow: hidden; }
+  .pvcard .tagline { translate: 0 8px; width: 100%; margin-top: -1px; height: 15px; padding: 0 6px; text-align: center; font-size: 11px; line-height: 15px; color: var(--dim); white-space: nowrap; overflow: hidden; }
   .pvcard .dial { position: relative; width: 184px; height: 184px; margin-top: 3px; }
   .pvcard .dial svg { position: absolute; inset: 0; transform: rotate(-90deg); overflow: visible; }
   .pvcard .track { fill: none; stroke: rgba(var(--accent-rgb), .09); stroke-width: 7; }
@@ -539,7 +550,19 @@
   .pvcard .dhikr { margin-top: 2px; padding: 2px 16px; border-radius: 14px; color: var(--text); font-size: 25px; }
   .pvcard .totrow { align-self: stretch; display: flex; justify-content: center; }
   .pvcard .total { margin-top: 3px; font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
-  .pvcard .ctrl { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; opacity: .8; }
+  .pvcard .ctrl { position: relative; height: 30px; margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; opacity: .8; }
+  .pvcard .pvstar { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; display: grid; place-items: center; color: var(--accent); }   /* النجمة ثابتة في النص (الصوت يمين، الهدف والتصفير شمال في أماكنهم) */
+  .pvcard .pvstar svg { width: 20px; height: 20px; overflow: visible; opacity: .85; filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), .6)); }
+  .pvcard .pvstar .st { fill: rgba(var(--accent-rgb), .14); stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+  .pvcard .pvstar .core { fill: currentColor; }
+  /* مسطرة المحاذاة: خطوط + مسافات أثناء السحب */
+  .pvcard .pvg { position: absolute; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; border-radius: 30px; }
+  .pvcard .pvg * { position: absolute; pointer-events: none; }
+  .pvcard .pvg .gl { background: var(--accent); opacity: .9; box-shadow: 0 0 6px rgba(var(--accent-rgb), .6); }
+  .pvcard .pvg .gb { border: 1px solid rgba(var(--accent-rgb), .7); border-radius: 4px; box-sizing: border-box; }
+  .pvcard .pvg .gm { background: rgba(var(--accent-rgb), .55); }
+  .pvcard .pvg .gt { width: max-content; transform: translate(-50%, -50%); padding: 3px 5px; border-radius: 8px; line-height: 0; font-size: 12px; line-height: 1.25; font-weight: normal; letter-spacing: 0; box-sizing: border-box; text-align: center; white-space: nowrap; color: #07140e; background: var(--accent); font-variant-numeric: tabular-nums; }
+  .pvcard .pvg .gt.d { color: var(--accent); background: rgba(7, 20, 14, .92); border: 1px solid rgba(var(--accent-rgb), .55); }
   .pvcard .snd { display: flex; align-items: center; gap: 4px; }
   .pvcard .pvrng { width: 62px; height: 2px; border-radius: 2px; background: rgba(var(--accent-rgb), .28); position: relative; }
   .pvcard .pvrng i { position: absolute; left: 40%; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px rgba(var(--accent-rgb), .6); }
@@ -550,17 +573,59 @@
   .pvcard .xbox { position: absolute; inset: 0; z-index: 2; }
   .pvcard .xel { position: absolute; left: 50%; top: 50%; white-space: nowrap; font-size: 14px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .pvcard .xel[data-type="clock"], .pvcard .xel[data-type="pct"] { color: var(--accent); font-size: 16px; }
-  .pvcard .xel[data-type="prayer"] { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--accent); }
-  .pvcard .xel[data-type="prayer"] svg { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  .pvcard .xel .xp { display: flex; flex-direction: column; align-items: center; gap: 0; line-height: 1.2; }
-  .pvcard .xel .xp b { font-weight: normal; font-size: 21px; color: var(--accent); }
-  .pvcard .xel .xp small { font-size: 14px; color: var(--accent); opacity: .85; }
+  .pvcard .xel[data-type="prayer"] { display: block; width: 26px; height: 26px; color: var(--accent); }
+  .pvcard .xel[data-type="prayer"]::before { content: ''; position: absolute; inset: 0; z-index: 2; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb), .35); background: linear-gradient(rgba(var(--accent-rgb), .08), rgba(var(--accent-rgb), .08)), var(--bg); }
+  .pvcard .xel[data-type="prayer"] svg { position: absolute; left: 50%; top: 50%; margin: -8px 0 0 -8px; z-index: 3; display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .pvcard .xel .xp {   /* زي المسبحة الحقيقية: الأيقونة بس، وعلى الماوس بتتمدّد كبسولة بالاسم والتوقيت */
+    position: absolute; top: 50%; height: 30px; margin-top: -15px; z-index: 1; display: flex; align-items: center; gap: 7px; white-space: nowrap;
+    border-radius: 15px; border: 1px solid rgba(var(--accent-rgb), .3); background: linear-gradient(135deg, rgba(18, 44, 33, .94), rgba(7, 18, 14, .94));
+    visibility: hidden; opacity: 0; pointer-events: none; transition: clip-path .4s cubic-bezier(.22, 1, .36, 1), opacity .22s ease, visibility 0s linear .4s;
+  }
+  .pvcard .xel.ex-l .xp { right: -7px; padding: 0 41px 0 14px; direction: rtl; clip-path: inset(0 0 0 100% round 15px); }
+  .pvcard .xel.ex-r .xp { left: -7px; padding: 0 14px 0 41px; direction: ltr; clip-path: inset(0 100% 0 0 round 15px); }
+  .pvcard .xel:hover .xp { visibility: visible; opacity: 1; clip-path: inset(0 0 0 0 round 15px); transition-delay: 0s; }
+  .pvcard .xel .xp small { font-size: 13.5px; color: var(--accent); }
+  .pvcard .xel .xp small::after { content: '·'; margin-inline-start: 7px; opacity: .55; }
+  .pvcard .xel .xp b { font-weight: normal; font-size: 15px; color: var(--text); }
   .lxsel-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .lxsel-h b { font-weight: normal; color: var(--accent); font-size: 14.5px; }
   .lxrow { display: flex; flex-wrap: wrap; gap: 6px; }
-  .lxnudge { display: grid; grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(2, 28px); gap: 4px; direction: ltr; }
-  .lxnudge .pill { padding: 0; height: 28px; width: 30px; display: grid; place-items: center; }
+  #dsDd { border: 0; background: none; height: 28px; padding: 0; font-size: 14.5px; }
+  #dsDd:hover, #dsDd[aria-expanded="true"] { background: none; }
+  .glowline { display: flex; align-items: flex-end; gap: 20px; }
+  .glowsl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+  .glowtg { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text); cursor: pointer; padding-bottom: 1px; }
+  .pvwrap { position: relative; }
+  .pvside { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+  .pvtools { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 10px; border-radius: 18px; border: 1px solid var(--line); background: rgba(var(--accent-rgb), .03); transition: opacity .25s ease; }
+  .pvtools[data-off] .lxnudge { opacity: .38; pointer-events: none; }
+  .pvt-h { font-size: 11.5px; color: var(--dim); letter-spacing: .02em; }
+  .lxnudge { display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(2, 34px); gap: 6px; direction: ltr; transition: opacity .25s ease; }
+  .lxnudge .pill { padding: 0; height: 34px; width: 34px; display: grid; place-items: center; border-radius: 12px; border-color: rgba(var(--accent-rgb), .45); background: rgba(var(--accent-rgb), .07); color: var(--accent); }
+  .lxnudge .pill svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .lxnudge .pill:hover { background: rgba(var(--accent-rgb), .18); border-color: var(--accent); }
+  .lxnudge .pill:active { transform: scale(.92); }
   .lxnudge .u { grid-column: 2; grid-row: 1; } .lxnudge .l { grid-column: 1; grid-row: 2; } .lxnudge .d { grid-column: 2; grid-row: 2; } .lxnudge .r { grid-column: 3; grid-row: 2; }
+  .pvreset { width: 100%; }
+  .pvreset:disabled { opacity: .38; pointer-events: none; }
+  .lxsep { height: 1px; background: var(--line); margin: 10px 0 8px; }
+  .addh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .addh .grp-h { margin: 0; }
+  .plus { position: relative; width: 28px; height: 28px; padding: 0; border-radius: 9px; color: var(--accent); border-color: var(--line); background: transparent; transition: transform .35s cubic-bezier(.34, 1.5, .5, 1), background .2s, border-color .2s; }
+  .plus::before, .plus::after { content: ''; position: absolute; left: 50%; top: 50%; background: currentColor; border-radius: 1px; }
+  .plus::before { width: 12px; height: 1.6px; margin: -.8px 0 0 -6px; } .plus::after { width: 1.6px; height: 12px; margin: -6px 0 0 -.8px; }
+  .plus:hover { background: rgba(var(--accent-rgb), .1); border-color: rgba(var(--accent-rgb), .5); }
+  .plus::before, .plus::after { transition: transform .35s cubic-bezier(.34, 1.5, .5, 1); }
+  .plus[aria-expanded="true"] { border-color: rgba(var(--accent-rgb), .5); }
+  .plus[aria-expanded="true"]::before, .plus[aria-expanded="true"]::after { transform: rotate(45deg); }
+  .lxbtn { width: 100%; height: 32px; font-size: 12px; }
+  .lxlink { background: none; border: 0; padding: 2px 0; color: var(--accent); font-size: 12.5px; cursor: pointer; text-align: center; opacity: .9; transition: opacity .2s, text-shadow .2s; }
+  .lxlink:hover { opacity: 1; text-shadow: 0 0 10px rgba(var(--accent-rgb), .55); text-decoration: underline; text-underline-offset: 4px; }
+  .lxhd { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .plus::before, .plus::after { content: ''; position: absolute; left: 50%; top: 50%; background: currentColor; border-radius: 2px; }
+  .plus::before { width: 14px; height: 2px; margin: -1px 0 0 -7px; } .plus::after { width: 2px; height: 14px; margin: -7px 0 0 -1px; }
+  #lxAddFold.open { margin-top: 9px; }
+  @media (max-width: 600px) { .pvside { position: static; transform: none; margin: 0 auto 10px; } .pvwrap { flex-direction: column; align-items: center; } }
   .lxopts { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 
   /* شبكة أماكن المسبحة (9 أماكن) + خانة الزر المخصص */
@@ -583,6 +648,20 @@
   .hint { font-size: 11.5px; color: var(--dim); line-height: 1.7; }
   .seg { display: flex; gap: 6px; flex-wrap: wrap; }
   .seg .pill { flex: 1 1 auto; }
+  .seg.list { flex-direction: column; flex-wrap: nowrap; gap: 4px; max-height: 172px; overflow-y: auto; overscroll-behavior: contain; padding: 6px; border: 1px solid var(--line); border-radius: 14px; scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), .35) transparent; }
+  .seg.list .pill { flex: none; width: 100%; height: 32px; text-align: right; border-radius: 10px; display: flex; align-items: center; gap: 10px; }
+  .seg.list .lsep { flex: none; font-size: 11px; color: var(--dim); opacity: .75; padding: 6px 4px 2px; letter-spacing: .02em; }
+  .seg.list .lsep:first-child { padding-top: 0; }
+  .pos { position: relative; flex: none; width: 22px; height: 14px; border: 1px solid currentColor; border-radius: 3px; opacity: .75; }
+  .pos::before, .pos::after { content: ''; position: absolute; width: 5px; height: 4px; border-radius: 1.5px; background: currentColor; }
+  .pos::before { display: none; width: 6px; height: 6px; border-radius: 50%; background: none; border: 1px solid currentColor; opacity: .55; left: 50%; top: 50%; margin: -3px 0 0 -3px; }
+  .pos[data-p="tr"]::after { top: 1px; right: 1px; } .pos[data-p="tc"]::after { top: 1px; left: 50%; margin-left: -2.5px; } .pos[data-p="tl"]::after { top: 1px; left: 1px; }
+  .pos[data-p="br"]::after { bottom: 1px; right: 1px; } .pos[data-p="bc"]::after { bottom: 1px; left: 50%; margin-left: -2.5px; } .pos[data-p="bl"]::after { bottom: 1px; left: 1px; }
+  .pos[data-p="dial"]::after { left: 50%; top: 50%; margin: -2px 0 0 -2.5px; }
+  .pos[data-p="rd"]::before, .pos[data-p="ld"]::before { display: block; }
+  .pos[data-p="rd"]::before { left: 36%; } .pos[data-p="ld"]::before { left: 64%; }
+  .pos[data-p="rd"]::after { right: 1px; top: 50%; margin-top: -2px; } .pos[data-p="ld"]::after { left: 1px; top: 50%; margin-top: -2px; }
+  .pos[data-p="sv"]::after { left: 30%; top: 62%; border-radius: 50%; width: 4px; }
   .srow { display: flex; align-items: center; gap: 8px; min-height: 28px; }
   .fname { flex: 1; min-width: 0; font-size: 12.5px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: ltr; text-align: right; unicode-bidi: plaintext; }
   .fname.has { color: var(--text); }
@@ -957,49 +1036,44 @@
   /* ═════ أنيميشن الـ Hover ═════ */
   @media (prefers-reduced-motion: no-preference) {
 
-    /* ── مواقيت الصلاة: كل خلية لوحدها تصحى: إضاءة من تحت + خط بيتفتح من النص + الوقت بيكبر وبيلمع + الأيقونة بتنط ── */
-    .prbar .pc { transition: background .3s, transform .4s cubic-bezier(.34, 1.4, .64, 1); }
-    .prbar .pc:not(.next):hover, .prbar .pc.next:hover { background: radial-gradient(ellipse 85% 75% at 50% 115%, rgba(var(--accent-rgb), .26), rgba(var(--accent-rgb), .05) 70%, transparent); transform: translateY(-2px); }
-    .prbar .pc::after { content: ''; position: absolute; bottom: 0; inset-inline: 16%; height: 2px; border-radius: 2px; pointer-events: none;
-      background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 10px rgba(var(--accent-rgb), .8);
-      transform: scaleX(0); opacity: 0; transition: transform .45s cubic-bezier(.2, .8, .2, 1), opacity .3s; }
-    .prbar .pc:hover::after { transform: scaleX(1); opacity: 1; }
-    .prbar .pc .t { transition: transform .4s cubic-bezier(.34, 1.56, .64, 1), color .25s, text-shadow .3s; }
-    .prbar .pc:hover .t { transform: scale(1.14); color: var(--accent); text-shadow: 0 0 14px rgba(var(--accent-rgb), .6); }
-    .prbar .pc .n { transition: color .25s, letter-spacing .35s; }
-    .prbar .pc:hover .n { color: var(--accent); letter-spacing: .4px; }
-    .prbar .pc:hover .n svg { animation: prIco .65s cubic-bezier(.3, 1.4, .5, 1); }
-    @keyframes prIco { 0% { transform: scale(.55) rotate(-30deg); } 55% { transform: scale(1.4) rotate(14deg); } 100% { transform: scale(1) rotate(0); } }
+    /* ── مواقيت الصلاة: حركة هادية بدون نطّ: إضاءة ناعمة من تحت + خط بيتفتح من النص + الوقت بيتنوّر ── */
+    .prbar .pc { transition: background .9s ease; }
+    .prbar .pc:not(.next):hover, .prbar .pc.next:hover { background: radial-gradient(ellipse 85% 75% at 50% 115%, rgba(var(--accent-rgb), .20), rgba(var(--accent-rgb), .04) 70%, transparent); transition-duration: .5s; }
+    .prbar .pc::after { content: ''; position: absolute; bottom: 0; inset-inline: 22%; height: 2px; border-radius: 2px; pointer-events: none;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 8px rgba(var(--accent-rgb), .55);
+      transform: scaleX(.3); opacity: 0; transition: transform .9s cubic-bezier(.22, .61, .36, 1), opacity .8s ease; }
+    .prbar .pc:hover::after { transform: scaleX(1); opacity: .9; transition-duration: .6s, .5s; }
+    .prbar .pc .t { transition: transform .9s cubic-bezier(.22, .61, .36, 1), color .8s ease, text-shadow .9s ease; }
+    .prbar .pc:hover .t { transform: scale(1.05); color: var(--accent); text-shadow: 0 0 10px rgba(var(--accent-rgb), .4); transition-duration: .5s; }
+    .prbar .pc .n { transition: color .8s ease; }
+    .prbar .pc:hover .n { color: var(--accent); transition-duration: .45s; }
 
-    /* ── أقسام القائمة الرئيسية: بتطلع لفوق + لمعة قُطرية بتعدّي + الأيقونة بتكبر وتتميّل ── */
-    .tile { overflow: hidden; transition: transform .4s cubic-bezier(.2, .8, .2, 1), border-color .2s, background .2s, box-shadow .4s; }
-    .tile::after { content: ''; position: absolute; top: -10%; bottom: -10%; width: 40%; inset-inline-start: -55%; pointer-events: none;
-      background: linear-gradient(100deg, transparent, rgba(var(--accent-rgb), .20), transparent); transform: skewX(-18deg); }
-    .tile:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -14px rgba(var(--accent-rgb), .75), 0 0 10px rgba(var(--accent-rgb), .14); }
-    .tile:hover::after { animation: tileShine .95s ease-out; }
-    @keyframes tileShine { from { inset-inline-start: -55%; } to { inset-inline-start: 125%; } }
-    .tile:active { transform: translateY(-1px) scale(.985); transition-duration: .1s; }
-    .tile svg { transition: scale .45s cubic-bezier(.34, 1.56, .64, 1), rotate .45s cubic-bezier(.34, 1.56, .64, 1), filter .3s; }
-    .tile:hover svg { scale: 1.2; rotate: -8deg; filter: drop-shadow(0 0 6px rgba(var(--accent-rgb), .65)); }
-    .tile .t { transition: color .2s, translate .35s cubic-bezier(.2, .8, .2, 1); }
-    .tile:hover .t { color: var(--accent); translate: -3px 0; }
+    /* ── أقسام القائمة الرئيسية: رفعة بسيطة جدًا + توهّج ناعم + الأيقونة بتكبر شوية (من غير لمعة ولا ميل) ── */
+    .tile { overflow: hidden; transition: transform .7s cubic-bezier(.22, .61, .36, 1), border-color .5s ease, background .5s ease, box-shadow .7s ease; }
+    .tile::after { display: none; }
+    .tile:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -18px rgba(var(--accent-rgb), .7), 0 0 10px rgba(var(--accent-rgb), .10); transition-duration: .5s, .4s, .4s, .5s; }
+    .tile:active { transform: translateY(0) scale(.992); transition-duration: .15s; }
+    .tile svg { transition: scale .7s cubic-bezier(.22, .61, .36, 1), filter .6s ease; }
+    .tile:hover svg { scale: 1.08; filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), .5)); transition-duration: .5s, .4s; }
+    .tile .t { transition: color .5s ease; }
+    .tile:hover .t { color: var(--accent); }
 
     /* ── العناوين القابلة للفتح (الأكورديون): الخلفية بتتمدّد من الجنب + الأيقونة بتلف + السهم بينزل ── */
     details.acc > summary { background-image: linear-gradient(90deg, rgba(var(--accent-rgb), .10), rgba(var(--accent-rgb), .02)); background-repeat: no-repeat; background-position: right center; background-size: 0% 100%; transition: background-size .5s cubic-bezier(.2, .8, .2, 1); }
     details.acc > summary:hover { background-size: 100% 100%; }
-    .acc-ico { transition: rotate .45s cubic-bezier(.34, 1.56, .64, 1), scale .45s cubic-bezier(.34, 1.56, .64, 1), background .25s, box-shadow .3s; }
-    details.acc > summary:hover .acc-ico { rotate: 12deg; scale: 1.12; background: rgba(var(--accent-rgb), .22); box-shadow: 0 0 12px rgba(var(--accent-rgb), .35); }
-    .acc-chev { transition: transform .2s, translate .3s cubic-bezier(.34, 1.56, .64, 1), stroke .2s; }
-    details.acc > summary:hover .acc-chev { translate: 0 3px; stroke: var(--accent); }
-    details.acc[open] > summary:hover .acc-chev { translate: 0 -3px; }
+    .acc-ico { transition: scale .8s cubic-bezier(.22, .61, .36, 1), background .8s ease, box-shadow .8s ease; }   /* أيقونات الأوبشنات: حركة هادية من غير لفّة ولا نطّ */
+    details.acc > summary:hover .acc-ico { scale: 1.05; background: rgba(var(--accent-rgb), .18); box-shadow: 0 0 10px rgba(var(--accent-rgb), .22); transition-duration: .5s, .5s, .5s; }
+    .acc-chev { transition: transform .45s cubic-bezier(.22, .61, .36, 1), translate .6s cubic-bezier(.22, .61, .36, 1), stroke .5s ease; }
+    details.acc > summary:hover .acc-chev { translate: 0 2px; stroke: var(--accent); }
+    details.acc[open] > summary:hover .acc-chev { translate: 0 -2px; }
 
     /* ── مجموعات الإعدادات: إطار بيصحى بنعومة ── */
     .grp { transition: border-color .35s, box-shadow .35s, background .35s; }
     .grp:hover { border-color: rgba(var(--accent-rgb), .30); background: rgba(var(--accent-rgb), .035); box-shadow: 0 8px 22px -16px rgba(var(--accent-rgb), .7); }
 
     /* ── الأزرار: رفعة صغيرة + توهج، والضغط بيكبسها ── */
-    .pill, .chip { transition: color .15s, border-color .15s, background .15s, translate .25s cubic-bezier(.34, 1.56, .64, 1), box-shadow .25s, scale .12s; }
-    .pill:hover, .chip:hover { translate: 0 -2px; box-shadow: 0 6px 14px -8px rgba(var(--accent-rgb), .8); }
+    .pill, .chip { transition: color .3s, border-color .3s, background .3s, translate .45s cubic-bezier(.22, .61, .36, 1), box-shadow .45s, scale .15s; }
+    .pill:hover, .chip:hover { translate: 0 -1px; box-shadow: 0 6px 14px -8px rgba(var(--accent-rgb), .8); }
     .pill:active, .chip:active { translate: 0 0; scale: .95; box-shadow: none; }
 
     /* ── خيارات التفعيل (الصناديق والمفاتيح): الصف كله بينزاح ناحية الإيد ويتنوّر ── */
@@ -1052,37 +1126,29 @@
     45% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 26px 50px -16px rgba(0, 0, 0, .92), 0 0 44px -6px rgba(var(--accent-rgb), .7); } }
   @media (prefers-reduced-motion: no-preference) {
     /* الصفحات: Pop ناعم (طلوع + تكبير بنطّة زنبركية خفيفة) */
-    .view.on { animation: vin3 .28s ease-out backwards; }
+    .view.on { animation: vin3 .35s ease-out backwards; }
     @keyframes vin3 { from { opacity: 0; } }
-    .view.on:not([data-mk]) > * { animation: itPop .55s cubic-bezier(.34, 1.4, .5, 1) backwards; }   /* كل قسم جوه الصفحة بيطلع Pop ناعم ورا بعضه */
+    .view.on:not([data-mk]) > * { animation: itPop .65s cubic-bezier(.22, .61, .36, 1) backwards; }   /* كل قسم جوه الصفحة بيطلع Pop ناعم ورا بعضه */
     .view.on:not([data-mk]) > :nth-child(1) { animation-delay: 0s; }
     .view.on:not([data-mk]) > :nth-child(2) { animation-delay: .045s; }
     .view.on:not([data-mk]) > :nth-child(3) { animation-delay: .09s; }
     .view.on:not([data-mk]) > :nth-child(4) { animation-delay: .135s; }
     .view.on:not([data-mk]) > :nth-child(5) { animation-delay: .18s; }
     .view.on:not([data-mk]) > :nth-child(n+6) { animation-delay: .22s; }
-    @keyframes itPop { from { opacity: 0; transform: translateY(14px) scale(.965); } 45% { opacity: 1; } }
-    .fold.open .fold-in > :not(.seg) { animation: ddItem .5s cubic-bezier(.34, 1.45, .5, 1) backwards; }
-    .fold.open .seg .pill { animation: ddItem .5s cubic-bezier(.34, 1.45, .5, 1) backwards; }   /* عناصر القوائم المنسدلة بتطلع Pop واحدة ورا التانية */
+    @keyframes itPop { from { opacity: 0; transform: translateY(8px); } }
+    .fold.open .fold-in > :not(.seg) { animation: ddItem .6s cubic-bezier(.22, .61, .36, 1) backwards; }
+    .fold.open .seg .pill { animation: ddItem .6s cubic-bezier(.22, .61, .36, 1) backwards; }   /* عناصر القوائم المنسدلة بتطلع Pop واحدة ورا التانية */
     .fold.open .seg .pill:nth-child(1) { animation-delay: .04s; }
     .fold.open .seg .pill:nth-child(2) { animation-delay: .08s; }
     .fold.open .seg .pill:nth-child(3) { animation-delay: .12s; }
     .fold.open .seg .pill:nth-child(4) { animation-delay: .16s; }
     .fold.open .seg .pill:nth-child(n+5) { animation-delay: .2s; }
-    @keyframes ddItem { from { opacity: 0; transform: translateY(-8px) scale(.9); } 50% { opacity: 1; } }
-    /* أقسام القائمة الرئيسية: لما الماوس يدخل القسم يطلع Pop زنبركي، وبعدها القسم كله بيميل ناحية الماوس (Tilt) والأيقونة والعنوان بيتحركوا معاه */
-    .tile:hover { transform: perspective(720px) translateY(-4px) scale(1.04) rotateX(calc(var(--ry, 0) * -7deg)) rotateY(calc(var(--rx, 0) * 8deg)); transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), border-color .2s, background .2s, box-shadow .4s; }
-    .tile.trk:hover { transition: transform .14s ease-out, border-color .2s, background .2s, box-shadow .4s; }
-    .tile:hover:active { transform: perspective(720px) translateY(-1px) scale(.985); transition-duration: .1s; }
-    .tile svg { transition: scale .45s cubic-bezier(.34, 1.56, .64, 1), rotate .45s cubic-bezier(.34, 1.56, .64, 1), filter .3s, translate .5s cubic-bezier(.34, 1.56, .64, 1); }
-    .tile.trk svg { transition: scale .45s cubic-bezier(.34, 1.56, .64, 1), rotate .45s cubic-bezier(.34, 1.56, .64, 1), filter .3s, translate .16s ease-out; }
-    .tile:hover svg { translate: calc(var(--px, 0) * 6px) calc(var(--py, 0) * 6px); }
-    .tile:hover .t { translate: calc(-3px + var(--px, 0) * 4px) calc(var(--py, 0) * 3px); }
-    .tile.trk .t { transition: color .2s, translate .14s ease-out; }
-    .tile:hover::before { opacity: 1; background: radial-gradient(170px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .26), rgba(var(--accent-rgb), 0) 70%); }
+    @keyframes ddItem { from { opacity: 0; transform: translateY(-5px); } }
+    .tile:hover::before { opacity: 1; background: radial-gradient(170px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--accent-rgb), .18), rgba(var(--accent-rgb), 0) 70%); }   /* بقعة ضوء هادية بتتبع الماوس */
     /* أقسام القائمة الرئيسية: بتطلع متتابعة بحركة Pop */
-    #hub.on .tile { animation: tilePop .62s cubic-bezier(.34, 1.5, .5, 1) backwards; animation-delay: calc(var(--ti, 0) * 45ms + 60ms); }
-    @keyframes tilePop { from { opacity: 0; transform: translateY(20px) scale(.86); } 45% { opacity: 1; } }
+    #hub.on > .hub { animation: none; }   /* الأقسام بتتحرك لوحدها متتابعة، مش الشبكة كلها مرتين */
+    #hub.on .tile { animation: tileIn .8s cubic-bezier(.22, .61, .36, 1) backwards; animation-delay: calc(var(--ti, 0) * 70ms + 120ms); }
+    @keyframes tileIn { from { opacity: 0; transform: translateY(10px); } }
   }
 </style>
 </head>
@@ -1153,8 +1219,8 @@
         <button class="tile" data-go="pView">
           <svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12" rx="3.5"/><path d="M7.5 12h5"/></svg>
           <span class="tag" id="tagMini">عادي</span>
-          <div class="t">عرض الوضع المصغر</div>
-          <div class="d">الوضع المصغر والشفافية ومكان وحجم التنبيهات</div>
+          <div class="t">الوضع المصغر والإنبثاق</div>
+          <div class="d">الوضع المصغر والشفافية والإشعارات وبطاقات التحدي</div>
         </button>
         <button class="tile" data-go="pStats">
           <svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>
@@ -1422,11 +1488,12 @@
       </details>
     </div>
 
-    <!-- ═════════ عرض الوضع المصغر ═════════ -->
-    <div class="view" id="pView" data-title="عرض الوضع المصغر">
+    <!-- ═════════ الوضع المصغر والإنبثاق ═════════ -->
+    <div class="view" id="pView" data-title="الوضع المصغر والإنبثاق">
       <div class="grp">
         <div class="grp-h">الوضع المصغر</div>
-        <label class="chk"><input type="checkbox" id="miniChk"> Mini Mode</label>
+        <label class="tgl"><span>Mini Mode</span><span class="onoff" id="miniOnoff"><input type="checkbox" class="uswitch" id="miniChk"></span></label>
+        <div class="note">المسبحة المصغّرة فيها زر تكبير يرجّعك للمسبحة الكبيرة، أو أوقف الوضع من هنا.</div>
         <div class="plabel"><label for="miniOp">شفافية الوضع المصغر</label><span id="miniPct"></span></div>
         <input type="range" class="rng" id="miniOp" min="20" max="100" step="1">
       </div>
@@ -1436,22 +1503,9 @@
         <input type="range" class="rng" id="idleOp" min="30" max="100" step="1">
       </div>
       <div class="grp">
-        <div class="grp-h">مكان وحجم الإشعارات (الصباح والمساء والنوم والاستيقاظ والورد والآيات والتنبيهات المخصصة)</div>
-        <button class="ddbtn" id="ppDd" aria-expanded="false"><span>حدد مكان الإشعار</span><b id="ppDdV"></b><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
-        <div class="fold" id="ppFold"><div class="fold-in">
-        <div class="seg" id="ppSeg">
-          <button class="pill" data-k="corner">أعلى يمين الشاشة</button>
-          <button class="pill" data-k="tl">أعلى يسار الشاشة</button>
-          <button class="pill" data-k="tc">أعلى منتصف الشاشة</button>
-          <button class="pill" data-k="br">أسفل يمين الشاشة</button>
-          <button class="pill" data-k="bc">أسفل منتصف الشاشة</button>
-          <button class="pill" data-k="bl">أسفل يسار الشاشة</button>
-          <button class="pill" data-k="right">يمين المسبحة</button>
-          <button class="pill" data-k="left">شمال المسبحة</button>
-          <button class="pill" data-k="saved" id="ppSaved">آخر مكان سحبته</button>
-        </div>
-        </div></div>
-        <div class="plabel"><label for="ppSize">حجم التنبيه</label><span id="ppSizePct"></span></div>
+        <div class="grp-h">الإشعارات (الصباح والمساء والنوم والاستيقاظ والورد والآيات والتنبيهات المخصصة)</div>
+        <div class="note">يمكنك تحريك الإشعار في أي مكان بالشاشة.</div>
+        <div class="plabel"><label for="ppSize">حجم الإشعار</label><span id="ppSizePct"></span></div>
         <input type="range" class="rng" id="ppSize" min="75" max="130" step="5">
         <div class="acts"><button class="pill sm" id="ppTest">جرّب التنبيه</button></div>
       </div>
@@ -1459,17 +1513,21 @@
         <div class="grp-h">مكان وحجم بطاقات الذكر الخفي (التحدي)</div>
         <button class="ddbtn" id="cpDd" aria-expanded="false"><span>حدد مكان البطاقات</span><b id="cpDdV"></b><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="fold" id="cpFold"><div class="fold-in">
-        <div class="seg" id="cpSeg">
-          <button class="pill" data-k="corner">أعلى يمين الشاشة</button>
-          <button class="pill" data-k="tl">أعلى يسار الشاشة</button>
-          <button class="pill" data-k="tc">أعلى منتصف الشاشة</button>
-          <button class="pill" data-k="br">أسفل يمين الشاشة</button>
-          <button class="pill" data-k="bc">أسفل منتصف الشاشة</button>
-          <button class="pill" data-k="bl">أسفل يسار الشاشة</button>
-          <button class="pill" data-k="right">يمين المسبحة</button>
-          <button class="pill" data-k="left">شمال المسبحة</button>
-          <button class="pill" data-k="dial">مكان المسبحة نفسها</button>
-          <button class="pill" data-k="saved" id="cpSaved">آخر مكان سحبته</button>
+        <div class="seg list" id="cpSeg">
+          <div class="lsep">على الشاشة · فوق</div>
+          <button class="pill" data-k="corner"><i class="pos" data-p="tr"></i>أعلى يمين الشاشة</button>
+          <button class="pill" data-k="tc"><i class="pos" data-p="tc"></i>أعلى منتصف الشاشة</button>
+          <button class="pill" data-k="tl"><i class="pos" data-p="tl"></i>أعلى يسار الشاشة</button>
+          <div class="lsep">على الشاشة · تحت</div>
+          <button class="pill" data-k="br"><i class="pos" data-p="br"></i>أسفل يمين الشاشة</button>
+          <button class="pill" data-k="bc"><i class="pos" data-p="bc"></i>أسفل منتصف الشاشة</button>
+          <button class="pill" data-k="bl"><i class="pos" data-p="bl"></i>أسفل يسار الشاشة</button>
+          <div class="lsep">حوالين المسبحة</div>
+          <button class="pill" data-k="dial"><i class="pos" data-p="dial"></i>مكان المسبحة نفسها</button>
+          <button class="pill" data-k="right"><i class="pos" data-p="rd"></i>يمين المسبحة</button>
+          <button class="pill" data-k="left"><i class="pos" data-p="ld"></i>شمال المسبحة</button>
+          <div class="lsep">مكانك</div>
+          <button class="pill" id="cpSaved" data-k="saved"><i class="pos" data-p="sv"></i>آخر مكان سحبته</button>
         </div>
         </div></div>
         <div class="plabel"><label for="cpSize">حجم البطاقات</label><span id="cpSizePct"></span></div>
@@ -1481,24 +1539,39 @@
     <!-- ═════════ تخصيص المسبحة ═════════ -->
     <div class="view" id="pLayout" data-title="تخصيص المسبحة">
       <div class="grp">
-        <div class="grp-h">شكل العدّاد</div>
-        <button class="ddbtn" id="dsDd" aria-expanded="false"><span>اختر شكل العدّاد</span><b id="dsDdV"></b><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="ddbtn" id="dsDd" aria-expanded="false"><span>شكل عداد التسبيح</span><b id="dsDdV"></b><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
         <div class="fold" id="dsFold"><div class="fold-in">
         <div class="seg" id="dsSeg">
-          <button class="pill" data-k="ring">دايرة التقدّم</button>
-          <button class="pill" data-k="beads">حبات سبحة</button>
-          <button class="pill" data-k="strand">خرز على الحبل</button>
+          <button class="pill" data-k="ring">عداد وذكر</button>
+          <button class="pill" data-k="beads">مسبحة وذكر</button>
+          <button class="pill" data-k="strand">زمرد وذكر</button>
         </div>
         </div></div>
-        <div id="glowRow" style="display:none; flex-direction: column; gap: 7px">
-          <label class="chk"><input type="checkbox" id="glowChk"> توهّج الحبات</label>
-          <div class="plabel"><label for="beadLt">سطوع الخرز</label><span id="beadLtPct"></span></div>
-          <input type="range" class="rng" id="beadLt" min="0" max="100" step="1">
+        <div id="glowRow" style="display:none">
+          <div class="glowline">
+            <div class="glowsl">
+              <div class="plabel"><label for="beadLt">سطوع الخرز</label><span id="beadLtPct"></span></div>
+              <input type="range" class="rng" id="beadLt" min="0" max="100" step="1">
+            </div>
+            <label class="glowtg"><span>توهّج</span><input type="checkbox" class="uswitch" id="glowChk"></label>
+          </div>
         </div>
       </div>
       <div class="grp">
         <div class="note">يمكنك رؤية تعديلات مسبحتك الخاصة</div>
-        <div class="pvwrap"><div class="pvbox" id="pvBox">
+        <div class="pvwrap"><div class="pvside"><div class="pvtools" id="lxTools" data-off>
+          <div class="pvt-h">تحريك العنصر</div>
+          <div class="lxnudge" title="تحريك بالأسهم (Shift = أسرع)">
+            <button class="pill u" data-n="0,-1" aria-label="أعلى"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+            <button class="pill l" data-n="-1,0" aria-label="يسار"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="pill d" data-n="0,1" aria-label="أسفل"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+            <button class="pill r" data-n="1,0" aria-label="يمين"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+          <button class="pill sm pvreset" id="lxReset" disabled>إعادة ضبط</button>
+        </div>
+          <button class="pill sm lxbtn" id="lxResetAll">إعادة ضبط المسبحة</button>
+          <button class="lxlink" id="lxOpenView">حجم ومكان الإشعارات ←</button>
+        </div><div class="pvbox" id="pvBox">
           <div class="pvcard" id="pvCard">
             <div class="azstack" data-lx="az">
               <div class="azdue"><svg viewBox="0 0 24 24"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5V19c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5z"/><path d="M12 6v13.5"/></svg></div>
@@ -1507,7 +1580,6 @@
             <div class="top">
               <div class="tl" data-lx="topL">
                 <div class="ibtn"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></div>
-                <div class="ibtn"><svg viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></div>
               </div>
               <div class="grip" data-lx="logo"><img src="assets/logo.png" alt="" draggable="false"></div>
               <div class="ibtn tr" data-lx="topR"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
@@ -1521,6 +1593,7 @@
             <div class="dhikr" data-lx="dhikr" id="pvDhikr"></div>
             <div class="totrow"><div class="total" data-lx="total" id="pvTotal"></div></div>
             <div class="ctrl">
+              <div class="pvstar"><svg viewBox="0 0 24 24"><path class="st" d="M12.00 2.40 L13.99 7.20 L18.79 5.21 L16.80 10.01 L21.60 12.00 L16.80 13.99 L18.79 18.79 L13.99 16.80 L12.00 21.60 L10.01 16.80 L5.21 18.79 L7.20 13.99 L2.40 12.00 L7.20 10.01 L5.21 5.21 L10.01 7.20Z"/><circle class="core" cx="12" cy="12" r="1.5"/></svg></div>
               <div class="snd" data-lx="snd">
                 <div class="ibtn"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 010 7"/></svg></div>
                 <div class="pvrng"><i></i></div>
@@ -1532,37 +1605,33 @@
         </div></div>
       </div>
 
-      <div class="grp" id="lxSel">
-        <div class="lxsel-h"><b id="lxName">اختر عنصر من المعاينة</b><button class="pill sm" id="lxReset" hidden>رجّعه مكانه</button></div>
-        <div id="lxCtl" hidden>
-          <div class="plabel"><label for="lxSize">حجم العنصر</label><span id="lxSizePct"></span></div>
-          <input type="range" class="rng" id="lxSize" min="40" max="300" step="5">
-          <div class="lxopts" style="margin-top:8px">
-            <label class="chk"><input type="checkbox" id="lxHide"> إخفاء العنصر</label>
-            <div class="lxnudge" title="تحريك بالأسهم (Shift = أسرع)">
-              <button class="pill u" data-n="0,-1">▲</button><button class="pill l" data-n="-1,0">◀</button><button class="pill d" data-n="0,1">▼</button><button class="pill r" data-n="1,0">▶</button>
+      <div class="grp lxsize">
+        <div class="grp-h">حجم المسبحة</div>
+        <div class="plabel"><label for="lxK">الحجم الكلي</label><span id="lxKPct"></span></div>
+        <input type="range" class="rng" id="lxK" min="80" max="160" step="5">
+        <label class="chk"><input type="checkbox" id="lockChk"> قفل تحريك المسبحة</label>
+        <div class="lxsep"></div>
+        <div id="lxSel">
+          <div class="lxsel-h"><div class="grp-h">حجم العناصر</div><b id="lxName">اختر عنصر من المعاينة</b></div>
+          <div id="lxCtl" hidden>
+            <div class="plabel"><label for="lxSize">حجم العنصر</label><span id="lxSizePct"></span></div>
+            <input type="range" class="rng" id="lxSize" min="40" max="300" step="5">
+            <div class="lxhd">
+              <label class="chk"><input type="checkbox" id="lxHide"> إخفاء العنصر</label>
+              <div id="lxDelRow" hidden><button class="pill sm" id="lxDel">حذف العنصر المضاف</button></div>
+            </div>
+            <div id="lxTextRow" style="margin-top:8px" hidden>
+              <input class="num-in txt" id="lxText" maxlength="40" placeholder="اكتب النص" style="width:100%">
             </div>
           </div>
-          <div id="lxTextRow" style="margin-top:8px" hidden>
-            <input class="num-in txt" id="lxText" maxlength="40" placeholder="اكتب النص" style="width:100%">
-          </div>
-          <div class="acts" style="margin-top:8px" id="lxDelRow" hidden><button class="pill sm" id="lxDel">حذف العنصر المضاف</button></div>
         </div>
       </div>
 
-      <div class="grp">
-        <div class="grp-h">إضافة عنصر للمسبحة</div>
-        <div class="lxrow" id="lxAdd"></div>
-        <div class="note">قم بوضع عناصر إضافية لمسبحتك</div>
+      <div class="grp lxaddg">
+        <div class="addh"><div class="grp-h">إضافة عناصر للمسبحة</div><button class="pill sm plus" id="lxPlus" aria-expanded="false" aria-label="إضافة عنصر"></button></div>
+        <div class="fold" id="lxAddFold"><div class="fold-in"><div class="seg list" id="lxAdd"></div></div></div>
       </div>
 
-      <div class="grp">
-        <div class="grp-h">المسبحة كلها</div>
-        <div class="plabel"><label for="lxK">حجم المسبحة كلها</label><span id="lxKPct"></span></div>
-        <input type="range" class="rng" id="lxK" min="80" max="160" step="5">
-        <label class="chk"><input type="checkbox" id="lockChk"> قفل مكان المسبحة (منع السحب بالماوس)</label>
-        <div class="acts" style="gap:8px"><button class="pill sm" id="lxOpenView">حجم ومكان الإشعارات ←</button><button class="pill sm" id="lxResetAll">إعادة كل التخصيص للأصل</button></div>
-      </div>
     </div>
 
     <!-- ═════════ طرق التسبيح والتشغيل ═════════ -->
@@ -1580,10 +1649,6 @@
         <div class="hint">اضغط على الخانة، وبعدها اضغط أي زر (رقم، حرف، F1…) أو اختصار زي Ctrl + K. اضغط Esc للإلغاء.</div>
       </div>
       <div class="grp">
-        <div class="grp-h">التشغيل</div>
-        <label class="chk"><input type="checkbox" id="launchChk"> تشغيل التطبيق مع تشغيل الويندوز</label>
-      </div>
-      <div class="grp">
         <div class="grp-h">اختصارات الكيبورد</div>
         <div class="hkgrid">
         <details class="hkd"><summary><span class="hklabel">قفل البرنامج</span><svg class="hkchev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
@@ -1596,6 +1661,10 @@
         <div class="ckrow"><button class="pill ckbtn" id="hk_settings">اضغط للتسجيل</button><button class="pill sm" id="hkx_settings">مسح</button></div></details>
         </div>
         <div class="hint" id="hkHint">اضغط على الخانة وبعدها اضغط الاختصار (مثلاً Ctrl + Alt + Q). اضغط Esc للإلغاء. الاختصار لازم يكون فيه Ctrl أو Alt أو Shift.</div>
+      </div>
+      <div class="grp">
+        <div class="grp-h">التشغيل</div>
+        <label class="chk"><input type="checkbox" id="launchChk"> تشغيل التطبيق مع تشغيل الويندوز</label>
       </div>
     </div>
 
@@ -1747,7 +1816,7 @@
               </div>
             </div></div></div>
           </div>
-          <label class="chk"><input type="checkbox" id="bkAuto"> نسخة احتياطية تلقائية (آخر 10 أيام)</label>
+          <label class="chk"><input type="checkbox" id="bkAuto"> نسخة احتياطية تلقائية (آخر نسخة فقط)</label>
           <div class="bklist" id="bkList"></div>
           <div class="prow" style="flex-wrap:wrap;gap:10px"><button class="pill" id="bkNow">احفظ نسخة الآن</button><button class="pill" id="bkExport">تصدير نسخة</button><button class="pill" id="bkImport">استيراد نسخة</button></div>
           <div class="cfm" id="bkCfm" hidden><div class="cfmt" id="bkCfmT"></div><div class="cfmb"><button class="pill sm dng" id="bkYes">استعادة وإعادة التشغيل</button><button class="pill sm" id="bkNo">إلغاء</button></div></div>
@@ -2405,9 +2474,7 @@
   }
   // ═════ لقطة الآية/الآيات: صورة بتتحفظ على جهازك (إطار + اسم السورة + النص + اللوجو و«بواسطة تطبيق WZAKER» بس) ═════
   const SHOT_MAX_WORDS = 260;   // أقصى عدد كلمات في الصورة الواحدة (علشان الصورة ما تطولش قوي)
-  function shotRR(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
   function shotDiamond(c, x, y, r) { c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r, y); c.lineTo(x, y + r); c.lineTo(x - r, y); c.closePath(); }
-  function shotStar(c, x, y, r) { c.save(); c.translate(x, y); c.strokeRect(-r, -r, r * 2, r * 2); c.rotate(Math.PI / 4); c.strokeRect(-r, -r, r * 2, r * 2); c.restore(); }
   const shotWords = (s, k1, k2) => { let n = 0; for (let v = k1; v <= k2; v++) n += s.t[v].split(/\s+/).filter(Boolean).length; return n; };
   // k1..k2 = أرقام الآيات (من صفر) — آية واحدة لو k1 === k2
   function shotCanvas(s, k1, k2, logo, banner) {
@@ -2911,14 +2978,17 @@
   }
   const previewAudio = {};
   let previewNow = null;
-  function preview(kind, vol) {
+  let previewStop = null;
+  function preview(kind, vol, maxSec) {
     const src = A[kind]; if (!src || vol <= 0) return;
+    clearTimeout(previewStop);
     if (previewNow && previewNow !== previewAudio[kind]) { try { previewNow.pause(); } catch (_) {} }
     const a = previewAudio[kind] || (previewAudio[kind] = new Audio(src));
     previewNow = a;
     try { a.pause(); a.currentTime = 0; a.volume = Math.min(1, vol); } catch (_) {}
     const p = a.play();
     if (p && p.catch) p.catch(() => { try { a.load(); } catch (_) {} });
+    if (maxSec) previewStop = setTimeout(() => { try { a.pause(); } catch (_) {} }, maxSec * 1000);   // الأذان طويل: المعاينة بتقف بعد كام ثانية
   }
 
   const setRange = (el, v) => { if (sliding !== el) el.value = Math.round(v * 100); };
@@ -2977,18 +3047,17 @@
     setRange($('exitVol'), s.exitVolume);        pct('exitPct', s.exitVolume);
     chk($('startChk'), s.startupSound);
     setRange($('startVol'), s.startupVolume);    pct('startPct', s.startupVolume);
-    chk($('miniChk'), s.miniMode);
+    $('miniChk').checked = !!s.miniMode;          // الحالة من الـ main هي الحقيقة (حتى لو المفتاح عليه فوكس وتغيّر من زر التكبير/الـ Tray)
     setRange($('miniOp'), s.miniOpacity);        pct('miniPct', s.miniOpacity);
     setRange($('idleOp'), s.idleOpacity ?? 1);   pct('idlePct', s.idleOpacity ?? 1);
-    document.querySelectorAll('#ppSeg .pill').forEach(b => b.classList.toggle('on', b.dataset.k === s.popupPos));
-    document.querySelectorAll('#cpSeg .pill').forEach(b => b.classList.toggle('on', b.dataset.k === s.cardsPos));
-    for (const k of ['pp', 'cp']) { const on = document.querySelector('#' + k + 'Seg .pill.on'); $(k + 'DdV').textContent = on ? on.textContent : ''; }
-    $('ppSaved').disabled = !s.popupSaved; $('cpSaved').disabled = !s.cardsSaved;
     setRange($('ppSize'), s.popupScale ?? 1);    pct('ppSizePct', s.popupScale ?? 1);
+    document.querySelectorAll('#cpSeg .pill').forEach(b => b.classList.toggle('on', b.dataset.k === s.cardsPos));
+    for (const k of ['cp']) { const on = document.querySelector('#' + k + 'Seg .pill.on'); $(k + 'DdV').textContent = on ? on.textContent : ''; }
+    $('cpSaved').disabled = !s.cardsSaved;
     setRange($('cpSize'), s.cardsScale ?? 1);    pct('cpSizePct', s.cardsScale ?? 1);
     document.querySelectorAll('#dsSeg .pill').forEach(b => b.classList.toggle('on', b.dataset.k === (s.dialStyle || 'ring')));
     { const on = document.querySelector('#dsSeg .pill.on'); $('dsDdV').textContent = on ? on.textContent : ''; }
-    $('glowRow').style.display = (s.dialStyle === 'beads' || s.dialStyle === 'strand') ? '' : 'none';   // إعداد التوهّج بيظهر لما يتختار شكل حبات/خرز
+    $('glowRow').style.display = (s.dialStyle === 'beads' || s.dialStyle === 'strand') ? 'block' : 'none';   // إعداد التوهّج بيظهر لما يتختار شكل حبات/خرز
     chk($('glowChk'), s.beadGlow !== false);
     setRange($('beadLt'), s.beadLight ?? .3); pct('beadLtPct', s.beadLight ?? .3);
     chk($('spaceChk'), s.spaceKey);
@@ -3047,7 +3116,6 @@
   const STAT_EMPTY = { d: 'لا توجد أذكار اليوم بعد', w: 'لا توجد أذكار في آخر 7 أيام', n: 'لا توجد إحصائيات بعد' };
   const STAT_LBL = { d: 'اليوم', w: 'آخر 7 أيام', n: 'الإجمالي' };
   const DAYS_AR = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-  const DONUT_A = [.95, .7, .5, .35, .22];
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
   const NS = 'http://www.w3.org/2000/svg';
 
@@ -3520,7 +3588,7 @@
   // ───── الأصوات + Mini Mode ─────
   const bindVol = (id, key, pctId, previewKind) => {
     $(id).oninput = e => { const v = Number(e.target.value) / 100; $(pctId).textContent = Math.round(v * 100) + '%'; window.azkar.patch({ [key]: v }); };
-    if (previewKind) $(id).onchange = e => preview(previewKind, Number(e.target.value) / 100);
+    if (previewKind) $(id).onchange = e => preview(previewKind, Number(e.target.value) / 100, previewKind === 'athan' ? 4 : 0);
   };
   bindVol('clickVol', 'volume', 'clickPct', 'click');
   bindVol('doneVol', 'completionVolume', 'donePct', 'done');
@@ -3537,9 +3605,8 @@
   document.querySelectorAll('#dsSeg .pill').forEach(b => { b.onclick = () => { window.azkar.patch({ dialStyle: b.dataset.k }); ddClose('ds'); }; });
   $('glowChk').onchange = e => window.azkar.patch({ beadGlow: e.target.checked });
   bindVol('beadLt', 'beadLight', 'beadLtPct', null);
-  for (const k of ['pp', 'cp', 'ds']) $(k + 'Dd').onclick = () => { const o = $(k + 'Fold').classList.toggle('open'); $(k + 'Dd').setAttribute('aria-expanded', String(o)); };
+  for (const k of ['cp', 'ds']) $(k + 'Dd').onclick = () => { const o = $(k + 'Fold').classList.toggle('open'); $(k + 'Dd').setAttribute('aria-expanded', String(o)); };
   const ddClose = k => { $(k + 'Fold').classList.remove('open'); $(k + 'Dd').setAttribute('aria-expanded', 'false'); };
-  document.querySelectorAll('#ppSeg .pill').forEach(b => { b.onclick = () => { window.azkar.patch({ popupPos: b.dataset.k }); ddClose('pp'); }; });
   document.querySelectorAll('#cpSeg .pill').forEach(b => { b.onclick = () => { window.azkar.patch({ cardsPos: b.dataset.k }); ddClose('cp'); }; });
   $('cpTest').onclick = () => window.azkar.popupTest('cards');
   $('azSndChk').onchange = e => window.azkar.patch({ azSound: e.target.checked });
@@ -3628,7 +3695,7 @@
   bindVol('remVol', 'reminderVolume', 'remPct', 'reminder');
   bindVol('cpSize', 'cardsScale', 'cpSizePct', null);
   bindVol('azVol', 'azVolume', 'azPct', 'owl');
-  bindVol('prVol', 'prayerVolume', 'prPct', null);
+  bindVol('prVol', 'prayerVolume', 'prPct', 'athan');
   bindVol('wdVol', 'wirdVolume', 'wdPct', 'wird');
   $('wdSndChk').onchange = e => window.azkar.patch({ wirdSound: e.target.checked });
   $('wdChk').onchange = () => window.azkar.patch({ wirdAlert: $('wdChk').checked });
@@ -3936,10 +4003,117 @@
     lxPaintPreview();
   }
 
+
+  // ───── مسطرة المحاذاة: مغناطيس + خطوط + مسافات (بتشتغل أثناء السحب في المعاينة) ─────
+  const SNAP_PX = 6, GAP_MAX = 120, EDGE_MAX = 40, EPS = 0.6, NEAR = 90;   // NEAR: بنحاذي بس مع العناصر القريبة (مش اللي في الناحية التانية من المسبحة)
+  const gapX = (R, t) => Math.max(0, Math.max(R.l, t.l) - Math.min(R.r, t.r)), gapY = (R, t) => Math.max(0, Math.max(R.t, t.t) - Math.min(R.b, t.b));
+  function lxTargets(id) {                                           // كل العناصر الظاهرة غير العنصر المسحوب (وغير اللي جواه)
+    const c = lxCard(), k = LAY.k || 1, b = c.getBoundingClientRect();
+    const me = /^x\d+$/.test(id) ? c.querySelector('[data-xid="' + id + '"]') : c.querySelector('[data-lx="' + id + '"]');
+    const out = [], seen = new Set();
+    const add = (el, kind, name) => {
+      if (!el || el === me || seen.has(el) || (me && me.contains(el)) || el.closest('.lx-off')) return;
+      const r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+      seen.add(el);
+      out.push({ el, kind, name, l: (r.left - b.left) / k, t: (r.top - b.top) / k, r: (r.right - b.left) / k, b: (r.bottom - b.top) / k });
+    };
+    c.querySelectorAll('[data-lx]').forEach(e => { if (e.dataset.lx !== 'az') add(e, 'el'); });
+    c.querySelectorAll('.azdue').forEach(e => add(e, 'el'));
+    c.querySelectorAll('.xel').forEach(e => add(e, 'el'));
+    add(c.querySelector('.pvstar'), 'star');
+    return out;
+  }
+  const lxMid = (a, b) => (a + b) / 2;
+  function lxSnap(id, off) {
+    if (off) return;
+    const d = lxGet(id); if (!d) return;
+    lxPaintPreview();
+    const R = lxRect(id); if (!R) return;
+    const T = lxTargets(id);
+    const xs = [R.l, lxMid(R.l, R.r), R.r], ys = [R.t, lxMid(R.t, R.b), R.b];
+    const tx = [LX_W / 2], ty = [LX_H / 2], cx = [LX_W / 2], cy = [LX_H / 2];       // cx/cy = المنتصفات بس (ليها أولوية: منتصف على منتصف قبل الحواف)
+    T.forEach(t => {
+      if (gapY(R, t) <= NEAR) { tx.push(t.l, lxMid(t.l, t.r), t.r); cx.push(lxMid(t.l, t.r)); }
+      if (gapX(R, t) <= NEAR) { ty.push(t.t, lxMid(t.t, t.b), t.b); cy.push(lxMid(t.t, t.b)); }
+    });
+    const best = (as, ts) => { let b = null; for (const a of as) for (const v of ts) { const dd = v - a; if (Math.abs(dd) <= SNAP_PX && (b === null || Math.abs(dd) < Math.abs(b))) b = dd; } return b; };
+    const pick = (as, ac, ts, tc) => { const c = best([ac], tc); return c !== null ? c : best(as, ts); };
+    const bx = pick(xs, xs[1], tx, cx), by = pick(ys, ys[1], ty, cy), r2 = v => Math.round(v * 100) / 100;
+    if (bx !== null) d.dx = Math.max(-400, Math.min(400, r2((d.dx || 0) + bx)));
+    if (by !== null) d.dy = Math.max(-400, Math.min(400, r2((d.dy || 0) + by)));
+  }
+  function lxGuidesClear() { const g = lxCard().querySelector('.pvg'); if (g) g.remove(); }
+  function lxGuides(id) {
+    const c = lxCard(); lxPaintPreview();
+    const R = lxRect(id); if (!R) return;
+    const T = lxTargets(id);
+    let g = c.querySelector('.pvg'); if (!g) { g = document.createElement('div'); g.className = 'pvg'; c.appendChild(g); }
+    const h = [], f = v => Math.round(v * 100) / 100;
+    const line = (x, y, w, hh, cls) => h.push('<i class="' + cls + '" style="left:' + f(x) + 'px;top:' + f(y) + 'px;width:' + f(w) + 'px;height:' + f(hh) + 'px"></i>');
+    const tag = (x, y, t, cls) => h.push('<b class="gt ' + (cls || '') + '" style="left:' + f(x) + 'px;top:' + f(y) + 'px">' + t + '</b>');
+    const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const CROSS = '<svg viewBox="0 0 12 12" width="12" height="12" style="display:block;position:static"><circle cx="6" cy="6" r="3.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 .6v2.2M6 9.2v2.2M.6 6h2.2M9.2 6h2.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';   // علامة "في المنتصف" (من غير نص علشان الخط الصغير)
+    const hit = new Set();
+    // محاذاة: خط لكل مكان متطابق (حافة/منتصف) مع إبراز العناصر المتطابقة
+    const axis = (isX) => {
+      const mine = isX ? [['l', R.l], ['c', lxMid(R.l, R.r)], ['r', R.r]] : [['t', R.t], ['c', lxMid(R.t, R.b)], ['b', R.b]];
+      const groups = new Map();
+      const push = (pos, cc, t) => { const key = Math.round(pos * 2); const e = groups.get(key) || { pos, cc: [], ot: [], card: false }; if (!t) { e.card = true; e.center = true; } else if (cc) e.cc.push(t); else e.ot.push(t); groups.set(key, e); };
+      for (const [mk, mv] of mine) {
+        if (mk === 'c' && Math.abs((isX ? LX_W : LX_H) / 2 - mv) <= EPS) push((isX ? LX_W : LX_H) / 2, true, null);
+        for (const t of T) {
+          if ((isX ? gapY(R, t) : gapX(R, t)) > NEAR) continue;
+          const tv = isX ? [['l', t.l], ['c', lxMid(t.l, t.r)], ['r', t.r]] : [['t', t.t], ['c', lxMid(t.t, t.b)], ['b', t.b]];
+          for (const [tk, v] of tv) if (Math.abs(v - mv) <= EPS) push(mv, mk === 'c' && tk === 'c', t);
+        }
+      }
+      let list = [...groups.values()];
+      list.forEach(e => { if (e.cc.length) e.center = true; });
+      const anyC = list.some(e => e.center);
+      if (anyC) list = list.filter(e => e.center);                 // منتصف على منتصف ليه الأولوية وبيخفي خطوط الحواف
+      list.sort((p, q) => (q.cc.length + q.ot.length) - (p.cc.length + p.ot.length));
+      list.slice(0, 2).forEach(e => {
+        const ts = e.center ? e.cc : e.ot;
+        let lo = isX ? R.t : R.l, hi = isX ? R.b : R.r;
+        ts.forEach(t => { hit.add(t); lo = Math.min(lo, isX ? t.t : t.l); hi = Math.max(hi, isX ? t.b : t.r); });
+        if (e.card) { lo = 0; hi = isX ? LX_H : LX_W; }
+        if (isX) line(e.pos, lo, 1, hi - lo, 'gl'); else line(lo, e.pos, hi - lo, 1, 'gl');
+        if (e.center) {
+          const lb = CROSS;
+          if (isX) tag(cl(e.pos, 14, LX_W - 14), cl(hi + 11, 11, LX_H - 11), lb);
+          else tag(cl(lo - 11, 14, LX_W - 14), cl(e.pos, 11, LX_H - 11), lb);
+        }
+      });
+    };
+    axis(true); axis(false);
+    hit.forEach(t => { const bb = (t.l), r = t; line(r.l - 1, r.t - 1, r.r - r.l + 2, r.b - r.t + 2, 'gb'); });
+    // مسافات: أقرب عنصر على كل جهة (أفقي/رأسي) + حدود المسبحة لو قريب
+    const gapH = (from, to, y, val, near) => { line(from, y, to - from, 1, 'gm'); tag(lxMid(from, to), y - 8, Math.round(val), 'd'); };
+    const gapV = (from, to, x, val) => { line(x, from, 1, to - from, 'gm'); tag(x + 12, lxMid(from, to), Math.round(val), 'd'); };
+    const nearest = (list, key) => list.reduce((a, b) => (a === null || b[key] < a[key] ? b : a), null);
+    const L1 = [], R1 = [], U1 = [], D1 = [];
+    for (const t of T) {
+      const ov = Math.min(R.b, t.b) - Math.max(R.t, t.t), oh = Math.min(R.r, t.r) - Math.max(R.l, t.l);
+      if (ov > 0) { if (t.r <= R.l) L1.push({ t, gap: R.l - t.r, a: Math.max(R.t, t.t), z: Math.min(R.b, t.b) }); else if (t.l >= R.r) R1.push({ t, gap: t.l - R.r, a: Math.max(R.t, t.t), z: Math.min(R.b, t.b) }); }
+      if (oh > 0) { if (t.b <= R.t) U1.push({ t, gap: R.t - t.b, a: Math.max(R.l, t.l), z: Math.min(R.r, t.r) }); else if (t.t >= R.b) D1.push({ t, gap: t.t - R.b, a: Math.max(R.l, t.l), z: Math.min(R.r, t.r) }); }
+    }
+    let n = nearest(L1, 'gap'); if (n && n.gap > .5 && n.gap <= GAP_MAX) gapH(n.t.r, R.l, lxMid(n.a, n.z), n.gap);
+    n = nearest(R1, 'gap'); if (n && n.gap > .5 && n.gap <= GAP_MAX) gapH(R.r, n.t.l, lxMid(n.a, n.z), n.gap);
+    n = nearest(U1, 'gap'); if (n && n.gap > .5 && n.gap <= GAP_MAX) gapV(n.t.b, R.t, lxMid(n.a, n.z), n.gap);
+    n = nearest(D1, 'gap'); if (n && n.gap > .5 && n.gap <= GAP_MAX) gapV(R.b, n.t.t, lxMid(n.a, n.z), n.gap);
+    const cy = lxMid(R.t, R.b), cx = lxMid(R.l, R.r);
+    if (R.l > .5 && R.l <= EDGE_MAX) gapH(0, R.l, cy, R.l);
+    if (LX_W - R.r > .5 && LX_W - R.r <= EDGE_MAX) gapH(R.r, LX_W, cy, LX_W - R.r);
+    if (R.t > .5 && R.t <= EDGE_MAX) gapV(0, R.t, cx, R.t);
+    if (LX_H - R.b > .5 && LX_H - R.b <= EDGE_MAX) gapV(R.b, LX_H, cx, LX_H - R.b);
+    g.innerHTML = h.join('');
+    g.querySelectorAll('.gt').forEach(t => { t.style.width = (t.scrollWidth + 2) + 'px'; });   // العرض الفعلي للنص (الخط بيتحمّل بعد القياس)
+  }
+
   function lxPaintPanel() {
     const d = lxGet(lxSel), isX = !!lxSel && /^x\d+$/.test(lxSel);
     $('lxName').textContent = lxSel ? lxName(lxSel) : 'اختر عنصر من المعاينة';
-    $('lxCtl').hidden = !lxSel; $('lxReset').hidden = !lxSel;
+    $('lxCtl').hidden = !lxSel; $('lxReset').disabled = !lxSel; $('lxTools').toggleAttribute('data-off', !lxSel);
     if (!lxSel || !d) return;
     if (document.activeElement !== $('lxSize')) $('lxSize').value = Math.round((d.s || 1) * 100);
     $('lxSizePct').textContent = Math.round((d.s || 1) * 100) + '%';
@@ -3955,7 +4129,11 @@
     if (document.activeElement !== $('lxK')) $('lxK').value = Math.round((LAY.k || 1) * 100);
     $('lxKPct').textContent = Math.round((LAY.k || 1) * 100) + '%';
     const left = LX.EXTRAS_MAX - (LAY.extras || []).length;
-    $('lxAdd').querySelectorAll('button').forEach(b => { b.disabled = left <= 0; });
+    $('lxAdd').querySelectorAll('button').forEach(b => {
+      const has = b.dataset.t !== 'text' && (LAY.extras || []).some(x => x.type === b.dataset.t);
+      b.disabled = left <= 0 || has;
+      const lab = b.textContent.replace(/^[+✓] /, ''); b.textContent = (has ? '✓ ' : '+ ') + lab;
+    });
   }
   function renderLayout(s) {
     if (!lxDrag && !lxBusy && !lxSendT) LAY = lxClone(s.dialLayout);
@@ -3968,7 +4146,7 @@
     const x = t.closest && t.closest('.xel');
     if (x) return x.dataset.xid;
     const e = t.closest && t.closest('[data-lx]');
-    return e ? e.dataset.lx : null;
+    return e && !(LX.ELS.find(d => d.id === e.dataset.lx) || {}).locked ? e.dataset.lx : null;   // اللوجو والآية ثابتين: مش بيتحددوا ولا بيتسحبوا
   }
   lxCard().addEventListener('pointerdown', ev => {
     if (ev.button !== 0) return;
@@ -3985,11 +4163,13 @@
     const d = lxGet(lxDrag.id); if (!d) return;
     const k = LAY.k || 1;
     const nx = Math.round(lxDrag.dx + (ev.clientX - lxDrag.sx) / k), ny = Math.round(lxDrag.dy + (ev.clientY - lxDrag.sy) / k);
-    if (nx === d.dx && ny === d.dy) return;
+    if (lxDrag.rx === nx && lxDrag.ry === ny && lxDrag.alt === ev.altKey) return;
+    lxDrag.rx = nx; lxDrag.ry = ny; lxDrag.alt = ev.altKey;
     lxDrag.moved = true; d.dx = Math.max(-400, Math.min(400, nx)); d.dy = Math.max(-400, Math.min(400, ny));
-    lxFitPos(lxDrag.id); lxSend(false);
+    lxSnap(lxDrag.id, ev.altKey);                                  // الـ Alt = من غير مغناطيس
+    lxFitPos(lxDrag.id); lxGuides(lxDrag.id); lxSend(false);
   });
-  const lxEnd = () => { if (!lxDrag) return; const m = lxDrag.moved; lxDrag = null; lxCard().classList.remove('dragging'); lxBusyOn(); if (m) lxSend(true); lxPaintPanel(); };
+  const lxEnd = () => { if (!lxDrag) return; const m = lxDrag.moved; lxDrag = null; lxCard().classList.remove('dragging'); lxGuidesClear(); lxBusyOn(); if (m) lxSend(true); lxPaintPanel(); };
   lxCard().addEventListener('pointerup', lxEnd);
   lxCard().addEventListener('pointercancel', lxEnd);
 
@@ -4003,7 +4183,7 @@
   });
   $('lxReset').onclick = () => {
     if (!lxSel) return;
-    if (/^x\d+$/.test(lxSel)) { const d = lxGet(lxSel); lxChange(() => { d.dx = 0; d.dy = 0; d.s = 1; }); return; }
+    if (/^x\d+$/.test(lxSel)) { const d = lxGet(lxSel); const h = LX.homePos(d.type); lxChange(() => { d.dx = h.dx; d.dy = h.dy; d.s = 1; }); return; }
     delete LAY.els[lxSel]; lxBusyOn(); lxPaintAll(); lxSend(true);
   };
   $('lxDel').onclick = () => { LAY.extras = (LAY.extras || []).filter(x => x.id !== lxSel); lxSel = null; lxBusyOn(); lxPaintAll(); lxSend(true); };
@@ -4015,21 +4195,24 @@
     lxChange(d => { d.dx = (d.dx || 0) + m[0] * st; d.dy = (d.dy || 0) + m[1] * st; lxFitPos(lxSel); });
   });
   LX.EXTRA_TYPES.forEach(t => {
-    const b = document.createElement('button'); b.className = 'pill'; b.textContent = '+ ' + t.label;
+    const b = document.createElement('button'); b.className = 'pill'; b.dataset.t = t.type; b.textContent = '+ ' + t.label;
     b.onclick = () => {
       if ((LAY.extras || []).length >= LX.EXTRAS_MAX) return;
+      if (t.type !== 'text' && (LAY.extras || []).some(x => x.type === t.type)) return;   // العنصر ده مضاف بالفعل (غير النص): مفيش نسخ فوق بعض
+      $('lxAddFold').classList.remove('open'); $('lxPlus').setAttribute('aria-expanded', 'false');
       const used = new Set((LAY.extras || []).map(x => x.id)); let id;
       do { id = 'x' + (Math.floor(Math.random() * 9e8) + 1e8); } while (used.has(id));
-      (LAY.extras = LAY.extras || []).push({ id, type: t.type, dx: 0, dy: 120, s: 1, ...(t.type === 'text' ? { text: 'نص من عندك' } : {}) });
+      (LAY.extras = LAY.extras || []).push({ id, type: t.type, ...(t.type === 'prayer' ? LX.homePos('prayer') : { dx: 0, dy: 120 + 26 * (LAY.extras || []).filter(x => x.type === t.type).length }), s: 1, ...(t.type === 'text' ? { text: 'نص من عندك' } : {}) });
       lxSel = id; lxBusyOn(); lxPaintAll(); lxSend(true);
     };
     $('lxAdd').appendChild(b);
   });
+  $('lxPlus').onclick = () => { const o = !$('lxAddFold').classList.contains('open'); $('lxAddFold').classList.toggle('open', o); $('lxPlus').setAttribute('aria-expanded', String(o)); };
   $('lxOpenView').onclick = () => go('pView');
   $('lxResetAll').onclick = () => {
     const b = $('lxResetAll');
-    if (b.classList.contains('confirm')) { b.classList.remove('confirm'); b.textContent = 'إعادة كل التخصيص للأصل'; LAY = lxClone(null); lxSel = null; lxBusyOn(); lxPaintAll(); lxSend(true); }
-    else { b.classList.add('confirm'); b.textContent = 'تأكيد؟'; setTimeout(() => { b.classList.remove('confirm'); b.textContent = 'إعادة كل التخصيص للأصل'; }, 2500); }
+    if (b.classList.contains('confirm')) { b.classList.remove('confirm'); b.textContent = 'إعادة ضبط المسبحة'; LAY = lxClone(null); lxSel = null; lxBusyOn(); lxPaintAll(); lxSend(true); }
+    else { b.classList.add('confirm'); b.textContent = 'تأكيد؟'; setTimeout(() => { b.classList.remove('confirm'); b.textContent = 'إعادة ضبط المسبحة'; }, 2500); }
   };
   setInterval(() => { if (cur === 'pLayout' && S && !lxDrag) LX.renderExtras($('pvX'), LAY, S); }, 15000);
 
@@ -4039,6 +4222,25 @@
   window.azkar.getState().then(s => { A = s.audio || {}; render(s); focusTarget(location.hash.slice(1)); });
   window.azkar.getStats().then(renderStats);
 })();
+
+  // ───── صفحة "الوضع المصغر والإنبثاق": كل مجموعة مقفولة وجنبها سهم، بالضغط عليه بتفتح إعداداتها ─────
+  try {
+    document.querySelectorAll('#pView > .grp').forEach(g => {
+      const h = g.querySelector(':scope > .grp-h');
+      if (!h || g.classList.contains('acc-g')) return;
+      const fold = document.createElement('div'), inn = document.createElement('div');
+      fold.className = 'fold'; inn.className = 'fold-in';
+      [...g.children].filter(c => c !== h).forEach(c => inn.appendChild(c));
+      fold.appendChild(inn); g.appendChild(fold);
+      g.classList.add('acc-g'); h.classList.add('acc-h');
+      const t = document.createElement('span'); t.className = 'acc-t'; while (h.firstChild) t.appendChild(h.firstChild); h.appendChild(t);   // العنوان في عنصر لوحده علشان السهم ياخد الجنب التاني
+      h.setAttribute('role', 'button'); h.tabIndex = 0; h.setAttribute('aria-expanded', 'false');
+      h.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>');
+      const tgl = () => { const o = fold.classList.toggle('open'); g.classList.toggle('open', o); h.setAttribute('aria-expanded', String(o)); };
+      h.onclick = tgl;
+      h.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tgl(); } };
+    });
+  } catch (err) { console.error('acc:', err); }
 </script>
 </body>
 </html>
