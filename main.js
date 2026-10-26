@@ -755,8 +755,20 @@ function hitTick() {
   const lx = p.x - b.x, ly = p.y - b.y;
   setIgnore(!hitRects.some(r => lx >= r.x && lx <= r.x + r.w && ly >= r.y && ly <= r.y + r.h));
 }
-function startHitTimer() { if (!hitTimer) hitTimer = setInterval(hitTick, 40); }   // timer واحد فقط
-function stopHitTimer() { if (hitTimer) { clearInterval(hitTimer); hitTimer = null; } }
+// ── السبحة ما تختفيش لما تفتح تطبيقات تانية: ويندوز ساعات بيسحب الـ topmost من النافذة (تطبيق/لعبة fullscreen أو تطبيق topmost تاني)
+//    أو بيصغّرها (Win+D / تطبيق بياخد الشاشة). فكل ثانيتين بنرجّعها فوق، ولو اتصغّرت/اتخفت من غير ما المستخدم يطلب نرجّعها من غير ما ناخد Focus.
+let topTimer = null, quietUntil = 0;
+function keepOnTop() {
+  if (!win || win.isDestroyed() || vis !== 'shown' || exiting) return;
+  try {
+    if (win.isMinimized() || !win.isVisible()) { quietUntil = Date.now() + 1500; win.showInactive(); resetMouse(); }
+    if (!win.isAlwaysOnTop()) win.setAlwaysOnTop(true, 'screen-saver');
+    win.moveTop();
+    if (typeof popupWin !== 'undefined' && popupWin && !popupWin.isDestroyed() && popupWin.isVisible()) popupWin.moveTop();   // الإشعار يفضل فوق المسبحة
+  } catch (_) {}
+}
+function startHitTimer() { if (!hitTimer) hitTimer = setInterval(hitTick, 40); if (!topTimer) topTimer = setInterval(keepOnTop, 2000); }   // timer واحد لكل حاجة
+function stopHitTimer() { if (hitTimer) { clearInterval(hitTimer); hitTimer = null; } if (topTimer) { clearInterval(topTimer); topTimer = null; } }
 
 function createWindow() {
   const { x, y } = resolvePosition();
@@ -798,6 +810,7 @@ function createWindow() {
   for (const ev of ['show', 'hide', 'focus', 'blur', 'minimize', 'restore']) win.on(ev, () => dbg('event:' + ev));
   win.on('minimize', () => {
     if (exiting || vis === 'tray') return;
+    if (vis === 'shown') { setTimeout(keepOnTop, 120); return; }   // تصغير جه من النظام (Win+D / تطبيق تاني) مش من المستخدم: السبحة تفضل ظاهرة
     vis = 'minimized';
     stopHitTimer();
     win.setFocusable(true);
@@ -805,7 +818,7 @@ function createWindow() {
     refreshTrayMenu();
   });
   // Restore (من أيقونة الـ Taskbar) = واجهة تفاعلية بالكامل + Focus
-  win.on('restore', () => { if (!exiting && vis !== 'tray') presentWindow(true); });
+  win.on('restore', () => { if (Date.now() < quietUntil) return; if (!exiting && vis !== 'tray') presentWindow(true); });   // quietUntil: رجوع تلقائي هادي (من غير Focus)
   // بعد ما المستخدم يسيب النافذة نرجّعها غير سارقة للـ Focus (سلوك الـ overlay الأصلي)
   win.on('blur', () => {
     setTimeout(() => {                                     // بعد ما الـ Restore يستقر، وبشرط إنها فعلًا فقدت الـ Focus
@@ -881,8 +894,16 @@ const toggleOverlay = () => (vis === 'shown' ? hideOverlay() : presentWindow(fal
 // Mini Mode = نفس النافذة بحجم مصغّر (نفس الـ renderer ونفس الـ hooks؛ مفيش listeners جديدة)
 // التحوّل بأنيميشن: الواجهة هي اللي بتعمل الحركة (الكارت بيصغر ويتحول لشريط Mini أو العكس) والنافذة بتفضل بحجمها لحد ما الحركة تخلص،
 // وبعدها الواجهة بتبلّغنا (mini:ready) فنغيّر حجم النافذة من نفس الركن (الشريط بيفضل في مكانه بالظبط) ونرد (mini:applied).
-const MINI_MORPH_MS = 620;
+const MINI_MORPH_MS = 700;
 let morphTimer = null, morphGen = 0;
+// مكان النافذة بعد تحوّل المسبحة ⇄ Mini: نفس الجنب الشمال ونفس الحافة التحتانية (الكارت بيصغّر من فوق لتحت والشريط بيظهر تحت)،
+// وتفضل جوه الشاشة (الكارت الكبير ممكن يتزحزح لو الشريط قريب من حافة الشاشة)
+function morphTarget(b, s) {
+  const wa = screen.getDisplayMatching(b).workArea;
+  const x = Math.min(Math.max(b.x, wa.x - GLOW), wa.x + wa.width - s.w + GLOW);
+  const y = Math.min(Math.max(b.y + b.height - s.h, wa.y - GLOW), wa.y + wa.height - s.h + GLOW);
+  return { x, y };
+}
 function commitMorph(immediate) {
   clearTimeout(morphTimer); morphTimer = null;
   if (edgeGlide && !immediate) {                           // الانزلاق لسه ماخلصش: نستنّاه يخلص بدل ما نقصّه ونصغّر النافذة والكارت لسه ظاهر
@@ -894,9 +915,7 @@ function commitMorph(immediate) {
   if (!morphHold) return;
   if (!win || win.isDestroyed() || vis !== 'shown') { morphHold = null; return; }
   const b = win.getBounds(), s = state.miniMode ? MINI : fullSize();
-  const wa = screen.getDisplayMatching(b).workArea;
-  const x = Math.min(Math.max(b.x, wa.x - GLOW), wa.x + wa.width - s.w + GLOW);     // نفس ركن النافذة، وتفضل جوه الشاشة (الكارت الكبير ممكن يتزحزح)
-  const y = Math.min(Math.max(b.y, wa.y - GLOW), wa.y + wa.height - s.h + GLOW);
+  const { x, y } = morphTarget(b, s);                      // الحافة التحتانية ثابتة: الشريط بيقعد تحت، والكارت بيتفرد لفوق
   const dx = b.x - x, dy = b.y - y, gen = ++morphGen;
   const apply = () => {
     if (gen !== morphGen) return;
@@ -906,14 +925,27 @@ function commitMorph(immediate) {
     resetMouse(); rememberPosition();
     send('mini:applied', { dx, dy });
   };
-  if ((dx || dy) && !immediate) { send('mini:blank'); setTimeout(apply, 50); } else apply();   // لو النافذة اتزحزحت: لحظة فراغ قصيرة علشان ما يبانش قفز
+  apply();   // الواجهة بتبلّغنا (mini:ready) بس لما مفيش حاجة ظاهرة على الشاشة، فتغيير الحجم/المكان ما بيبانش (مفيش وميض)
 }
 ipcMain.on('mini:ready', e => { if (win && !win.isDestroyed() && e.sender === win.webContents) commitMorph(false); });
+// ضغطات التبديل السريعة ورا بعض (تصغير/تكبير 2-3 مرات) كانت بتقطع الحركة الشغّالة وبتسبب وميض/اختفاء؛
+// فالتبديل اللي بييجي أثناء الحركة بيستنّى لحد ما تخلص، والأخير بس هو اللي بيتنفّذ.
+let morphBusyUntil = 0, pendingMini = null, pendingMiniTimer = null;
 function setMiniMode(on) {
   on = !!on;
-  if (on === state.miniMode) return;
-  if (morphHold) commitMorph(true);                        // تبديل سريع ورا بعض: نخلّص التحوّل المعلّق فورًا
   const shown = !!win && !win.isDestroyed() && vis === 'shown' && !win.isMinimized();
+  if (shown && Date.now() < morphBusyUntil) {
+    pendingMini = (on === state.miniMode) ? null : on;
+    clearTimeout(pendingMiniTimer); pendingMiniTimer = null;
+    if (pendingMini !== null) pendingMiniTimer = setTimeout(() => {
+      pendingMiniTimer = null; const v = pendingMini; pendingMini = null;
+      if (v !== null && v !== state.miniMode) applyPatch({ miniMode: v });
+    }, Math.max(0, morphBusyUntil - Date.now()) + 30);
+    return;
+  }
+  if (pendingMini !== null) { pendingMini = null; clearTimeout(pendingMiniTimer); pendingMiniTimer = null; }
+  if (on === state.miniMode) return;
+  if (morphHold) commitMorph(true);                        // شبكة أمان: تحوّل معلّق لسه موجود: نخلّصه فورًا
   if (shown) capturePosition();                            // نحفظ مكان الوضع الحالي قبل التبديل
   dbg(on ? 'enter Mini Mode' : 'exit Mini Mode');
   state.miniMode = on;
@@ -921,6 +953,7 @@ function setMiniMode(on) {
   if (shown) {
     const b = win.getBounds();
     morphHold = { w: b.width, h: b.height };
+    morphBusyUntil = Date.now() + MINI_MORPH_MS + 280;
     send('mini:morph', on ? 'out' : 'in');
     if (popupMag && popup && popup.kind === 'verse') { popupEase(MINI_MORPH_MS + 450, 115); followDialMag(); }   // الإشعار الملزوق يصغّر/يكبّر مع المسبحة بنعومة وفي نفس اللحظة
     clearTimeout(morphTimer); morphTimer = setTimeout(() => commitMorph(false), MINI_MORPH_MS + 1500);   // شبكة أمان: لو الواجهة ما ردّتش
@@ -2046,10 +2079,8 @@ const POPUP_MAG = 44;        // مدى المغناطيس حوالين المس�
 function morphRect() {
   if (!morphHold || !win || win.isDestroyed()) return null;
   const b = win.getBounds(), s = state.miniMode ? MINI : fullSize();
-  const wa = screen.getDisplayMatching(b).workArea;
-  let x = Math.min(Math.max(b.x, wa.x - GLOW), wa.x + wa.width - s.w + GLOW);     // نفس حساب commitMorph
-  let y = Math.min(Math.max(b.y, wa.y - GLOW), wa.y + wa.height - s.h + GLOW);
-  if (edgeGlide) { x = edgeGlide.to.x; y = edgeGlide.to.y; }                        // بينزلق للحافة: المكان النهائي
+  const from = edgeGlide ? { x: edgeGlide.to.x, y: edgeGlide.to.y, width: edgeGlide.w, height: edgeGlide.h } : b;   // بينزلق للحافة: المكان النهائي
+  const { x, y } = morphTarget(from, s);                                                                              // نفس حساب commitMorph
   return { x: x + GLOW, y: y + GLOW, w: s.w - GLOW * 2, h: s.h - GLOW * 2 };
 }
 function dialMag() {         // مستطيل المسبحة الظاهر (من غير هامش الـ glow)
@@ -2741,13 +2772,13 @@ function dockToEdge(sides) {   // sides: 'l' | 'r' | 't' | 'b' (أو ركن زي
   const b = win.getBounds();
   const wa = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
   const rx = [wa.x + EDGE_GAP, wa.x + wa.width - CARD_MINI.w - EDGE_GAP], ry = [wa.y + EDGE_GAP, wa.y + wa.height - CARD_MINI.h - EDGE_GAP];
-  const cl = b.x + GLOW, ct = b.y + GLOW;                       // ركن الكارت الكبير = مكان ظهور شريط الـ Mini في حركة التحوّل
+  const cl = b.x + GLOW, ct = b.y + b.height - GLOW - CARD_MINI.h;   // الشريط بيظهر في أسفل الكارت الكبير في حركة التحوّل
   const mx = sides.includes('l') ? rx[0] : sides.includes('r') ? rx[1] : Math.min(Math.max(cl, rx[0]), rx[1]);
   const my = sides.includes('t') ? ry[0] : sides.includes('b') ? ry[1] : Math.min(Math.max(ct, ry[0]), ry[1]);
   const wx = Math.round(mx - GLOW), wy = Math.round(my - GLOW);
   state.mx = wx; state.my = wy;                                 // لو مفيش حركة (النافذة مش ظاهرة) الشريط يفتح في الحافة برضه
   setMiniMode(true);                                            // الكارت بيصغر ويتحوّل لشريط (نفس حركة زر "–")
-  if (morphHold) startEdgeGlide(b, wx, wy);                     // وفي نفس الوقت النافذة بتنزلق للحافة
+  if (morphHold) startEdgeGlide(b, wx, wy + MINI.h - b.height);   // وفي نفس الوقت النافذة بتنزلق للحافة (حافتها التحتانية عند الشريط)
   if (morphHold) followDialMag();                               // والإشعار الملزوق يتجه لمكان الشريط النهائي عند الحافة
 }
 

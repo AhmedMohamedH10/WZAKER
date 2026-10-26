@@ -1,42 +1,10 @@
-# Tauri / Rust
-target/
-src-tauri/target/
 node_modules/
 dist/
 dist-*/
-*.AppImage
-*.deb
-*.rpm
-*.pkg.tar.zst
-*.apk
-*.txz
-*.pet
-*.tar
-*.zip
-*.snap
-
-# IDE
-.idea/
-.vscode/
-.claude/
-*.swp
-
-# Logs / temp
 *.log
-*.tmp
-*.bak
-*.orig
+*.zip
 .DS_Store
 Thumbs.db
-
-# Secrets
-.env
-.env.*
-*.key
-*.pem
-*.p12
-*.jks
-*.keystore
-
-# Tauri updater signing private key
-src-tauri/keys/updater.key
+.vscode/
+.idea/
+.claude/

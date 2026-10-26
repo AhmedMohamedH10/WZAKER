@@ -394,35 +394,40 @@
   @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
   @media (prefers-reduced-motion: reduce) { body.is-challenge .card, body.is-challenge .mini { animation: none; } }
 
-  /* ═════ تحوّل المسبحة الكبيرة ⇄ Mini ═════
-     الكارت بيصغر ويتلاشى ناحية مكان الشريط، والشريط بيظهر في مكانه بالتدريج (والعكس). النافذة بتفضل بحجمها لحد ما الحركة تخلص،
-     فالشريط بيتثبّت في الركن (--htx/--hty) بنفس مكانه النهائي. المتغيرات --ms/--mtx/--mty بتتحسب من JS (حجم الكارت الفعلي). */
-  :root { --morph-ms: 620ms; }
+  /* ═════ تحوّل المسبحة الكبيرة ⇄ Mini (من غير أي وميض) ═════
+     السر: النافذة بتتغيّر حجمها في اللحظة اللي مفيش فيها أي حاجة ظاهرة على الشاشة، فمفيش حاجة تبربش:
+     كبيرة → مصغّرة: الكارت يصغر ويختفي ← (النافذة تصغر وهي فاضية) ← الشريط يظهر في مكانه.
+     مصغّرة → كبيرة: الشريط يختفي ← (النافذة تكبر وهي فاضية) ← الكارت يظهر ويكبر.
+     المتغيرات --ms/--mtx/--mty بتتحسب من JS (حجم الكارت الفعلي). */
+  :root { --p-out-fade: 260ms; --p-out-appear: 380ms; --p-in-fade: 190ms; --p-in-appear: 460ms; }
   body.morphing .card, body.morphing .mini { pointer-events: none; }
-  body.morph-out.morph-out .mini, body.morph-in.morph-in .mini, body.morph-hold.morph-hold .mini {
+  body.morph-hold.morph-hold .mini {
     display: flex; inset: auto; left: var(--htx, var(--gm)); top: var(--hty, var(--gm)); width: 232px; height: 48px;
   }
   body.morph-blank .card, body.morph-blank .mini { opacity: 0 !important; animation: none !important; transition: none !important; }
-  /* كبيرة → مصغّرة */
-  body.morph-out .card { animation: morphCardOut var(--morph-ms) cubic-bezier(.45, 0, .2, 1) forwards; }
-  body.morph-out .mini { animation: morphMiniIn var(--morph-ms) cubic-bezier(.22, 1, .36, 1) backwards; }
+  /* كبيرة → مصغّرة: الكارت يصغر ويختفي */
+  body.morph-out .card { animation: morphCardOut var(--p-out-fade) cubic-bezier(.45, 0, .2, 1) forwards; }
   @keyframes morphCardOut {
     0%   { opacity: 1; }
-    55%  { opacity: 0; }
+    80%  { opacity: 0; }
     100% { opacity: 0; scale: var(--ms, .4); translate: var(--mtx, 0px) var(--mty, 0px); }
   }
-  @keyframes morphMiniIn { 0%, 30% { opacity: 0; scale: .78; } }
-  /* مصغّرة → كبيرة */
-  body.morph-in .card { animation: morphCardIn var(--morph-ms) cubic-bezier(.22, 1, .36, 1) backwards; }
-  body.morph-in .mini { animation: morphMiniOut calc(var(--morph-ms) * .7) cubic-bezier(.4, 0, .2, 1) forwards; }
+  /* ...وبعد ما النافذة تصغر: الشريط يظهر */
+  body.morph-appear .mini { animation: morphMiniAppear var(--p-out-appear) cubic-bezier(.22, 1, .36, 1) backwards; }
+  @keyframes morphMiniAppear { from { opacity: 0; scale: .8; } }
+  /* مصغّرة → كبيرة: الشريط يختفي */
+  body.morph-fade .mini { animation: morphMiniOut var(--p-in-fade) cubic-bezier(.4, 0, .2, 1) forwards; }
+  @keyframes morphMiniOut { from { opacity: var(--mini-op, .85); scale: 1; } to { opacity: 0; scale: .94; } }
+  /* ...وبعد ما النافذة تكبر: الكارت يظهر ويكبر */
+  body.morph-in .card { animation: morphCardIn var(--p-in-appear) cubic-bezier(.22, 1, .36, 1) backwards; }
   @keyframes morphCardIn {
     0%   { opacity: 0; scale: var(--ms, .4); translate: var(--mtx, 0px) var(--mty, 0px); }
-    35%  { opacity: 1; }
+    55%  { opacity: 1; }
   }
-  @keyframes morphMiniOut { to { opacity: 0; scale: 1.12; } }
   @media (prefers-reduced-motion: reduce) {
-    body.morph-out .card, body.morph-in .card, body.morph-out .mini, body.morph-in .mini { animation: none; }
+    body.morph-out .card, body.morph-in .card, body.morph-appear .mini, body.morph-fade .mini { animation: none; }
     body.morph-out .card { opacity: 0; }   /* من غير حركة: الكارت يختفي فورًا قبل ما النافذة تصغر */
+    body.morph-fade .mini { opacity: 0; }
   }
 
   /* ═════ تخصيص المسبحة: عناصر مضافة + عناصر مخفية ═════ */
@@ -691,7 +696,13 @@
     const NS = 'http://www.w3.org/2000/svg', N = 16, R = 11.2, RR = 74, STEP = 360 / N;
     const MINSEP = 2 * R / RR * 180 / Math.PI;                       // أقل مسافة زاوية بين مركزين (درجات) = الخرزتين لامسين بعض
     const K = 150, CD = 9, REST = .72, KICK = 190, SPIN = 560;        // زنبرك الرجوع | تخميد | مرونة الخبطة | سرعة الزقّة | لفّة الخرزة حوالين نفسها
-    const STONES = [['#2c6e52', '#0f3123', '#07140e'], ['#265f49', '#0c2b1e', '#06120c'], ['#215c4c', '#0a2b27', '#061514'], ['#2f7453', '#11351f', '#08160e']];
+    const STONES = [['#22B574', '#0B6E45', '#032B1B']];   // حجر زمردي مشبّع (مركز | وسط | حافة): الألوان القديمة كانت مايلة للرمادي فبانت باهتة
+    const hexA = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+    const LIGHTER = ['#7DF0BC', '#34C98A', '#0E6A45'], DARKER = ['#0C5A38', '#053A24', '#010D07'];
+    const tone = (cols, t) => {                                   // سطوع الخرز (من الإعدادات): .3 (الافتراضي) = الألوان الجديدة بالظبط | أعلى = أفتح | أقل = أغمق
+      const to = t >= .3 ? LIGHTER : DARKER, u = t >= .3 ? (t - .3) / .7 : (.3 - t) / .3;
+      return cols.map((c, k) => { const p = hexA(c), q = hexA(to[k]); return '#' + p.map((v, j) => Math.round(v + (q[j] - v) * u).toString(16).padStart(2, '0')).join(''); });
+    };
     const th = Array(N).fill(0), vel = Array(N).fill(0), spin = Array(N).fill(0), spinV = Array(N).fill(0), seed0 = [], els = [];
     let shk, built = false, lastCount = null, raf = 0, off0 = Math.floor(Math.random() * N), adv = 0,   // off0: خرزة البداية (عشوائية مع كل تشغيل) | adv: إجمالي تقدّم الخرز، ما بيتصفّرش مع العدّاد فالخرز يكمل عادي
          last = 0, kickIdx = null, kickT = 0, ripple = [], gSt = [], gSp, gSr, shadows = [], lt = .3, ld = 'top', ropeSh, ropeHi;
@@ -699,6 +710,10 @@
     function buildRope() {                                           // الحبل: خيط مفتول (ظل + حواف داكنة + جسم + فتل مائل + لمعة) تحت الخرزات؛ بيظهر بين الخرزات وبيدخل من فتحاتها
       const host = $('dial').querySelector('svg'), g = E('g', { class: 'rope', transform: 'rotate(90 88 88)' });   // الـ svg الأساسي مقلوب -90° فبنعدّل عشان الإضاءة بإحداثيات الشاشة
       host.insertBefore(g, host.querySelector('.track'));
+      const dd = E('defs', {}, g), RH = RR + R * 2.6;                                  // هالة واحدة كبيرة ورا الحلقة كلها: شفافة جوه، وأقوى حاجة عند الحبل (0.22)، وبعدين تختفي بره
+      const hg = E('radialGradient', { id: 'srh', gradientUnits: 'userSpaceOnUse', cx: 88, cy: 88, r: RH.toFixed(1) }, dd);
+      [[0, 0], [(RR - R * 2.4) / RH, 0], [RR / RH, .22], [1, 0]].forEach(([o, al]) => E('stop', { offset: o.toFixed(3), style: 'stop-color:var(--accent)', 'stop-opacity': al }, hg));
+      E('circle', { cx: 88, cy: 88, r: RH.toFixed(1), fill: 'url(#srh)', class: 'gl' }, g);
       const ring = (at, par) => E('circle', Object.assign({ cx: 88, cy: 88, r: RR, fill: 'none' }, at), par);
       ropeSh = E('g', {}, g); ring({ stroke: 'rgba(0,0,0,.5)', 'stroke-width': 4.6 }, ropeSh);                    // ظل الحبل على الخلفية
       ring({ stroke: 'rgba(0,0,0,.4)', 'stroke-width': 3.8 }, g);                                                // الحواف الداكنة (تدي إحساس الأسطوانة)
@@ -716,47 +731,64 @@
     function build() {
       built = true;
       const svg = $('ssvg'), defs = E('defs', {}, svg); shk = makeShake(svg); buildRope();
-      STONES.forEach((c, i) => { const g = E('radialGradient', { id: 'ss' + i, cx: '.34', cy: '.28', r: '.95' }, defs); gSt.push(g); stops(g, [[0, c[0]], [.5, c[1]], [1, c[2]]]); });
-      stops(gSp = E('radialGradient', { id: 'ssp', cx: '.3', cy: '.24', r: '.55' }, defs), [[0, '#d6fff0', .30], [.6, '#d6fff0', .04], [1, '#d6fff0', 0]]);   // لمعان زجاجي
-      stops(E('radialGradient', { id: 'ssh' }, defs), [[0, '#000', .75], [.6, '#000', .45], [1, '#000', 0]]);                                          // ظل تحت الخرزة
-      acc(E('radialGradient', { id: 'ssg' }, defs), [[.35, .55], [1, 0]]);                                                                           // هالة التوهّج
-      acc(gSr = E('linearGradient', { id: 'ssr', x1: 0, y1: 0, x2: 1, y2: 1 }, defs), [[0, .8], [.5, .05], [.8, 0], [1, .3]]);                             // انعكاس على الحواف
+      const f = v => v.toFixed(2);
+      // لون الحجر: تدرج دائري مركزه فوق شمال شوية (-0.15, -0.2) ← في SVG: cx = .425 / cy = .4 / نصف القطر = 1 (زي Flutter: كسر من ضلع الخرزة = قطرها)
+      gSt.push(E('radialGradient', { id: 'ss0', cx: '.425', cy: '.4', r: '1' }, defs));
+      stops(gSt[0], [[0, STONES[0][0]], [.58, STONES[0][1]], [1, STONES[0][2]]]);
+      stops(E('radialGradient', { id: 'scd' }, defs), [[0, '#001a0d', 1], [1, '#001a0d', 0]]);                // سحابة رخامية غامقة (عمق)
+      stops(E('radialGradient', { id: 'scl' }, defs), [[0, '#5aeba5', 1], [1, '#5aeba5', 0]]);                // سحابة فاتحة rgb(90,235,165): خفيفة جدًا عشان ما تفتّحش الحجر
+      stops(E('radialGradient', { id: 'sil' }, defs), [[0, '#28c87d', .30], [1, '#28c87d', 0]]);              // ضوء داخلي أخضر rgba(40,200,125,.30)
+      stops(E('radialGradient', { id: 'ssd', cx: '.425', cy: '.4', r: '.72' }, defs), [[0, '#000', 0], [.55, '#000', 0], [1, '#000', .72]]);   // تظليل الكرة: الأطراف أغمق عشان يبان الحجم
+      stops(gSp = E('radialGradient', { id: 'ssp', cx: '.3', cy: '.24', r: '.55' }, defs), [[0, '#ffffff', .20], [.6, '#ffffff', .03], [1, '#ffffff', 0]]);   // لمعة زجاجية ناعمة (أهدى من الأول)
+      stops(E('radialGradient', { id: 'ssh' }, defs), [[0, '#000', .6], [.6, '#000', .35], [1, '#000', 0]]);  // ظل ناعم تحت كل خرزة
+      acc(E('radialGradient', { id: 'ssg' }, defs), [[.35, .55], [1, 0]]);                                    // هالة الخرزة (الحالية بس هي القوية)
       E('circle', { r: R }, E('clipPath', { id: 'sclip' }, defs));
       E('circle', { cx: 88, cy: 88, r: RR, fill: 'none', stroke: 'transparent', 'stroke-width': 2 * R + 4, 'pointer-events': 'stroke', class: 'sb' }, svg);   // الحبل نفسه قابل للضغط
       for (let i = 0; i < N; i++) {
-        const r = rng(i * 7919 + 211);
-        const b = E('g', { class: 'sb', 'data-i': i }, svg);
-        E('circle', { r: R * 1.75, fill: 'url(#ssg)', class: 'gl hl', opacity: 0 }, b);                                                          // هالة (للخرز اللي اتعدّ)
-        shadows.push(E('circle', { cx: 1.4, cy: 2.4, r: R * 1.25, fill: 'url(#ssh)' }, b));
-        E('circle', { r: R, fill: `url(#ss${Math.floor(r() * 4)})` }, b);
-        const tex = E('g', { 'clip-path': 'url(#sclip)', opacity: (.8 + r() * .2).toFixed(2) }, b);
+        const r = rng(i * 7919 + 211), u = () => (r() - .5) * 2;                                              // u: من -1 لـ 1
+        const b = E('g', { class: 'sb', 'data-i': i, style: 'isolation:isolate' }, svg);
+        E('circle', { r: R * 1.75, fill: 'url(#ssg)', class: 'gl hl', opacity: 0 }, b);                        // هالة (للخرز اللي اتعدّ)
+        shadows.push(E('circle', { cx: 1.2, cy: 2.6, r: R * 1.28, fill: 'url(#ssh)' }, b));
+        E('circle', { r: R, fill: 'url(#ss0)' }, b);                                                          // الحجر
+        const tex = E('g', { 'clip-path': 'url(#sclip)' }, b);                                                // الطبقات اللي بتلفّ مع الخرزة (سحب + عروق + حبيبات)
         seed0.push(Math.floor(r() * 360));
-        for (let k = 0; k < 3; k++) E('circle', { cx: ((r() - .5) * R * 1.3).toFixed(2), cy: ((r() - .5) * R * 1.3).toFixed(2), r: (R * (.22 + r() * .3)).toFixed(2), fill: r() < .5 ? 'rgba(0,0,0,.26)' : 'rgba(80,150,115,.12)' }, tex);
-        const vein = (col, w) => {
-          const t1 = r() * 6.283, t2 = t1 + Math.PI + (r() - .5) * 1.3, q = () => ((r() - .5) * R * 1.2).toFixed(2);
-          E('path', { d: `M${(Math.cos(t1) * R * 1.1).toFixed(2)} ${(Math.sin(t1) * R * 1.1).toFixed(2)}Q${q()} ${q()} ${(Math.cos(t2) * R * 1.1).toFixed(2)} ${(Math.sin(t2) * R * 1.1).toFixed(2)}`, fill: 'none', stroke: col, 'stroke-width': w, 'stroke-linecap': 'round' }, tex);
+        for (let k = 0; k < 8; k++) {                                                                         // سحب رخامية: ٨ دواير كبيرة بتدرج شفاف (٤ غامقة بتدي عمق + ٤ فاتحة خفيفة)
+          const dark = k < 4;
+          E('circle', { cx: f(u() * R * .6), cy: f(u() * R * .6), r: f(R * (.5 + r() * .5)), fill: dark ? 'url(#scd)' : 'url(#scl)', opacity: dark ? f(.25 + r() * .25) : f(.10 + r() * .10) }, tex);
+        }
+        const vpath = () => {                                                                                 // عرق بمنحنى bezier غير منتظم
+          const t1 = r() * 6.283, t2 = t1 + Math.PI + (r() - .5) * 1.6, q = () => f(u() * R * .75), e = R * 1.1;
+          return `M${f(Math.cos(t1) * e)} ${f(Math.sin(t1) * e)}C${q()} ${q()} ${q()} ${q()} ${f(Math.cos(t2) * e)} ${f(Math.sin(t2) * e)}`;
         };
-        for (let k = 2 + Math.floor(r() * 2); k > 0; k--) vein(`rgba(150,225,190,${(.10 + r() * .14).toFixed(2)})`, (.4 + r() * .5).toFixed(2));
-        for (let k = 1 + Math.floor(r() * 2); k > 0; k--) vein('rgba(0,0,0,.42)', (.4 + r() * .4).toFixed(2));
-        for (let k = 0; k < 7; k++) E('circle', { cx: ((r() - .5) * R * 1.7).toFixed(2), cy: ((r() - .5) * R * 1.7).toFixed(2), r: (.28 + r() * .22).toFixed(2), fill: r() < .5 ? 'rgba(175,240,210,.28)' : 'rgba(0,0,0,.4)' }, tex);
-        const hole = E('g', {}, b);                                                                                                               // فتحة الخيط من الناحيتين
-        for (const sx of [-1, 1]) E('ellipse', { cx: sx * (R - .9), cy: 0, rx: 1, ry: 2.4, fill: '#020706', opacity: .85 }, hole);
-        E('circle', { r: R, fill: 'url(#ssp)' }, b);
-        E('circle', { r: R - .5, fill: 'none', stroke: 'url(#ssr)', 'stroke-width': 1, class: 'gl' }, b);
-        E('circle', { r: R, fill: 'none', stroke: 'rgba(0,0,0,.55)', 'stroke-width': .7 }, b);
+        for (let k = 0; k < 2; k++) E('path', { d: vpath(), fill: 'none', stroke: 'rgba(0,0,0,.30)', 'stroke-width': f(.5 + r() * .4), 'stroke-linecap': 'round' }, tex);   // عرقين غامقين (أخف من الأول)
+        for (let k = 0; k < 4; k++) {                                                                         // العروق المنوّرة: كل عرق بيتحط ٣ مرات فوق بعض (عريض ← أضيق ← قلب رفيع) = نور نافذ من جوه الحجر
+          const d = vpath(), w = .8 + r() * .4;
+          const line = (col, m, cls) => E('path', Object.assign({ d, fill: 'none', stroke: col, 'stroke-width': f(w * m), 'stroke-linecap': 'round' }, cls ? { class: cls } : {}), tex);
+          line('rgba(70,255,170,.16)', 4.2, 'gl'); line('rgba(120,255,200,.22)', 2.2, 'gl'); line(`rgba(215,255,238,${(.5 + r() * .1).toFixed(2)})`, .8);
+        }
+        const sp = { ls: '', lb: '', ds: '', db: '' };                                                        // ٤٠ حبيبة صغيرة (في ٤ مسارات بس علشان الأداء)
+        for (let k = 0; k < 40; k++) { const an = r() * 6.283, di = Math.sqrt(r()) * R * .92; sp[(r() < .5 ? 'l' : 'd') + (r() < .3 ? 'b' : 's')] += `M${f(Math.cos(an) * di)} ${f(Math.sin(an) * di)}h0`; }
+        [['ls', 'rgba(210,255,234,.25)', .5], ['lb', 'rgba(210,255,234,.25)', .85], ['ds', 'rgba(0,0,0,.4)', .5], ['db', 'rgba(0,0,0,.4)', .85]]
+          .forEach(([k, col, w]) => { if (sp[k]) E('path', { d: sp[k], fill: 'none', stroke: col, 'stroke-width': w, 'stroke-linecap': 'round' }, tex); });
+        E('circle', { cy: f(R * .12), r: f(R * .92), fill: 'url(#sil)', class: 'gl', style: 'mix-blend-mode:plus-lighter' }, b);   // ضوء داخلي (lighter) بينوّر الحجر من جوه
+        E('circle', { r: R, fill: 'url(#ssd)' }, b);                                                          // تظليل الكرة
+        const hole = E('g', {}, b);                                                                           // فتحة الخيط من الناحيتين
+        for (const sx of [-1, 1]) E('ellipse', { cx: sx * (R - .9), cy: 0, rx: 1, ry: 2.4, fill: '#020706', opacity: .6 }, hole);
+        E('circle', { r: R, fill: 'url(#ssp)' }, b);                                                          // لمعة زجاجية ناعمة
+        E('circle', { cx: f(-R * .34), cy: f(-R * .42), r: 1.05, fill: 'rgba(255,255,255,.75)' }, b);            // نقطة بيضا صغيرة
+        const ar = R - .8, pt = d => `${f(Math.cos(d * Math.PI / 180) * ar)} ${f(Math.sin(d * Math.PI / 180) * ar)}`;
+        E('path', { d: `M${pt(32)}A${f(ar)} ${f(ar)} 0 0 1 ${pt(148)}`, fill: 'none', stroke: 'rgba(110,255,185,.38)', 'stroke-width': .7, 'stroke-linecap': 'round', class: 'gl' }, b);   // قوس أخضر رفيع على الحافة السفلية
+        E('circle', { r: R, fill: 'none', stroke: 'rgba(0,0,0,.22)', 'stroke-width': .5 }, b);
         const cur = E('circle', { r: R + 1.5, fill: 'none', 'stroke-width': 1.2, opacity: 0, class: 'cr', style: 'stroke:var(--accent)' }, b);        // علامة الخرزة الحالية
         els.push({ b, tex, hole, hl: b.firstChild, cur });
         place(i);
       }
       paintLight();
     }
-    function paintLight() {                                          // السطوع + اتجاه الإضاءة (من فوق / من تحت)
-      const bot = ld === 'bottom';
-      STONES.forEach((c, i) => { const g = gSt[i], col = LIT.mix(c, lt); g.setAttribute('cy', bot ? '.72' : '.28'); [...g.children].forEach((s, k) => s.setAttribute('stop-color', col[k])); });
-      gSp.setAttribute('cy', bot ? '.76' : '.24');
-      gSr.setAttribute('y1', bot ? 1 : 0); gSr.setAttribute('y2', bot ? 0 : 1);
-      shadows.forEach(s => s.setAttribute('cy', bot ? -2.4 : 2.4));
-      if (ropeSh) { ropeSh.setAttribute('transform', 'translate(0 ' + (bot ? -1.5 : 1.5) + ')'); ropeHi.setAttribute('transform', 'translate(0 ' + (bot ? .6 : -.6) + ')'); }
+    function paintLight() {                                          // سطوع الخرز من الإعدادات (.3 = الألوان الأصلية) — الإضاءة ثابتة من فوق-شمال زي الصورة
+      const col = tone(STONES[0], lt);
+      [...gSt[0].children].forEach((s, k) => s.setAttribute('stop-color', col[k]));
+      if (ropeSh) { ropeSh.setAttribute('transform', 'translate(0 1.5)'); ropeHi.setAttribute('transform', 'translate(0 -.6)'); }
     }
     function place(i) {
       const e = els[i], deg = -90 + i * STEP + th[i], a = deg * Math.PI / 180;
@@ -766,7 +798,7 @@
     }
     function mark() {                                                 // الخرز اللي اتعدّ في اللفّة الحالية بيتوهّج، والحالي عليه حلقة
       const a = adv % N;
-      els.forEach((e, i) => { const r = (i - off0 + N) % N; e.hl.style.opacity = r < a ? .5 : r === a ? 1 : 0; e.cur.style.opacity = r === a ? .7 : 0; });   // style (مش attribute) علشان الـ transition تشتغل: التوهّج بيظهر ويختفي بنعومة
+      els.forEach((e, i) => { const r = (i - off0 + N) % N; e.hl.style.opacity = r < a ? .2 : r === a ? 1 : 0; e.cur.style.opacity = r === a ? .7 : 0; });   // style (مش attribute) علشان الـ transition تشتغل: التوهّج بيظهر ويختفي بنعومة
     }
     function stopAll() { for (let i = 0; i < N; i++) { th[i] = vel[i] = spinV[i] = 0; if (built) place(i); } }
     function frame(t) {
@@ -887,7 +919,7 @@
   }
 
   // ───── تحوّل المسبحة الكبيرة ⇄ Mini (الـ main بيبدأه بـ mini:morph وبيغيّر حجم النافذة بعد ما الحركة تخلص) ─────
-  const MORPH_MS = 620;                                           // لازم = --morph-ms في الـ CSS
+  const MORPH_P = { outFade: 260, outAppear: 380, inFade: 190, inAppear: 460 };   // لازم = --p-out-fade / --p-out-appear / --p-in-fade / --p-in-appear في الـ CSS
   const MORPH_SCALE = .42;                                        // الكارت بيصغر لحد النسبة دي قبل ما يختفي جوه الشريط
   let miniShown = null, morph = null;                             // miniShown: العرض الظاهر فعلًا | morph: { dir: 'out'|'in', t: timer }
   const gmPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gm')) || 18;
@@ -940,7 +972,7 @@
     if (!morph) return;
     clearTimeout(morph.t);
     const toMini = morph.dir === 'out'; morph = null;
-    document.body.classList.remove('morphing', 'morph-out', 'morph-in', 'morph-hold', 'morph-blank');
+    document.body.classList.remove('morphing', 'morph-out', 'morph-in', 'morph-hold', 'morph-blank', 'morph-appear', 'morph-fade');
     flipMini(toMini);
     reconcileView();
   }
@@ -955,32 +987,38 @@
     const b = document.body;
     if (morph) endMorph();
     if (miniShown === null || b.classList.contains('pre-show')) { flipMini(dir === 'out'); return window.azkar.miniReady(); }   // لسه ما اترسمتش: تبديل من غير حركة
-    const dur = reduceMotion ? 0 : MORPH_MS, gm = gmPx();
-    const ready = () => { morph.t = setTimeout(endMorph, 1500); window.azkar.miniReady(); };   // 1500ms شبكة أمان لو الـ main ما ردّش
+    const k = reduceMotion ? 0 : 1, gm = gmPx();
+    const ready = () => { if (!morph || morph.dir !== dir) return; morph.t = setTimeout(endMorph, 1500); window.azkar.miniReady(); };   // 1500ms شبكة أمان لو الـ main ما ردّش
     if (dir === 'out') {
       if (miniShown) { flipMini(true); return window.azkar.miniReady(); }   // كان مصغّر أصلًا
-      setMorphVars(document.querySelector('.card').getBoundingClientRect(), gm, gm);
-      b.classList.add('morphing', 'morph-out'); fitMini();      // الشريط بيظهر أثناء الحركة: نضبط النص قبل أول رسم
-      morph = { dir, t: setTimeout(ready, dur) };
+      setMorphVars(document.querySelector('.card').getBoundingClientRect(), gm, window.innerHeight - gm - 48);   // الكارت بيصغّر ناحية مكان الشريط (تحت)
+      b.classList.add('morphing', 'morph-out');
+      morph = { dir, t: setTimeout(ready, MORPH_P.outFade * k) };   // بعد ما الكارت يختفي خالص نبلّغ الـ main يصغّر النافذة (وهي فاضية)
     } else {
       if (!miniShown) { flipMini(false); return window.azkar.miniReady(); }
       b.style.setProperty('--htx', gm + 'px'); b.style.setProperty('--hty', gm + 'px');
-      b.classList.add('morphing', 'morph-hold');                  // الشريط بيتثبّت في الركن (شكله ما بيتغيّرش) قبل ما النافذة تكبر
-      morph = { dir, t: 0 };
-      requestAnimationFrame(() => requestAnimationFrame(() => { if (morph && morph.dir === dir) ready(); }));
+      b.classList.add('morphing', 'morph-hold', 'morph-fade');    // الشريط يختفي الأول في مكانه
+      morph = { dir, t: setTimeout(ready, MORPH_P.inFade * k) };  // بعد ما يختفي خالص نبلّغ الـ main يكبّر النافذة (وهي فاضية)
     }
   }
-  function morphApplied(d) {                                      // الـ main غيّر حجم النافذة
+  function morphApplied(d) {                                      // الـ main غيّر حجم النافذة (والشاشة فاضية)
+    const b = document.body, gm = gmPx();
+    b.classList.remove('morph-blank');
     if (!morph) return;
     clearTimeout(morph.t);
-    const b = document.body, gm = gmPx();
-    if (morph.dir === 'out') { endMorph(); return; }              // الشريط في نفس مكانه بالظبط: نبدّل للعرض المصغّر من غير ما يبان حاجة
+    if (morph.dir === 'out') {                                    // النافذة بقت بحجم الشريط: الشريط يظهر في نفس مكانه بنعومة
+      b.classList.remove('morph-out');
+      flipMini(true);
+      b.classList.add('morph-appear');
+      morph = { dir: 'out', t: setTimeout(endMorph, reduceMotion ? 0 : MORPH_P.outAppear) };
+      return;
+    }
     const hx = gm + ((d && d.dx) || 0), hy = gm + ((d && d.dy) || 0);
-    b.classList.remove('morph-hold');
+    b.classList.remove('morph-hold', 'morph-fade');
     flipMini(false);                                              // الكارت يظهر (display) علشان نقيس حجمه الفعلي
     setMorphVars(document.querySelector('.card').getBoundingClientRect(), hx, hy);
-    b.classList.remove('morph-blank'); b.classList.add('morph-in');
-    morph = { dir: 'in', t: setTimeout(endMorph, reduceMotion ? 0 : MORPH_MS) };
+    b.classList.add('morph-in');
+    morph = { dir: 'in', t: setTimeout(endMorph, reduceMotion ? 0 : MORPH_P.inAppear) };
   }
 
   function render(s0, countOverride) {
@@ -1305,7 +1343,12 @@
   setTimeout(() => playEntrance(false), 25000);      // شبكة أمان: المسبحة ماتفضلش مخفية لو الإشارة ماوصلتش
   window.azkar.onShown(() => { requestAnimationFrame(reportRects); playEntrance(); });
   window.azkar.onMiniMorph(dir => startMorph(dir === 'in' ? 'in' : 'out'));
-  window.azkar.onMiniBlank(() => document.body.classList.add('morph-blank'));
+  let blankT = 0;
+  window.azkar.onMiniBlank(() => {
+    if (!morph) return;                                         // مفيش تحوّل شغّال: الفراغ ممكن يفضل عالق ويطفّي الشريط
+    document.body.classList.add('morph-blank');
+    clearTimeout(blankT); blankT = setTimeout(() => document.body.classList.remove('morph-blank'), 400);   // شبكة أمان
+  });
   window.azkar.onMiniApplied(morphApplied);
   window.azkar.onHover(inside => document.body.classList.toggle('idle', !inside));   // الماوس خارج النافذة = idle
 
