@@ -23,12 +23,13 @@ contextBridge.exposeInMainWorld('azkar', {
   saveAyahImage: (dataUrl, name) => ipcRenderer.invoke('img:save', dataUrl, name),   // لقطة الآية → Pictures/WZAKER
   showInFolder: p => ipcRenderer.send('img:show', p),
   getLogoData: () => ipcRenderer.invoke('img:logo'),
+  whatsNew: () => ipcRenderer.invoke('whatsnew:get'),            // "ما الجديد": بيرجّع { ver, items } مرة واحدة بعد التحديث، أو null
   getBannerData: () => ipcRenderer.invoke('img:banner'),
   settingsWide: on => ipcRenderer.send('settings:wide', !!on),     // المصحف: نافذة الإعدادات بتتوسّع وقت القراءة
   minimize: () => ipcRenderer.send('win:minimize'),               // "–" = Taskbar
   hideToTray: () => ipcRenderer.send('win:hide'),                 // Tray
   quit: () => ipcRenderer.send('app:quit'),
-  openContact: k => ipcRenderer.send('contact:open', k),         // زر الاقتراحات: 'fb' | 'dc' | 'wa'
+  openContact: k => ipcRenderer.send('contact:open', k),         // زر الاقتراحات: 'fb' | 'dc' | 'wa' | 'sg' | 'site'
   exitDone: () => ipcRenderer.send('exit:done'),
   startupNearEnd: () => ipcRenderer.send('startup:near-end'),   // قبل نهاية صوت البداية بشوية: تظهير المسبحة
   dragStart: () => ipcRenderer.send('drag:start'),

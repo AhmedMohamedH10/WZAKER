@@ -15,6 +15,7 @@
  */
 const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut, screen, nativeImage, dialog, clipboard, shell, net} = require('electron');
 const AZ = require('./azkar-data.js');   // أذكار الصباح والمساء
+const WHATS_NEW = require('./whats-new.js');   // قائمة "ما الجديد" (بتظهر مرة واحدة بعد كل تحديث)
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -196,7 +197,9 @@ function sanitizeKey(k) {
   if (!k || typeof k !== 'object' || !Number.isInteger(k.code) || k.code < 1 || k.code > 0xFFFF) return null;
   return { code: k.code, ctrl: !!k.ctrl, alt: !!k.alt, shift: !!k.shift, meta: !!k.meta, name: String(k.name || '').slice(0, 40) };
 }
+let whatsNewPending = false;   // فيه تحديث جديد لسه المستخدم ما شافش "ما الجديد" بتاعه
 function loadState() {
+  const hadStateFile = fs.existsSync(stateFile());
   try {
     const saved = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
     state = { ...DEFAULT_STATE, ...saved };
@@ -284,6 +287,10 @@ function loadState() {
       today: { d: typeof td.d === 'string' ? td.d : '', n: Number.isFinite(td.n) ? Math.max(0, Math.floor(td.n)) : 0 }
     }; }
   state.autoUpdateOn = state.autoUpdateOn !== false; state.autoBackup = state.autoBackup !== false;
+  // "ما الجديد": أول تثبيت مفيهوش شاشة، لكن بعد أي تحديث (رقم الإصدار اتغيّر) بتظهر مرة واحدة أول ما تفتح الإعدادات
+  state.seenVer = typeof state.seenVer === 'string' ? state.seenVer.slice(0, 20) : '';
+  if (!hadStateFile) state.seenVer = app.getVersion();
+  whatsNewPending = hadStateFile && state.seenVer !== app.getVersion() && Array.isArray(WHATS_NEW.items) && WHATS_NEW.items.length > 0;
   state.prayerPlace = typeof state.prayerPlace === 'string' ? state.prayerPlace.slice(0, 60) : '';
   if (state.azTimeV !== 3) { if (state.masaaAt === '17:00' || state.masaaAt === '12:00') state.masaaAt = '16:00'; state.azTimeV = 3; }   // ترحيل: الميعاد الافتراضي القديم للمساء (5م أو 12 ظهرًا) بقى من العصر 4م
   if (!state.dailyAz || typeof state.dailyAz !== 'object') state.dailyAz = { d: '', m: [], e: [], sl: [], wk: [], mq: [], pr: [], wu: [], mf: false, ef: false, slf: false, wkf: false, wd: false, wf: false };
@@ -757,18 +764,35 @@ function hitTick() {
 }
 // ── السبحة ما تختفيش لما تفتح تطبيقات تانية: ويندوز ساعات بيسحب الـ topmost من النافذة (تطبيق/لعبة fullscreen أو تطبيق topmost تاني)
 //    أو بيصغّرها (Win+D / تطبيق بياخد الشاشة). فكل ثانيتين بنرجّعها فوق، ولو اتصغّرت/اتخفت من غير ما المستخدم يطلب نرجّعها من غير ما ناخد Focus.
-let topTimer = null, quietUntil = 0;
+let topTimer = null, quietUntil = 0, repaintN = 0;
 function keepOnTop() {
   if (!win || win.isDestroyed() || vis !== 'shown' || exiting) return;
   try {
     if (win.isMinimized() || !win.isVisible()) { quietUntil = Date.now() + 1500; win.showInactive(); resetMouse(); }
     if (!win.isAlwaysOnTop()) win.setAlwaysOnTop(true, 'screen-saver');
     win.moveTop();
+    if ((++repaintN % 3) === 0) win.webContents.invalidate();   // تنبيه رسم كل ~6 ثواني: لو الرسم وقف تحت ضغط على الجهاز يرجع يتحدّث
     if (typeof popupWin !== 'undefined' && popupWin && !popupWin.isDestroyed() && popupWin.isVisible()) popupWin.moveTop();   // الإشعار يفضل فوق المسبحة
   } catch (_) {}
 }
 function startHitTimer() { if (!hitTimer) hitTimer = setInterval(hitTick, 40); if (!topTimer) topTimer = setInterval(keepOnTop, 2000); }   // timer واحد لكل حاجة
 function stopHitTimer() { if (hitTimer) { clearInterval(hitTimer); hitTimer = null; } if (topTimer) { clearInterval(topTimer); topTimer = null; } }
+
+// المسبحة اختفت (والعدّ والصوت شغّالين): غالبًا الـ GPU/الـ renderer وقع تحت ضغط على الجهاز (زي بناء APK). نحمّل الصفحة تاني ونظهرها من غير ما نسرق Focus.
+let recovering = false;
+function recoverWin(why) {
+  if (recovering || exiting || !win || win.isDestroyed()) return;
+  recovering = true; dbg('recover', why);
+  setTimeout(() => {
+    recovering = false;
+    if (!win || win.isDestroyed() || exiting) return;
+    try {
+      win.webContents.reloadIgnoringCache();
+      win.webContents.once('did-finish-load', () => { if (vis === 'shown') { quietUntil = Date.now() + 1500; try { win.showInactive(); resetMouse(); } catch (_) {} } });
+    } catch (_) {}
+  }, 800);
+}
+app.on('child-process-gone', (_e, d) => { if (d && d.type === 'GPU') recoverWin('gpu:' + d.reason); });
 
 function createWindow() {
   const { x, y } = resolvePosition();
@@ -795,6 +819,8 @@ function createWindow() {
   win.loadFile('index.html');
 
   win.once('ready-to-show', () => { overlayReady = true; maybePresentOverlay(); });   // بعد شاشة اللوجو (لو شغّالة)
+  win.webContents.on('render-process-gone', (_e, d) => recoverWin('renderer:' + (d && d.reason)));   // النافذة وقعت (ضغط على الجهاز مثلًا): نحمّلها تاني
+  win.on('unresponsive', () => dbg('win:unresponsive'));
 
   // صوت "فسبحان الله": مرة واحدة بس عند بدء التشغيل
   let startupHandled = false;
@@ -1748,7 +1774,7 @@ async function confirmRestore(o, confirmed) {         // confirmed = المست�
     fs.mkdirSync(backupDir(), { recursive: true });
     fs.writeFileSync(path.join(backupDir(), 'pre-restore.json'), JSON.stringify(backupPayload()));   // أمان: نسخة من وضعك قبل الاستعادة
     restoringBackup = true; clearTimeout(saveTimer);
-    fs.writeFileSync(stateFile(), JSON.stringify(o.state));
+    fs.writeFileSync(stateFile(), JSON.stringify({ ...o.state, seenVer: app.getVersion() }));   // seenVer: النسخة القديمة ما ترجّعش "ما الجديد" تاني
     if (typeof o.quran === 'string') fs.writeFileSync(pendingQuranFile(), o.quran);
   } catch (_) { restoringBackup = false; return false; }
   skipExitVoice = true; app.relaunch(); app.exit(0);
@@ -2626,6 +2652,12 @@ ipcMain.on('img:show', (e, p) => {
   const f = path.resolve(p);
   if (f.startsWith(path.resolve(shotDir()) + path.sep)) { try { shell.showItemInFolder(f); } catch (_) {} }
 });
+ipcMain.handle('whatsnew:get', e => {                       // الإعدادات بتسأل: فيه "ما الجديد" يتعرض؟ (مرة واحدة بس لكل إصدار)
+  if (!fromSettings(e) || !whatsNewPending) return null;
+  whatsNewPending = false;
+  state.seenVer = app.getVersion(); saveStateNow();         // نعلّم الإصدار إنه اتشاف: مش هتظهر تاني
+  return { ver: app.getVersion(), items: WHATS_NEW.items.map(x => String(x).slice(0, 200)).slice(0, 30) };
+});
 let logoData = null;
 ipcMain.handle('img:logo', e => {
   if (!fromSettings(e)) return null;
@@ -2680,7 +2712,8 @@ const CONTACT_LINKS = {
   fb: 'https://www.facebook.com/AKA.AlHussin',
   dc: 'https://discord.com/users/339177356843548673',
   wa: 'https://wa.link/lv4cu4',
-  sg: 'https://tally.so/r/QKgVQl'
+  sg: 'https://tally.so/r/QKgVQl',
+  site: 'https://wzaker.site/'
 };
 ipcMain.on('contact:open', (e, k) => { if (fromSettings(e) && Object.prototype.hasOwnProperty.call(CONTACT_LINKS, k)) shell.openExternal(CONTACT_LINKS[k]).catch(() => {}); });
 ipcMain.on('min:copy', e => { if (fromSettings(e)) clipboard.writeText('https://www.alminshawi.com'); });
@@ -2854,7 +2887,14 @@ function finalizeExit() {
 app.on('before-quit', e => { if (finalizing) return; e.preventDefault(); beginExit(true); });
 app.on('window-all-closed', () => { if (!exiting) app.quit(); });
 
-process.on('uncaughtException', err => { console.error(err); skipExitVoice = true; try { beginExit(false); } catch (_) {} app.exit(1); });
+let fatalN = 0, fatalAt = 0;
+process.on('uncaughtException', err => {
+  console.error(err);
+  const now = Date.now(); fatalN = (now - fatalAt < 10000) ? fatalN + 1 : 1; fatalAt = now;
+  try { dbg('uncaught', String((err && err.stack) || err).slice(0, 300)); } catch (_) {}
+  if (fatalN < 5) return;                                   // خطأ لمرة واحدة: نسجّله ونكمّل (البرنامج ما يقفلش بسببه)
+  skipExitVoice = true; try { beginExit(false); } catch (_) {} app.exit(1);   // نفس الخطأ 5 مرات في 10 ثواني = عطل حقيقي: نقفل
+});
 process.on('unhandledRejection', err => console.error(err));
 process.on('SIGINT', () => { skipExitVoice = true; app.quit(); });
 process.on('SIGTERM', () => { skipExitVoice = true; app.quit(); });
