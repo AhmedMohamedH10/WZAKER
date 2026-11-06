@@ -51,7 +51,7 @@
     border: 1px solid var(--line);
     box-shadow: 0 0 14px rgba(var(--accent-rgb), .09);
     display: flex; flex-direction: column; align-items: center;
-    padding: 9px 13px 13px;
+    padding: 9px 13px 8px;   /* الأسفل 8 (كان 13): صف الصوت والهدف والتصفير نازل 5 بكسل؛ لازم = المعاينة */
   }
 
   .card, .mini { transition: opacity .25s ease; }
@@ -117,7 +117,7 @@
   }
 
   /* العدّاد */
-  .dial { position: relative; width: 184px; height: 184px; margin-top: 3px; pointer-events: none; }
+  .dial { position: relative; width: 184px; height: 184px; margin-top: 11px; pointer-events: none; flex: none; }   /* margin-top 11 = مسافة 8 بكسل زيادة بين الدايرة وسطر الآية (لازم = المعاينة في settings.css) */   /* flex:none = الدايرة ماتتضغطش أبدًا (كانت بتبقى بيضاوية ومايلة لو الذكر لفّ سطرين) */
   .dial[data-hit] { pointer-events: auto; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; }   /* التسبيح بالنقر مفعّل */
   .dial svg { position: absolute; inset: 0; transform: rotate(-90deg); overflow: visible; }
   .track { fill: none; stroke: rgba(var(--accent-rgb), .09); stroke-width: 7; }
@@ -202,11 +202,14 @@
   .of { position: absolute; left: 0; right: 0; top: calc(50% + 46px); font-size: 13.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
 
   .dhikr {
-    margin-top: 2px; padding: 2px 16px; border: none; border-radius: 14px;
+    margin-top: auto; padding: 3.5px 4px 0.5px; border: none; border-radius: 14px;   /* auto: المساحة الفاضية بتتقسم بالتساوي بين: الدايرة ← الذكر ← الإجمالي ← النجمة (لازم = المعاينة) */
     background: transparent; color: var(--text); font-size: 25px; transition: background .15s;
+    flex: none; max-width: calc(100% + 16px); box-sizing: border-box; white-space: nowrap;   /* أعرض 16 بكسل من مساحة الكارت = خط أكبر للذكر الطويل (لازم = المعاينة) */
+    overflow: hidden; text-overflow: clip;   /* سطر واحد دايمًا: الضبط التلقائي (fitDhikr) بيصغّر الخط على قد العرض */
   }
   .dhikr:hover { background: rgba(var(--accent-rgb), .08); }
-  .total { margin-top: 3px; font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; pointer-events: none; }
+  .total {
+     font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; pointer-events: none; }
 
   /* التحكم السفلي: زر دايري (أيقونة ضبط) في النص. على الماوس عليه: الصوت يمين + الهدف والتصفير شمال بيتفتحوا منه بنعومة.
      الفتح/الإغلاق بيتحكم فيه JS (class .open) علشان الترتيب يبقى: الأيقونات اللي في الطريق تتلاشى الأول ← الأزرار تظهر، وعند الإغلاق الأزرار تتجمّع ← بعدها الأيقونات ترجع بهدوء */
@@ -258,15 +261,14 @@
     background: var(--bg); border: 1px solid var(--line);
     box-shadow: 0 0 14px rgba(var(--accent-rgb), .09);
     opacity: var(--mini-op, .85);
-    display: flex; align-items: center; gap: 12px; padding: 0 14px;
+    display: flex; align-items: center; gap: 8px; padding: 0 12px;   /* مسافات أضيق = مساحة أكبر للذكر في سطر واحد */
     cursor: grab; overflow: hidden;
   }
   .mini:active { cursor: grabbing; }
   .m-num { font-size: 28px; line-height: 1; color: var(--accent); min-width: 34px; text-align: center;
            font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(var(--accent-rgb), .32); }
   .m-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .m-dhikr { font-size: 16px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: clip; }   /* من غير نقط أبدًا: الضبط التلقائي (fitMini) هو اللي بيخلّي النص يتّسع */
-  .m-dhikr.two { white-space: normal; line-height: 1.15; max-height: 30px; }   /* ذكر طويل: سطرين بخط أصغر بدل القطع بنقط */
+  .m-dhikr { font-size: 18px; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: clip; }   /* من غير نقط أبدًا: الضبط التلقائي (fitMini) هو اللي بيخلّي النص يتّسع */
   .m-of { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .m-exp { flex: none; margin-inline-start: auto; }
   .m-bar { position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; background: rgba(var(--accent-rgb), .09); }
@@ -302,8 +304,8 @@
   body.dock-hint:not(.is-mini) .card { animation: none; border-color: rgba(var(--accent-rgb), .75); box-shadow: 0 0 14px rgba(var(--accent-rgb), .28), inset 0 0 22px rgba(var(--accent-rgb), .12); transform: scale(calc(var(--ks, 1) * 1.012)); }
 
   /* أيقونة الصباح/المساء جنب الإجمالي */
-  .totrow { position: relative; align-self: stretch; display: flex; align-items: center; justify-content: center; }   /* الإجمالي في النص زي ما هو، والأيقونة في المساحة الفاضية على اليمين */
-  .azstack { position: absolute; right: 10px; top: 121px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; z-index: 2; }   /* على الحافة اليمين جنب الدايرة: المصحف فوق والشمس/الهلال تحته */
+  .totrow { position: relative; align-self: stretch; display: flex; align-items: center; justify-content: center; margin-top: auto; }   /* الإجمالي في النص زي ما هو، والأيقونة في المساحة الفاضية على اليمين */
+  .azstack { position: absolute; right: 10px; top: 129px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; z-index: 2; }   /* على الحافة اليمين جنب الدايرة: المصحف فوق والشمس/الهلال تحته */
   .azdue { position: relative; pointer-events: auto; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb), .35); background: rgba(var(--accent-rgb), .08); color: var(--accent); cursor: pointer; transition: opacity .3s ease, background .2s, transform .2s; }
   .azdue[hidden] { display: none; }
   .azdue:hover { background: rgba(var(--accent-rgb), .18); transform: scale(1.08); }
@@ -402,7 +404,7 @@
   :root { --p-out-fade: 260ms; --p-out-appear: 380ms; --p-in-fade: 190ms; --p-in-appear: 460ms; }
   body.morphing .card, body.morphing .mini { pointer-events: none; }
   body.morph-hold.morph-hold .mini {
-    display: flex; inset: auto; left: var(--htx, var(--gm)); top: var(--hty, var(--gm)); width: 232px; height: 48px;
+    display: flex; inset: auto; left: var(--htx, var(--gm)); top: var(--hty, var(--gm)); width: 262px; height: 48px;
   }
   body.morph-blank .card, body.morph-blank .mini { opacity: 0 !important; animation: none !important; transition: none !important; }
   /* كبيرة → مصغّرة: الكارت يصغر ويختفي */
@@ -923,36 +925,31 @@
   const MORPH_SCALE = .42;                                        // الكارت بيصغر لحد النسبة دي قبل ما يختفي جوه الشريط
   let miniShown = null, morph = null;                             // miniShown: العرض الظاهر فعلًا | morph: { dir: 'out'|'in', t: timer }
   const gmPx = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gm')) || 18;
-  // الذكر الطويل في الشريط المصغّر: نصغّر الخط (سطر واحد) وبعدها سطرين، علشان النص يبان كله من غير ما يتقطع
-  let miniFs = 16, miniTwo = false, miniKey = '';                              // آخر مقاس اتضبط عليه النص (علشان الانتقال للمقاس الجديد يبقى بنعومة)
+  // الذكر في الشريط المصغّر: سطر واحد دايمًا، والخط بيبدأ كبير (18px) ويصغّر تدريجيًا لحد ما النص يتّسع كله (من غير نقط ولا سطرين)
+  const MINI_FS_MAX = 18, MINI_FS_MIN = 9;
+  let miniFs = MINI_FS_MAX, miniKey = '';                                      // آخر مقاس اتضبط عليه النص (علشان الانتقال للمقاس الجديد يبقى بنعومة)
   function fitMini(anim) {
     const el = $('mDhikr'); if (!el) return;
     const key = el.textContent + '|' + el.clientWidth;
     if (anim && key === miniKey) return;                          // نفس النص ونفس العرض (ضغطة عادية): مفيش داعي نقطع الحركة الشغّالة
     miniKey = key;
     el.getAnimations().forEach(a => a.cancel());                  // نقيس على المقاس الحقيقي مش على نص حركة شغّالة
-    el.classList.remove('two'); el.style.fontSize = '';
-    if (!el.clientWidth) return;                                  // الشريط مخفي (المسبحة الكبيرة): هنعيد القياس أول ما يظهر
-    const one = () => el.scrollWidth <= el.clientWidth + 1;
-    let fs = 16, two = false;
-    if (!one()) {
-      fs = 0;
-      for (let f = 15; f >= 12; f--) { el.style.fontSize = f + 'px'; if (one()) { fs = f; break; } }
-      if (!fs) {
-        two = true; el.classList.add('two'); el.style.maxHeight = 'none';
-        const fits = () => el.offsetHeight <= 30 && el.scrollWidth <= el.clientWidth + 1;
-        for (let f = 13; f >= 10; f--) { el.style.fontSize = f + 'px'; fs = f; if (fits()) break; }
-        el.style.maxHeight = '';
-      }
-    }
+    el.style.fontSize = '';
+    if (!el.clientWidth) { miniKey = ''; return; }                // الشريط مخفي (المسبحة الكبيرة): هنعيد القياس أول ما يظهر
+    let fs = MINI_FS_MAX; el.style.fontSize = fs + 'px';
+    while (fs > MINI_FS_MIN && el.scrollWidth > el.clientWidth + 1) { fs -= .5; el.style.fontSize = fs + 'px'; }
     // انتقال هادي من المقاس القديم للجديد: الخط يصغّر/يكبّر بنعومة مع Fade خفيف (مفيش قفزة)
-    if (anim && !reduceMotion && (fs !== miniFs || two !== miniTwo) && !document.body.classList.contains('morphing')) {
+    if (anim && !reduceMotion && fs !== miniFs && !document.body.classList.contains('morphing')) {
       el.animate([{ fontSize: miniFs + 'px', opacity: .3 }, { fontSize: fs + 'px', opacity: 1 }], { duration: 460, easing: 'cubic-bezier(.22, 1, .36, 1)' });
     }
-    miniFs = fs; miniTwo = two;
+    miniFs = fs;
   }
-  if (document.fonts) { if (document.fonts.ready) document.fonts.ready.then(() => fitMini()); document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => fitMini()); }
+  if (document.fonts) { if (document.fonts.ready) document.fonts.ready.then(() => { miniKey = ''; fitMini(); }); document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { miniKey = ''; fitMini(); }); }
+  { let raf = 0; new MutationObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { miniKey = ''; fitMini(); }); }).observe($('mDhikr'), { childList: true, characterData: true, subtree: true }); }   // firstword.js بيلف أول كلمة بخط تاني بعد ما النص يتحط: نعيد القياس
   if (window.ResizeObserver) { let lw = 0; new ResizeObserver(() => { const w = $('mDhikr').clientWidth; if (w && w !== lw) { lw = w; fitMini(true); } }).observe(document.querySelector('.m-mid')); }   // عرض الذكر اتغيّر (العدّاد زاد خانة / الشريط ظهر): نعيد الضبط
+  // الذكر في المسبحة الكبيرة: مهما كان طويل يتصغّر الخط ويفضل في سطر واحد (المنطق في layout.js ومشترك مع المعاينة)
+  const fitDhikr = () => WZLayout.fitDhikr($('dhikr'));
+  if (document.fonts) { if (document.fonts.ready) document.fonts.ready.then(fitDhikr); document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', fitDhikr); }
   function flipMini(m) {
     miniShown = m; document.body.classList.toggle('is-mini', m);
     if (m) { fitMini(); requestAnimationFrame(fitMini); }   // فورًا (قبل أول رسم) علشان مايبانش النص مقطوع لحظة
@@ -1043,7 +1040,7 @@
     BEADS.light(bl, bd); STRAND.light(bl, bd);                         // سطوع واتجاه إضاءة الخرز (من الإعدادات)
     if (beadsOn) BEADS.set(count);
     if (strandOn) STRAND.set(count);
-    $('dhikr').textContent = s.dhikrText;
+    $('dhikr').textContent = s.dhikrText; fitDhikr();
     $('goal').textContent = target ? fmt(target) : '∞';
     $('total').textContent = inl.hold === 'ok' ? 'تم الإنجاز · بارك الله فيك' : inl.hold === 'fail' ? 'انتهى الوقت · جرّب في المرة القادمة'
       : s.challenge ? 'تحدّي الذكر · أكمل العدد في الوقت' : 'الإجمالي ' + fmt(s.total);

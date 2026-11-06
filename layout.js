@@ -32,7 +32,7 @@
   ];
   const EXTRAS_MAX = 8;
   // المكان الافتراضي ("رجّعه مكانه"): الصلاة القادمة تحت أيقونة الصباح/المساء على الحافة اليمين (نفس عمود azstack)
-  const homePos = type => type === 'prayer' ? { dx: 106, dy: 25 } : { dx: 0, dy: 0 };
+  const homePos = type => type === 'prayer' ? { dx: 106, dy: 33 } : { dx: 0, dy: 0 };
   const el$ = (root, id) => root.querySelector('[data-lx="' + id + '"]');
 
   const fmtDate = (loc, o) => { try { return new Intl.DateTimeFormat(loc, o).format(new Date()); } catch (_) { return ''; } };
@@ -164,6 +164,28 @@
     fixNum(root);
   }
 
+  // ───── الذكر تحت الدايرة: سطر واحد دايمًا، والخط بيصغّر تلقائي لو الذكر طويل (25px ← 9px) — مشترك بين المسبحة والمعاينة ─────
+  const fitSet = new Set();
+  function fitDhikr(e) {
+    if (!e) return;
+    if (!fitSet.has(e)) {                                          // أول مرة: نراقب الذكر (firstword.js بيلف أول كلمة بخط تاني بعد ما النص يتحط) وتحميل الخطوط، ونعيد الضبط
+      fitSet.add(e);
+      let raf = 0; const again = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { delete e.dataset.fitKey; fitDhikr(e); }); };
+      new MutationObserver(again).observe(e, { childList: true, characterData: true, subtree: true });
+      if (window.ResizeObserver) { let seen = 0; new ResizeObserver(() => { const w = e.clientWidth; if (w && w !== seen) { seen = w; again(); } else if (!w) seen = 0; }).observe(e); }   // الكارت ظهر بعد ما كان مخفي (رجوع من Mini): نعيد الضبط، وإلا الذكر بيتقصّ
+      if (document.fonts) { document.fonts.ready.then(again); document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', again); }
+    }
+    const key = e.textContent + '|' + (document.fonts ? document.fonts.status : '');
+    if (e.dataset.fitKey === key) return;
+    e.style.fontSize = '';
+    const w = e.clientWidth; if (!w) return;                       // مخفي: هيتعاد القياس لما يظهر
+    let f = parseFloat(getComputedStyle(e).fontSize) || 25;
+    const max = f;
+    while (f > 9 && e.scrollWidth > w + 1) { f -= .5; e.style.fontSize = f + 'px'; }
+    if (f === max) e.style.fontSize = '';
+    e.dataset.fitKey = key;
+  }
+
   // العناصر المضافة (ساعة/تاريخ/نص...): بتتبني وبتتحدث على container واحد
   function renderExtras(box, L, S, opts) {
     const list = (L && L.extras) || [];
@@ -183,5 +205,5 @@
     for (const n of have.values()) n.remove();
   }
 
-  window.WZLayout = { ELS, EXTRA_TYPES, EXTRAS_MAX, homePos, apply, renderExtras, extraText, fixNum };
+  window.WZLayout = { ELS, EXTRA_TYPES, EXTRAS_MAX, homePos, apply, renderExtras, extraText, fixNum, fitDhikr };
 })();

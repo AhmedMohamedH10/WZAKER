@@ -30,7 +30,7 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // هامش شفاف حول الكارت بيحتوي الـ Glow بالكامل (من غير ما يتقص عند حافة النافذة). لازم يساوي --gm في index.html
 const GLOW = 18;
 const CARD_FULL = { w: 258, h: 354 };   // الكارت الظاهر (كان 248×340: تكبير بسيط ~4%)
-const CARD_MINI = { w: 232, h: 48 };
+const CARD_MINI = { w: 262, h: 48 };
 // حجم النافذة الكاملة بيتغيّر مع "حجم المسبحة كلها" (تخصيص المسبحة): الكارت بيتكبّر/يتصغّر بنفس النسبة
 const fullSize = () => {
   const k = (state && state.dialLayout && state.dialLayout.k) || 1;
@@ -132,12 +132,184 @@ const DEFAULT_STATE = {
   ach: {}, achInit: false, cycles: 0, bestDay: 0,        // الشارات: { id: تاريخ الفتح } + عدّادات مساعدة
   khatma: { bits: '', start: '', days: 30, count: 0, today: { d: '', n: 0 } },   // الختمة: bits = 604 خانة (الصفحات اللي اتقرت) + بداية + المدة + عدد الختمات
   autoUpdateOn: true, autoBackup: true,                  // التحديث التلقائي + النسخ الاحتياطي التلقائي
+  extBackupDir: '',                                      // النسخة الإضافية: مجلد يختاره المستخدم (فلاشة/هارد/OneDrive) وبيتحدّث تلقائيًا مع كل حفظ
   azTimeV: 0,
   x: null, y: null,                                // مكان النافذة العادية
   mx: null, my: null                               // مكان الـ Mini Mode
 };
 let state = { ...DEFAULT_STATE };
 let restoringBackup = false;                              // أثناء استعادة نسخة احتياطية: ممنوع أي حفظ يكتب فوقها
+
+// ───────────── حماية ملف الحفظ: كتابة ذرّية + جارد ضد التصفير + نسخة خارجية ─────────────
+// المشكلة الأصلية: fs.writeFileSync بيفضّي الملف الأول وبعدين يكتب. لو الجهاز اتقفل بالزر في اللحظة دي = ملف صفر.
+// الحل: نكتب في ملف مؤقت + fsync + rename، فالملف القديم السليم مبيتبدّلش إلا بعد ما الجديد يكتمل 100%.
+const SAVE_DEBOUNCE_MS = 250;      // كان 600: الحفظ بعد آخر تسبيحة بـ ربع ثانية
+const SAVE_MAXWAIT_MS = 1500;      // حتى لو بتسبّح بدون وقفة: نحفظ على الأقل كل 1.5 ثانية
+const MIRROR_EVERY_MS = 15000;     // النسخة الخارجية بتتحدّث بعد أي حفظ بحد أقصى كل 15 ثانية (وفورًا مع الإغلاق/الريستارت)
+const GUARD_MIN = 100;             // الجارد بيشتغل بس لو الإجمالي المحفوظ >= 100
+const GUARD_RATIO = 0.5;           // نزول الإجمالي لأقل من النص فجأة = مرفوض (محتاج تأكيد)
+
+function writeFileAtomic(file, data) {
+  const tmp = file + '.tmp';
+  const buf = Buffer.from(data, 'utf8');
+  const fd = fs.openSync(tmp, 'w');
+  try {
+    let off = 0; while (off < buf.length) off += fs.writeSync(fd, buf, off, buf.length - off);
+    try { fs.fsyncSync(fd); } catch (_) {}                  // نضمن إن البيانات وصلت للقرص فعلًا
+  } finally { fs.closeSync(fd); }
+  try { fs.renameSync(tmp, file); }
+  catch (_) {                                              // ويندوز: الـ antivirus ممكن يمسك الملف لحظة
+    let ok = false;
+    for (let i = 0; i < 3 && !ok; i++) { const t = Date.now() + 40; while (Date.now() < t) {} try { fs.renameSync(tmp, file); ok = true; } catch (_) {} }
+    if (!ok) { fs.copyFileSync(tmp, file); try { fs.unlinkSync(tmp); } catch (_) {} }
+  }
+}
+
+// النسخة الخارجية: برّه AppData خالص (في Documents) علشان تفضل سليمة حتى لو مجلد البرنامج اتمسح/اتبوّظ
+const extDir = () => path.join(app.getPath('documents'), 'WZAKER-Backup');
+const extFile = () => path.join(extDir(), 'WZAKER-mirror.json');
+const extPrev = () => path.join(extDir(), 'WZAKER-mirror.prev.json');
+const extPointer = () => path.join(app.getPath('userData'), 'ext-backup-path.txt');   // مسار النسخة الإضافية (احتياطي لو ملف الحفظ باظ)
+const customDir = () => (state && typeof state.extBackupDir === 'string' ? state.extBackupDir : '');
+let mirrorTimer = null;
+const mirrorLastBy = {}, mirrorPrevBy = {}, mirrorStatus = { docs: { at: '', ok: null }, custom: { at: '', ok: null } };
+// بيكتب نسختين خارجيتين: Documents (تلقائية) + المكان اللي المستخدم اختاره (لو فيه). مكان واقع (فلاشة مفصولة مثلًا) مبيعطّلش حاجة.
+function mirrorNow(force) {
+  clearTimeout(mirrorTimer); mirrorTimer = null;
+  if (restoringBackup || guardBlocked) return;
+  let sj; try { sj = JSON.stringify(state); } catch (_) { return; }
+  const targets = [['docs', extDir()]]; const cd = customDir(); if (cd) targets.push(['custom', cd]);
+  let payload = null;
+  for (const [key, dir] of targets) {
+    const id = key + '|' + dir;
+    if (!force && mirrorLastBy[id] === sj) continue;        // مفيش تغيير من آخر نسخة لنفس المكان
+    try {
+      payload = payload || JSON.stringify(backupPayload());
+      fs.mkdirSync(dir, { recursive: true });
+      const f = path.join(dir, 'WZAKER-mirror.json'), pv = path.join(dir, 'WZAKER-mirror.prev.json');
+      try { if (Date.now() - (mirrorPrevBy[id] || 0) > 30 * 60_000 && fs.statSync(f).size > 0) { fs.copyFileSync(f, pv); mirrorPrevBy[id] = Date.now(); } } catch (_) {}   // نسخة أقدم (كل 30 دقيقة) احتياطًا
+      writeFileAtomic(f, payload);
+      mirrorLastBy[id] = sj; mirrorStatus[key] = { at: new Date().toISOString(), ok: true };
+    } catch (_) { mirrorStatus[key] = { at: mirrorStatus[key].at, ok: false }; }
+  }
+}
+function mirrorSoon() { if (!mirrorTimer) mirrorTimer = setTimeout(mirrorNow, MIRROR_EVERY_MS); }
+function extInfo() {
+  const fileAt = d => { try { return fs.statSync(path.join(d, 'WZAKER-mirror.json')).mtime.toISOString(); } catch (_) { return ''; } };
+  const cd = customDir();
+  const docs = { ...mirrorStatus.docs }, custom = { ...mirrorStatus.custom };
+  if (!docs.at) docs.at = fileAt(extDir());
+  if (cd && !custom.at) custom.at = fileAt(cd);
+  return { dir: cd, docsDir: extDir(), docs, custom };
+}
+
+// حفظ طارئ: ضغطة زر الباور (إغلاق عادي) / ريستارت / تسجيل خروج / سكون / قفل الشاشة
+function emergencySave() {
+  try { capturePosition(); } catch (_) {}
+  try { saveStateNow(); } catch (_) {}
+  try { mirrorNow(); } catch (_) {}
+  try { autoBackup(false); } catch (_) {}
+}
+function registerPowerSave() {
+  try {
+    const { powerMonitor } = require('electron');
+    for (const ev of ['suspend', 'shutdown', 'lock-screen']) powerMonitor.on(ev, emergencySave);
+  } catch (_) {}
+}
+
+// لقطة من ملف الحفظ القديم: أول مرة النسخة الجديدة تشتغل عند مستخدم جاي من إصدار قديم، بنحتفظ بنسخة طبق الأصل من ملفه
+// (azkar-state.pre-protect.json) قبل ما أي كود جديد يلمسه. بتتعمل مرة واحدة بس وبعدها مبتتغيّرش.
+const legacyFile = () => path.join(app.getPath('userData'), 'azkar-state.pre-protect.json');
+const legacyMarker = () => path.join(app.getPath('userData'), 'protect-v1.done');
+function legacySnapshot() {
+  try {
+    if (fs.existsSync(legacyMarker())) return;
+    const f = stateFile();
+    if (fs.existsSync(f) && fs.statSync(f).size > 0) { try { JSON.parse(fs.readFileSync(f, 'utf8')); fs.copyFileSync(f, legacyFile()); } catch (_) {} }   // بنحفظ بس لو الملف سليم
+    writeFileAtomic(legacyMarker(), app.getVersion());
+  } catch (_) {}
+}
+
+// جارد: لو الإجمالي نزل فجأة (مثلًا من 5000 لـ 10 أو 0) نمنع الكتابة فوق الملف السليم ونسأل المستخدم
+let lastGoodTotal = 0, guardBlocked = false, allowDropOnce = false, guardAsked = false;
+function guardTrip(cur) {
+  guardBlocked = true;
+  try { writeFileAtomic(path.join(app.getPath('userData'), 'guard-suspect.json'), JSON.stringify({ at: new Date().toISOString(), was: lastGoodTotal, now: cur, state })); } catch (_) {}   // الحالة المشبوهة بتتحفظ على جنب
+  if (guardAsked) return;
+  guardAsked = true;
+  setTimeout(() => {
+    dialog.showMessageBox({
+      type: 'warning', buttons: ['استرجاع الرقم السابق (الأحوط)', 'مقصود، احفظ'], defaultId: 0, cancelId: 0, title: 'حماية بيانات التسبيح',
+      message: 'انخفض إجمالي التسابيح فجأة من ' + lastGoodTotal.toLocaleString('ar-EG') + ' إلى ' + cur.toLocaleString('ar-EG') + '.',
+      detail: 'مُنع الحفظ حمايةً لبياناتك. إن لم يكن ذلك مقصودًا فاختر «استرجاع الرقم السابق» وسيُعاد فتح البرنامج ببياناتك.'
+    }).then(r => {
+      if (r.response === 1) { allowDropOnce = true; guardAsked = false; saveStateNow(); }
+      else { restoringBackup = true; clearTimeout(saveTimer); skipExitVoice = true; app.relaunch(); app.exit(0); }
+    }).catch(() => { guardAsked = false; });
+  }, 0);
+}
+
+// استرجاع وقت التشغيل: لو ملف الحفظ فاضي/تالف/مش موجود (أو الإجمالي فيه أقل بكتير من نسخة سابقة) نلاقي أحسن نسخة ونسأل
+function stateFileInfo() {
+  const f = stateFile();
+  if (!fs.existsSync(f)) return { status: 'missing', total: 0 };
+  let txt; try { txt = fs.readFileSync(f, 'utf8'); } catch (_) { return { status: 'corrupt', total: 0 }; }
+  if (!txt.trim()) return { status: 'empty', total: 0 };
+  try { const o = JSON.parse(txt); if (!o || typeof o !== 'object' || Array.isArray(o)) throw new Error('bad'); return { status: 'ok', total: Number(o.total) || 0 }; }
+  catch (_) { return { status: 'corrupt', total: 0 }; }
+}
+function readBackupAt(file) { try { const o = JSON.parse(fs.readFileSync(file, 'utf8')); return backupValid(o) ? o : null; } catch (_) { return null; } }
+function recoveryCandidates() {
+  const out = [];
+  const extObjs = [];
+  for (const f of [extFile(), extPrev()]) { const o = readBackupAt(f); if (o) { out.push({ o, src: 'ext' }); extObjs.push(o); } }
+  const dirs = new Set();                                  // أماكن النسخة الإضافية المعروفة: الملف الصغير + المكتوب جوه نسخة Documents + ملف الحفظ نفسه (لو سليم)
+  try { const t = fs.readFileSync(extPointer(), 'utf8').trim(); if (t) dirs.add(t); } catch (_) {}
+  for (const o of extObjs) { const d = o.state && o.state.extBackupDir; if (typeof d === 'string' && d) dirs.add(d); }
+  try { const o = JSON.parse(fs.readFileSync(stateFile(), 'utf8')); if (o && typeof o.extBackupDir === 'string' && o.extBackupDir) dirs.add(o.extBackupDir); } catch (_) {}
+  for (const d of dirs) for (const f of ['WZAKER-mirror.json', 'WZAKER-mirror.prev.json']) { const o = readBackupAt(path.join(d, f)); if (o) out.push({ o, src: 'custom', dir: d }); }
+  for (const f of backupFiles()) { const o = readBackupAt(path.join(backupDir(), f)); if (o) { out.push({ o, src: 'int' }); break; } }
+  const tot = c => Number(c.o.state && c.o.state.total) || 0;
+  return out.sort((a, b) => (tot(b) - tot(a)) || String(b.o.at || '').localeCompare(String(a.o.at || '')));   // الأكتر تسابيح أولًا، وبعدين الأحدث
+}
+function keepNewest(dir, re, n) {
+  try { const fl = fs.readdirSync(dir).filter(f => re.test(f)).sort().reverse(); for (const f of fl.slice(n)) { try { fs.unlinkSync(path.join(dir, f)); } catch (_) {} } } catch (_) {}
+}
+function preLoadRecovery() {
+  try {
+    const info = stateFileInfo();
+    const cands = recoveryCandidates();
+    if (!cands.length) return;
+    const c = cands[0], cs = c.o.state || {}, ct = Number(cs.total) || 0;
+    let why = '';
+    if (info.status === 'empty' || info.status === 'corrupt') why = 'ملف الحفظ فارغ أو تالف (غالبًا بسبب إغلاق الجهاز فجأة).';
+    else if (info.status === 'missing' && ct > 0) why = 'ملف الحفظ غير موجود.';
+    else if (info.status === 'ok' && ct >= GUARD_MIN && info.total < ct * GUARD_RATIO) why = 'إجمالي التسابيح الحالي (' + info.total.toLocaleString('ar-EG') + ') أقل بكثير من نسخة سابقة.';
+    if (!why) return;
+    const when = c.o.at ? new Date(c.o.at).toLocaleString('ar-EG') : 'غير معروف';
+    const nAz = Array.isArray(cs.customAzkar) ? cs.customAzkar.length : 0;
+    const lines = [
+      'إجمالي التسابيح: ' + ct.toLocaleString('ar-EG'),
+      'الدورات المكتملة: ' + (Number(cs.cycles) || 0).toLocaleString('ar-EG'),
+      'أيام المواظبة: ' + ((cs.streak && Number(cs.streak.days)) || 0).toLocaleString('ar-EG'),
+      'الأذكار المخصصة: ' + nAz.toLocaleString('ar-EG'),
+      'تاريخ النسخة: ' + when,
+      'المصدر: ' + (c.src === 'ext' ? 'نسخة المستندات (' + extDir() + ')' : c.src === 'custom' ? 'النسخة الإضافية (' + c.dir + ')' : 'النسخة الاحتياطية الداخلية'),
+      '', 'تتضمن النسخة إعداداتك أيضًا (الأصوات والتنبيهات والمواضع والاختصارات).'
+    ];
+    const r = dialog.showMessageBoxSync({
+      type: 'question', buttons: ['استرجاع النسخة السابقة', 'البدء من جديد'], defaultId: 0, cancelId: 1, title: 'عُثر على نسخة سابقة من بياناتك',
+      message: why + ' عُثر على نسخة سابقة، هل تريد استرجاعها؟', detail: lines.join('\n')
+    });
+    if (r === 0) {
+      if (info.status !== 'missing') { try { if (fs.statSync(stateFile()).size > 0) fs.renameSync(stateFile(), path.join(app.getPath('userData'), 'azkar-state.bad-' + Date.now() + '.json')); } catch (_) {} keepNewest(app.getPath('userData'), /^azkar-state\.bad-\d+\.json$/, 3); }
+      writeFileAtomic(stateFile(), JSON.stringify({ ...cs, seenVer: app.getVersion() }));
+      if (typeof c.o.quran === 'string') { try { writeFileAtomic(pendingQuranFile(), c.o.quran); } catch (_) {} }
+    } else {
+      try { const ad = path.join(extDir(), 'archive'); fs.mkdirSync(ad, { recursive: true }); writeFileAtomic(path.join(ad, 'declined-' + Date.now() + '.json'), JSON.stringify(c.o)); keepNewest(ad, /^declined-\d+\.json$/, 3); } catch (_) {}   // لو رفضت: النسخة تتحفظ على جنب بدل ما تتمسح
+    }
+  } catch (_) {}
+}
 
 // الإشعار المنبثق + التحدي (نافذة واحدة فقط في أي لحظة)
 let popupWin = null;       // BrowserWindow الإشعار
@@ -199,6 +371,7 @@ function sanitizeKey(k) {
 }
 let whatsNewPending = false;   // فيه تحديث جديد لسه المستخدم ما شافش "ما الجديد" بتاعه
 function loadState() {
+  preLoadRecovery();                                       // ملف فاضي/تالف؟ نسترجع من النسخة الخارجية/الداخلية قبل القراءة
   const hadStateFile = fs.existsSync(stateFile());
   try {
     const saved = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
@@ -287,6 +460,8 @@ function loadState() {
       today: { d: typeof td.d === 'string' ? td.d : '', n: Number.isFinite(td.n) ? Math.max(0, Math.floor(td.n)) : 0 }
     }; }
   state.autoUpdateOn = state.autoUpdateOn !== false; state.autoBackup = state.autoBackup !== false;
+  state.extBackupDir = typeof state.extBackupDir === 'string' ? state.extBackupDir.slice(0, 500) : '';
+  if (!state.extBackupDir) { try { const t = fs.readFileSync(extPointer(), 'utf8').trim(); if (t) state.extBackupDir = t.slice(0, 500); } catch (_) {} }   // المسار متسجّل كمان في ملف صغير جنب البرنامج علشان نلاقيه حتى لو ملف الحفظ باظ
   // "ما الجديد": أول تثبيت مفيهوش شاشة، لكن بعد أي تحديث (رقم الإصدار اتغيّر) بتظهر مرة واحدة أول ما تفتح الإعدادات
   state.seenVer = typeof state.seenVer === 'string' ? state.seenVer.slice(0, 20) : '';
   if (!hadStateFile) state.seenVer = app.getVersion();
@@ -299,17 +474,25 @@ function loadState() {
     for (const k of ['x', 'y', 'mx', 'my']) if (Number.isFinite(state[k])) state[k] -= (GLOW - OLD_GLOW_MARGIN);
     state.glowV = 1;
   }
+  lastGoodTotal = Number(state.total) || 0; guardBlocked = false;   // نقطة البداية للجارد = اللي اتحمّل (أو اللي المستخدم اختاره)
 }
 
-let saveTimer = null;
-function saveStateSoon() {                 // حفظ مؤجّل: مفيش كتابة على الديسك مع كل Scroll
+let saveTimer = null, saveFirstAt = 0;
+function saveStateSoon() {                 // حفظ مؤجّل قصير (250ms) مع حد أقصى 1.5 ثانية: مفيش كتابة على الديسك مع كل Scroll
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveStateNow, 600);
+  const now = Date.now(); if (!saveFirstAt) saveFirstAt = now;
+  saveTimer = setTimeout(saveStateNow, Math.max(0, Math.min(SAVE_DEBOUNCE_MS, SAVE_MAXWAIT_MS - (now - saveFirstAt))));
 }
 function saveStateNow() {
-  clearTimeout(saveTimer);
+  clearTimeout(saveTimer); saveFirstAt = 0;
   if (restoringBackup) return;
-  try { fs.writeFileSync(stateFile(), JSON.stringify(state)); } catch (_) {}
+  const cur = Number(state.total) || 0;
+  if (!allowDropOnce && lastGoodTotal >= GUARD_MIN && cur < lastGoodTotal * GUARD_RATIO) { guardTrip(cur); return; }   // نزول مفاجئ: ممنوع يكتب فوق الملف السليم
+  try {
+    writeFileAtomic(stateFile(), JSON.stringify(state));
+    allowDropOnce = false; guardBlocked = false; lastGoodTotal = cur;
+    mirrorSoon();                                           // النسخة الخارجية بتتبع كل حفظ
+  } catch (_) {}
 }
 
 // ───────────── الأذكار + الإحصائيات ─────────────
@@ -851,7 +1034,7 @@ function createWindow() {
       if (vis === 'shown' && win && !win.isDestroyed() && !win.isFocused()) win.setFocusable(false);
     }, 400);
   });
-  win.on('session-end', () => { skipExitVoice = true; });
+  win.on('session-end', () => { skipExitVoice = true; emergencySave(); });   // shutdown / restart / logoff: حفظ فوري
 
   win.on('close', e => { if (!quitting) { e.preventDefault(); hideOverlay(); } });
   win.on('closed', () => { win = null; });
@@ -1139,7 +1322,7 @@ function applyPatch(p = {}) {
   const num = (v, min, max) => (Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : null);
   let v;
   if ((v = num(p.count, 0, 1e9)) !== null) state.count = Math.floor(v);
-  if ((v = num(p.total, 0, 1e12)) !== null) state.total = Math.floor(v);
+  if ((v = num(p.total, 0, 1e12)) !== null) { state.total = Math.floor(v); if (state.total < lastGoodTotal) allowDropOnce = true; }   // تعديل/تصفير من المستخدم نفسه = مقصود، الجارد يسمح مرة
   if (typeof p.dhikrId === 'string') selectDhikr(p.dhikrId);
   if ('target' in p) {
     if (p.target === null) state.target = null;
@@ -1672,7 +1855,7 @@ ipcMain.on('khatma:page', (e, p) => {
   const t = dayKeyOf(new Date()); if (k.today.d !== t) k.today = { d: t, n: 0 }; k.today.n += 1;
   if (!k.bits.includes('0')) {                              // الختمة اكتملت
     k.count += 1; khatmaReset();
-    notice('khatma', 'ما شاء الله أتممت ختمة كاملة للقرآن الكريم', 'bd', 'completion', 'تقبّل الله منك وبارك فيك');
+    notice('khatma', 'ما شاء الله، أتممت ختمة كاملة للقرآن الكريم', 'bd', 'completion', 'تقبّل الله منك وبارك فيك');
   }
   checkAch(true); scheduleStats(); saveStateSoon();
 });
@@ -1686,18 +1869,18 @@ const ACH = [
   ['t1k', 'ألف تسبيحة', 'وصل إجمالي تسبيحك إلى 1,000', 'bead', 'total', 1000],
   ['t10k', 'عشرة آلاف تسبيحة', 'وصل إجمالي تسبيحك إلى 10,000', 'bead', 'total', 10000],
   ['t100k', 'مئة ألف تسبيحة', 'وصل إجمالي تسبيحك إلى 100,000', 'bead', 'total', 100000],
-  ['s3', 'ثلاثة أيام متتالية', 'سبّحت 3 أيام ورا بعض', 'flame', 'streak', 3],
-  ['s7', 'أسبوع من المداومة', 'سبّحت 7 أيام ورا بعض', 'flame', 'streak', 7],
-  ['s30', 'شهر من المداومة', 'سبّحت 30 يوم ورا بعض', 'flame', 'streak', 30],
-  ['s100', 'مئة يوم متواصلة', 'سبّحت 100 يوم ورا بعض', 'flame', 'streak', 100],
+  ['s3', 'ثلاثة أيام متتالية', 'سبّحت 3 أيام متتالية', 'flame', 'streak', 3],
+  ['s7', 'أسبوع من المداومة', 'سبّحت 7 أيام متتالية', 'flame', 'streak', 7],
+  ['s30', 'شهر من المداومة', 'سبّحت 30 يومًا متتاليًا', 'flame', 'streak', 30],
+  ['s100', 'مئة يوم متواصلة', 'سبّحت 100 يوم دون انقطاع', 'flame', 'streak', 100],
   ['d100', 'يوم مبارك', '100 تسبيحة في يوم واحد', 'sun', 'bestDay', 100],
   ['d500', 'يوم عامر بالذكر', '500 تسبيحة في يوم واحد', 'sun', 'bestDay', 500],
   ['d1k', 'يوم الألف', '1,000 تسبيحة في يوم واحد', 'sun', 'bestDay', 1000],
   ['v5', 'ذاكر متنوّع', 'سبّحت بـ 5 أذكار مختلفة', 'cards', 'variety', 5],
-  ['v15', 'كنز الأذكار', 'سبّحت بـ 15 ذكر مختلف', 'cards', 'variety', 15],
+  ['v15', 'كنز الأذكار', 'سبّحت بـ 15 ذكرًا مختلفًا', 'cards', 'variety', 15],
   ['c10', 'عشر دورات', 'أتممت 10 دورات من هدف التسبيح', 'check', 'cycles', 10],
   ['c100', 'مئة دورة', 'أتممت 100 دورة من هدف التسبيح', 'check', 'cycles', 100],
-  ['u1', 'ذكرك الخاص', 'أضفت ذكرًا من عندك', 'edit', 'custom', 1],
+  ['u1', 'ذكرك الخاص', 'أضفت ذكرًا خاصًا بك', 'edit', 'custom', 1],
   ['w1k', 'أسبوع مثمر', '1,000 تسبيحة في أسبوع واحد', 'chart', 'week', 1000],
   ['w5k', 'أسبوع عامر', '5,000 تسبيحة في أسبوع واحد', 'chart', 'week', 5000],
   ['k50', 'نصف المصحف', 'قرأت 302 صفحة في ختمتك الحالية', 'book', 'khPages', 302],
@@ -1723,7 +1906,7 @@ function checkAch(force) {
   if (!fresh.length) return;
   saveStateSoon(); scheduleStats();
   if (!state.achInit) { state.achInit = true; return; }      // أول تشغيل بعد التحديث: الشارات اللي مستحقها بالفعل بتتسجّل بصمت
-  if (fresh.length > 2) notice('ach:multi', 'فتحت ' + fresh.length + ' شارات جديدة', 'bd', 'completion', 'شوفها في صفحة الإحصائيات');
+  if (fresh.length > 2) notice('ach:multi', 'حصلت على ' + fresh.length + ' شارات جديدة', 'bd', 'completion', 'اطّلع عليها في صفحة الإحصائيات');
   else for (const a of fresh) notice('ach:' + a[0], 'شارة جديدة: ' + a[1], 'bd', 'completion', a[2]);
 }
 function achView() {
@@ -1746,11 +1929,11 @@ function backupPayload() {
   return { app: 'WZAKER', v: 1, ver: app.getVersion(), at: new Date().toISOString(), state, quran: q };
 }
 function autoBackup(force) {
-  if (restoringBackup || (!state.autoBackup && !force)) return;
+  if (restoringBackup || guardBlocked || (!state.autoBackup && !force)) return;
   try {
     fs.mkdirSync(backupDir(), { recursive: true });
     const keep = 'auto-' + todayKey() + '.json';
-    fs.writeFileSync(path.join(backupDir(), keep), JSON.stringify(backupPayload()));
+    writeFileAtomic(path.join(backupDir(), keep), JSON.stringify(backupPayload()));
     for (const f of backupFiles()) { if (f !== keep) { try { fs.unlinkSync(path.join(backupDir(), f)); } catch (_) {} } }   // نسخة واحدة بس: أحدث نسخة، والقديمة بتتمسح
   } catch (_) {}
 }
@@ -1772,14 +1955,41 @@ async function confirmRestore(o, confirmed) {         // confirmed = المست�
   if (r.response !== 0) return false;
   try {
     fs.mkdirSync(backupDir(), { recursive: true });
-    fs.writeFileSync(path.join(backupDir(), 'pre-restore.json'), JSON.stringify(backupPayload()));   // أمان: نسخة من وضعك قبل الاستعادة
+    writeFileAtomic(path.join(backupDir(), 'pre-restore.json'), JSON.stringify(backupPayload()));   // أمان: نسخة من وضعك قبل الاستعادة
     restoringBackup = true; clearTimeout(saveTimer);
-    fs.writeFileSync(stateFile(), JSON.stringify({ ...o.state, seenVer: app.getVersion() }));   // seenVer: النسخة القديمة ما ترجّعش "ما الجديد" تاني
-    if (typeof o.quran === 'string') fs.writeFileSync(pendingQuranFile(), o.quran);
+    writeFileAtomic(stateFile(), JSON.stringify({ ...o.state, seenVer: app.getVersion() }));   // seenVer: النسخة القديمة ما ترجّعش "ما الجديد" تاني
+    if (typeof o.quran === 'string') writeFileAtomic(pendingQuranFile(), o.quran);
   } catch (_) { restoringBackup = false; return false; }
   skipExitVoice = true; app.relaunch(); app.exit(0);
   return true;
 }
+// ───────────── النسخة الإضافية: مكان يختاره المستخدم (فلاشة / هارد تاني / OneDrive) ─────────────
+ipcMain.handle('ext:info', e => (fromSettings(e) ? extInfo() : null));
+ipcMain.handle('ext:choose', async e => {
+  if (!fromSettings(e)) return { ok: false };
+  const r = await dialog.showOpenDialog(settingsWin, { title: 'اختر مكان النسخة الإضافية (قرص آخر أو فلاشة أو أي مجلد)', properties: ['openDirectory', 'createDirectory'], defaultPath: customDir() || app.getPath('documents') });
+  if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+  const picked = r.filePaths[0];
+  const dir = path.basename(picked) === 'WZAKER-Backup' ? picked : path.join(picked, 'WZAKER-Backup');   // مجلد فرعي: ملفاتنا متتلخبطش مع ملفاتك
+  const same = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+  if (same(dir, extDir()) || same(dir, backupDir()) || same(picked, app.getPath('userData'))) return { ok: false, error: 'هذا مكان النسخ التلقائية، اختر مكانًا آخر (يُفضّل قرص أو فلاشة أخرى)' };
+  try { fs.mkdirSync(dir, { recursive: true }); fs.accessSync(dir, fs.constants.W_OK); } catch (_) { return { ok: false, error: 'المكان غير قابل للكتابة' }; }
+  state.extBackupDir = dir;
+  try { writeFileAtomic(extPointer(), dir); } catch (_) {}
+  saveStateNow(); mirrorNow(true);
+  const info = extInfo();
+  return { ok: !!(info.custom && info.custom.ok), error: info.custom && info.custom.ok ? '' : 'تعذّر الحفظ في هذا المكان', info };
+});
+ipcMain.handle('ext:clear', e => {
+  if (!fromSettings(e)) return null;
+  state.extBackupDir = ''; try { fs.unlinkSync(extPointer()); } catch (_) {}   // بنوقف التحديث بس: الملفات اللي في مكانك مبنمسحهاش
+  saveStateNow(); return extInfo();
+});
+ipcMain.handle('ext:open', async e => {
+  const d = customDir();
+  if (!fromSettings(e) || !d) return false;
+  try { fs.mkdirSync(d, { recursive: true }); return (await shell.openPath(d)) === ''; } catch (_) { return false; }
+});
 ipcMain.handle('backup:list', e => (fromSettings(e) ? backupList() : []));
 ipcMain.handle('backup:path', e => (fromSettings(e) ? backupDir() : ''));
 ipcMain.handle('backup:open-dir', async e => {   // فتح مجلد النسخ (بنعمله لو لسه مش موجود)
@@ -1787,7 +1997,7 @@ ipcMain.handle('backup:open-dir', async e => {   // فتح مجلد النسخ (
   try { fs.mkdirSync(backupDir(), { recursive: true }); return (await shell.openPath(backupDir())) === ''; } catch (_) { return false; }
 });
 ipcMain.handle('backup:copy-path', e => { if (!fromSettings(e)) return false; try { clipboard.writeText(backupDir()); return true; } catch (_) { return false; } });
-ipcMain.handle('backup:now', e => { if (!fromSettings(e)) return []; autoBackup(true); return backupList(); });
+ipcMain.handle('backup:now', e => { if (!fromSettings(e)) return []; autoBackup(true); mirrorNow(true); return backupList(); });   // الداخلية + Documents + المكان المختار
 ipcMain.handle('backup:restore', (e, name, confirmed) => {
   if (!fromSettings(e) || !BK_RE.test(String(name))) return false;
   let o; try { o = JSON.parse(fs.readFileSync(path.join(backupDir(), String(name)), 'utf8')); } catch (_) { return false; }
@@ -2822,7 +3032,10 @@ if (gotLock) {
   app.whenReady().then(() => {
     if (process.platform === 'win32') app.setAppUserModelId('com.wzaker.app');
     if (DEBUG) { try { fs.writeFileSync(path.join(app.getPath('userData'), 'azkar-debug.log'), ''); } catch (_) {} }
+    legacySnapshot();                                      // نسخة طبق الأصل من ملف الإصدار القديم قبل أي تعديل
     loadState();
+    registerPowerSave();
+    setTimeout(() => mirrorNow(true), 5_000);              // أول تشغيل بعد التحديث: النسخة الخارجية تتعمل فورًا (من غير ما تستنى أول تسبيحة)
     scanAudio();
     registerExtraPreload();
     setInterval(azCheck, 20_000); setTimeout(azCheck, 8_000);
@@ -2866,7 +3079,7 @@ function releaseResources() {
 function beginExit(allowVoice) {
   if (exiting) return;
   exiting = true; quitting = true;
-  try { saveStateNow(); autoBackup(false); } catch (_) {}
+  try { saveStateNow(); mirrorNow(); autoBackup(false); } catch (_) {}
   const voice = allowVoice && !skipExitVoice && state.exitSound && state.exitVolume > 0 &&
                 !!audioFiles.exit && !!win && !win.isDestroyed() && !win.webContents.isLoading();
   releaseResources();
@@ -2902,5 +3115,6 @@ process.on('exit', () => { try { stopHook(); } catch (_) {} });
 
 // للاختبارات التلقائية فقط (npm test): ما بيأثرش على التشغيل العادي
 if (process.env.WZ_TEST === '1') {
-  module.exports = { getState: () => state, setState: s => { state = s; }, dayKeyOf, dateAgo, dayShift, dayDiff, nextDayKey, rebuildStreak, normStreak, streakTouch, streakView, bumpDaily, khatmaView, khatmaReset, sanitizeKey, sanitizeAlerts, statsList, DEFAULT_STATE, KH_PAGES, hookInfo, setHookStatus, restartHook, stopHook, buildTrayMenu, MAX_ALERTS, MAX_ALERT_LEN };
+  module.exports = { getState: () => state, setState: s => { state = s; }, dayKeyOf, dateAgo, dayShift, dayDiff, nextDayKey, rebuildStreak, normStreak, streakTouch, streakView, bumpDaily, khatmaView, khatmaReset, sanitizeKey, sanitizeAlerts, statsList, DEFAULT_STATE, KH_PAGES, hookInfo, setHookStatus, restartHook, stopHook, buildTrayMenu, MAX_ALERTS, MAX_ALERT_LEN,
+    writeFileAtomic, saveStateNow, mirrorNow, preLoadRecovery, stateFileInfo, stateFile, extFile, extDir, extPointer, mirrorStatus, legacySnapshot, legacyFile, legacyMarker, loadState, setLastGood: v => { lastGoodTotal = v; guardBlocked = false; allowDropOnce = false; }, guardInfo: () => ({ blocked: guardBlocked, lastGoodTotal }) };
 }

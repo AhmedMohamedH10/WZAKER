@@ -1421,6 +1421,9 @@
       $('prb_' + k).innerHTML = f12h(t[k]);
       const c = bar.querySelector('[data-k="' + k + '"]');
       c.classList.toggle('next', k === nxt); c.classList.toggle('past', t[k] <= now && k !== nxt);
+      let r = c.querySelector('.r'); if (!r) { r = document.createElement('span'); r.className = 'r'; c.appendChild(r); }
+      if (k === nxt) { let m = t[k] - now; if (m <= 0) m += 1440; const h = Math.floor(m / 60), mi = m % 60; r.textContent = 'بعد ' + (h ? h + ' س ' : '') + (mi || !h ? mi + ' د' : ''); }
+      else r.textContent = '';
     });
   }
   setInterval(() => { if (S) renderPrBar(S.prayerInfo); }, 30000);
@@ -1469,10 +1472,10 @@
     $('wsBest').textContent = w.best ? DOW[w.best.dow] : '-';
     $('wsBadge').textContent = n3(w.total);
     const bits = [];
-    if (w.prev > 0) { const df = w.total - w.prev; bits.push(df >= 0 ? 'أكتر من الأسبوع اللي فات بـ ' + n3(df) : 'أقل من الأسبوع اللي فات بـ ' + n3(-df)); }
-    else if (w.total > 0) bits.push('ده أول أسبوع ليه تسجيل');
-    if (w.top) bits.push('أكتر ذكر: «' + w.top.text + '» (' + n3(w.top.n) + ')');
-    $('wsNote').textContent = bits.join(' • ') || 'ابدأ بالتسبيح وهيظهر ملخصك هنا';
+    if (w.prev > 0) { const df = w.total - w.prev; bits.push(df >= 0 ? 'أكثر من الأسبوع الماضي بـ ' + n3(df) : 'أقل من الأسبوع الماضي بـ ' + n3(-df)); }
+    else if (w.total > 0) bits.push('هذا أول أسبوع مسجَّل');
+    if (w.top) bits.push('الأكثر تسبيحًا: «' + w.top.text + '» (' + n3(w.top.n) + ')');
+    $('wsNote').textContent = bits.join(' • ') || 'ابدأ بالتسبيح ليظهر ملخصك هنا';
   }
   // الشارات متقسّمة لأقسام (كل قسم سلّم تدريجي) + كارت "الشارة الجاية" فوق: أقرب شارة لسه ما اتفتحتش
   const ACH_GROUPS = [
@@ -1507,7 +1510,7 @@
     nx.hidden = !lock; nx.textContent = '';
     if (lock) {
       const t = el('div', 'at'), pb = el('div', 'pb'), i = el('i'); i.style.width = Math.round(lock.cur / lock.need * 100) + '%'; pb.appendChild(i);
-      t.append(el('small', '', 'الشارة الجاية'), el('b', '', lock.name), el('span', '', lock.desc), pb);
+      t.append(el('small', '', 'الشارة التالية'), el('b', '', lock.name), el('span', '', lock.desc), pb);
       nx.append(achIco(lock), t, el('span', 'cnt', n3(lock.cur) + ' / ' + n3(lock.need)));
     }
     $('achBadge').textContent = list.filter(a => a.got).length + ' من ' + list.length;
@@ -1520,7 +1523,7 @@
     $('khCnt').textContent = k.count ? 'ختمات: ' + k.count : 'الختمة الأولى';
     const day = Math.min(k.days, k.elapsed + 1);
     let t = 'قرأت ' + n3(k.read) + ' من ' + k.total + ' صفحة (' + pct + '%) — اليوم ' + day + ' من ' + k.days;
-    if (k.read < k.total) t += ' — وردك النهارده ' + k.perDay + ' صفحة' + (k.todayRead >= k.perDay ? ' ✓ (خلّصته)' : ' (قرأت ' + k.todayRead + ')');
+    if (k.read < k.total) t += ' — وردك اليوم ' + k.perDay + ' صفحة' + (k.todayRead >= k.perDay ? ' ✓ (أتممته)' : ' (قرأت ' + k.todayRead + ')');
     $('khInfo').textContent = t;
     const sel = $('khDays');
     if (!khDirty && document.activeElement !== sel) { if (![...sel.options].some(o => +o.value === k.days)) sel.add(new Option(k.days + ' يوم', k.days)); sel.value = String(k.days); }
@@ -1535,16 +1538,23 @@
     const B = { ready: 'تحديث جاهز', downloading: 'جاري التنزيل', checking: 'جاري الفحص' };
     const b = $('upBadge'); b.textContent = B[u.status] || ''; b.classList.toggle('on', u.status === 'ready'); b.hidden = !B[u.status];
   }
+  const bkNum = n => Number(n || 0).toLocaleString('ar-EG');
+  const bkWhen = iso => {                                  // «اليوم ١:١٧ م» / «أمس ...» / «٣ نوفمبر ...»: بدون أرقام مفصولة بشرطات (بتتلخبط في الاتجاه)
+    const d = iso ? new Date(iso) : null; if (!d || isNaN(d)) return '';
+    const t = d.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' }), now = new Date();
+    const sod = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(), diff = Math.round((sod(now) - sod(d)) / 864e5);
+    if (diff === 0) return 'اليوم ' + t;
+    if (diff === 1) return 'أمس ' + t;
+    return d.toLocaleDateString('ar-EG', d.getFullYear() === now.getFullYear() ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' }) + ' ' + t;
+  };
   async function bkRefresh() {
     let list = []; try { list = await window.wzx.backupList(); } catch (_) {}
     const box = $('bkList'); box.textContent = '';
-    if (!list.length) { box.appendChild(el('div', 'hint', 'مفيش نسخ محفوظة لسه، هتتعمل أول نسخة تلقائيًا بعد دقيقة من فتح البرنامج.')); return; }
+    if (!list.length) { box.appendChild(el('div', 'hint', 'لا توجد نسخ بعد. تُنشأ أول نسخة تلقائيًا بعد دقيقة من فتح البرنامج.')); return; }
     for (const b of list) {
-      const row = el('div', 'bkrow'), d = b.at ? new Date(b.at) : null;
-      const sp = el('span', '', (d ? d.toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : b.name) + ' — ' + n3(b.total) + ' تسبيحة');
-      const when = d ? d.toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : b.name;
-      const btn = el('button', 'pill sm', 'استعادة'); btn.onclick = () => bkAsk('هتتبدّل إعداداتك وإحصائياتك الحالية بنسخة ' + when + '. هنحتفظ بنسخة من وضعك الحالي، والبرنامج هيتقفل ويفتح تاني. متأكد؟', { run: async () => { const ok = await window.wzx.backupRestore(b.name); if (!ok) bkMsg('تعذّرت الاستعادة'); } });
-      row.append(sp, btn); box.appendChild(row);
+      const row = el('div', 'bkrow'), when = bkWhen(b.at) || b.name;
+      const btn = el('button', 'pill sm', 'استعادة'); btn.onclick = () => bkAsk('ستُستبدل بياناتك الحالية بنسخة ' + when + '، مع الاحتفاظ بنسخة من وضعك الحالي، ثم يُعاد تشغيل البرنامج. هل أنت متأكد؟', { run: async () => { const ok = await window.wzx.backupRestore(b.name); if (!ok) bkMsg('تعذّرت الاستعادة'); } });
+      row.append(el('span', 'bk-w', when), el('span', 'bk-n', bkNum(b.total) + ' تسبيحة'), btn); box.appendChild(row);
     }
   }
   let bkT = null; const bkMsg = t => { $('bkMsg').textContent = t; clearTimeout(bkT); bkT = setTimeout(() => { $('bkMsg').textContent = ''; }, 5000); };
@@ -1552,16 +1562,41 @@
   $('upCheck').onclick = () => window.azkar.patch({ updCheck: true });
   $('upInstall').onclick = () => window.azkar.patch({ updInstall: true });
   $('bkAuto').onchange = () => window.azkar.patch({ autoBackup: $('bkAuto').checked });
-  $('bkNow').onclick = async () => { await window.wzx.backupNow(); await bkRefresh(); bkMsg('تم حفظ نسخة احتياطية'); };
+  $('bkNow').onclick = async () => { await window.wzx.backupNow(); await bkRefresh(); await bkxRefresh(); bkMsg('تم حفظ النسخة'); };
   $('bkExport').onclick = async () => { const ok = await window.wzx.backupExport(); bkMsg(ok ? 'تم تصدير النسخة' : 'تم الإلغاء'); };
   $('bkImport').onclick = async () => {
     const r = await window.wzx.backupImport();
-    if (!r || !r.ok) { if (!r || !r.canceled) bkMsg('الملف مش نسخة WZAKER صالحة'); return; }
-    const when = r.at ? new Date(r.at).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' }) : 'قديمة';
-    bkAsk('النسخة المختارة بتاريخ ' + when + ' (' + n3(r.total) + ' تسبيحة). هتتبدّل إعداداتك وإحصائياتك الحالية بيها، والبرنامج هيتقفل ويفتح تاني. متأكد؟',
+    if (!r || !r.ok) { if (!r || !r.canceled) bkMsg('الملف ليس نسخة WZAKER صالحة'); return; }
+    bkAsk('النسخة المختارة: ' + (bkWhen(r.at) || 'قديمة') + ' (' + bkNum(r.total) + ' تسبيحة). ستُستبدل بياناتك الحالية بها ثم يُعاد تشغيل البرنامج. هل أنت متأكد؟',
       { run: async () => { const ok = await window.wzx.backupImportApply(); if (!ok) bkMsg('تعذّر الاستيراد'); }, cancel: () => window.wzx.backupImportCancel() });
   };
-  $('bkCard').addEventListener('toggle', () => { if ($('bkCard').open) bkRefresh(); });
+  // ───── النسخة الإضافية: مكان يختاره المستخدم ─────
+  async function bkxRefresh() {
+    let i = null; try { i = await window.wzx.extInfo(); } catch (_) {}
+    if (!i) return;
+    const has = !!i.dir;
+    $('bkxRow').hidden = !has; $('bkxOff').hidden = !has; $('bkxTxt').textContent = i.dir || '';
+    $('bkxPick').textContent = has ? 'تغيير المكان' : 'اختيار مكان';
+    $('bkxSub').textContent = has ? 'تُحدَّث تلقائيًا مع كل حفظ' : 'فلاشة أو قرص آخر أو OneDrive';
+    const box = $('bkxSt'); box.textContent = '';
+    const add = (name, o, bad) => {
+      const off = !!o && o.ok === false, r = el('div', 'bkx-s' + (off ? ' bad' : (o && o.at ? ' ok' : '')));
+      r.append(el('i'), el('b', '', name), el('em', '', off ? bad : (o && o.at ? bkWhen(o.at) : 'بانتظار أول حفظ')));
+      box.appendChild(r);
+    };
+    add('المستندات', i.docs, 'تعذّر الحفظ');
+    if (has) add('المكان المختار', i.custom, 'غير متاح، تحقق من توصيل القرص');
+  }
+  $('bkxPick').onclick = async () => {
+    const r = await window.wzx.extChoose();
+    if (r && r.canceled) return;
+    await bkxRefresh();
+    bkMsg(r && r.ok ? 'تم الحفظ في المكان المختار، وسيُحدَّث تلقائيًا' : ((r && r.error) || 'تعذّر الحفظ في هذا المكان'));
+  };
+  $('bkxOff').onclick = async () => { await window.wzx.extClear(); await bkxRefresh(); bkMsg('أُوقف التحديث. الملفات الموجودة في مكانك باقية'); };
+  const bkxOpen = async () => { let ok = false; try { ok = await window.wzx.extOpen(); } catch (_) {} if (!ok) bkMsg('تعذّر فتح المجلد'); };
+  $('bkxPath').onclick = bkxOpen; $('bkxGo').onclick = bkxOpen;
+  $('bkCard').addEventListener('toggle', () => { if ($('bkCard').open) { bkRefresh(); bkxRefresh(); } });
   // ───── مكان النسخ الاحتياطي: أيقونة التعجب (نسخ المسار / فتح المجلد) ─────
   async function bkLoadPath() {
     let pth = ''; try { pth = await window.wzx.backupPath(); } catch (_) {}
@@ -1582,7 +1617,7 @@
   $('khDays').onchange = () => { khDirty = true; };
   let khRead = 0;
   const khAsk = on => { $('khCfm').hidden = !on; $('khAct').hidden = on; };
-  $('khNew').onclick = () => { $('khCfmT').textContent = 'هتبدأ ختمة جديدة لمدة ' + $('khDays').value + ' يوم، وصفحاتك المقروءة' + (khRead ? ' (' + khRead + ' صفحة)' : '') + ' هتتصفّر. متأكد؟'; khAsk(true); };
+  $('khNew').onclick = () => { $('khCfmT').textContent = 'ستبدأ ختمة جديدة لمدة ' + $('khDays').value + ' يومًا، وستُصفَّر صفحاتك المقروءة' + (khRead ? ' (' + khRead + ' صفحة)' : '') + '. هل أنت متأكد؟'; khAsk(true); };
   $('khNo').onclick = () => khAsk(false);
   $('khYes').onclick = () => { khDirty = false; khAsk(false); window.wzx.khatmaNew(parseInt($('khDays').value, 10)); };
   // تأكيد استعادة النسخ جوه البرنامج (من غير مربع نظام)
@@ -2067,7 +2102,7 @@
     const t = S.target, n = S.count || 0;
     $('pvNum').textContent = n; $('pvOf').textContent = t ? '/ ' + t : 'بدون هدف';
     $('pvBar').style.strokeDashoffset = t ? 465 * (1 - Math.min(1, n / t)) : 465;
-    $('pvDhikr').textContent = S.dhikrText || ''; $('pvTotal').textContent = 'الإجمالي ' + (S.total || 0);
+    $('pvDhikr').textContent = S.dhikrText || ''; LX.fitDhikr($('pvDhikr')); $('pvTotal').textContent = 'الإجمالي ' + (S.total || 0);
     $('pvTag').textContent = 'وَذَكِّرْ فَإِنَّ الذِّكْرَىٰ تَنفَعُ الْمُؤْمِنِينَ'; $('pvGoal').textContent = t || '∞';
     LX.apply(c, LAY);
     LX.renderExtras($('pvX'), LAY, S);
@@ -2341,7 +2376,7 @@
     window.azkar.whatsNew().then(w => {
       if (!w || !Array.isArray(w.items) || !w.items.length) return;
       const ul = $('wnList'); ul.textContent = '';
-      w.items.forEach((t, i) => { const li = document.createElement('li'); li.style.setProperty('--i', i); li.textContent = t; ul.appendChild(li); });
+      w.items.forEach((t, i) => { const li = document.createElement('li'); li.style.setProperty('--i', i); const sp = document.createElement('span'); sp.textContent = t; li.appendChild(sp); ul.appendChild(li); });
       $('wnVer').textContent = 'v' + w.ver;
       wn.hidden = false;
       window.addEventListener('keydown', wnKey, true);

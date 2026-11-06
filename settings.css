@@ -130,22 +130,24 @@
 
   /* بار مواقيت الصلاة فوق أقسام القائمة الرئيسية: 5 خلايا صغيرة، الصلاة القادمة متنوّرة، وفاتت الصلوات باهتة */
   .prbar { position: relative; width: 100%; display: grid; grid-template-columns: repeat(5, 1fr); align-items: stretch; margin: 0 0 12px; padding: 0; border-radius: 22px; border: 1px solid var(--line); background: rgba(var(--accent-rgb), .025); color: var(--text); overflow: hidden; text-align: center; }
-  .prbar .pc { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 10px 4px 9px; transition: background .2s; }
-  .prbar .pc + .pc::before { content: ''; position: absolute; top: 12px; bottom: 12px; inset-inline-start: 0; border-inline-start: 1px solid var(--line); }
-  .prbar .pc .n { font-size: 11.5px; color: var(--dim); }
-  .prbar .pc .t { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
-  .prbar .pc .t small { font-size: 9.5px; color: var(--dim); margin-inline-start: 3px; }
+  .prbar .pc { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 18px 4px 14px; transition: background .2s; }
+  .prbar .pc + .pc::before { content: ''; position: absolute; top: 16px; bottom: 16px; inset-inline-start: 0; border-inline-start: 1px solid var(--line); }
+  .prbar .pc .n { display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 14.5px; color: var(--dim); }
+  .prbar .pc .t { font-size: 22px; line-height: 1.15; color: var(--text); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+  .prbar .pc .t small { font-size: 12px; color: var(--dim); margin-inline-start: 4px; }
+  .prbar .pc .r { min-height: 16px; font-size: 11px; line-height: 16px; color: var(--accent); opacity: 0; white-space: nowrap; }
+  .prbar .pc.next .r { opacity: .9; }
   .prbar .pc.past .n, .prbar .pc.past .t { opacity: .5; }
   .prbar .pc.next { background: rgba(var(--accent-rgb), .1); }
   .prbar .pc.next::before, .prbar .pc.next + .pc::before { opacity: 0; }
   .prbar .pc.next .n, .prbar .pc.next .t { color: var(--accent); }
   /* أيقونة كل صلاة: بتظهر بس على الخلية اللي الماوس عليها (والصلاة القادمة دايمًا). الدخول أسرع من الخروج، فلما الماوس يتحرك يمين وشمال الأيقونات بتظهر بالتدريج وتسيب أثر هادي وراها */
-  .prbar .pc .n svg { display: inline-block; width: 0; height: 15px; margin-inline-end: 0; opacity: 0; transform: translateY(3px) scale(.82); filter: blur(1.5px); color: var(--accent); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; overflow: visible;
-    transition: width 1s cubic-bezier(.22, .61, .36, 1), margin-inline-end 1s cubic-bezier(.22, .61, .36, 1), opacity .9s ease, transform 1s cubic-bezier(.22, .61, .36, 1), filter .9s ease; }
-  .prbar .pc:hover .n svg, .prbar .pc.next .n svg { width: 15px; margin-inline-end: 5px; opacity: 1; transform: none; filter: none; transition-duration: .55s, .55s, .5s, .6s, .5s; }
+  .prbar .pc .n svg { display: block; width: 26px; height: 26px; opacity: .6; color: var(--dim); fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; overflow: visible; transition: color .3s, opacity .3s, transform .5s cubic-bezier(.22, .61, .36, 1); }
+  .prbar .pc:hover .n svg, .prbar .pc.next .n svg { color: var(--accent); opacity: 1; }
+  .prbar .pc:hover .n svg { transform: translateY(-2px); }
   .prbar .pc:not(.next):hover { background: rgba(var(--accent-rgb), .05); }
   @media (prefers-reduced-motion: reduce) { .prbar .pc .n svg { transition: none; } }
-  .prbar .pe { display: none; grid-column: 1 / -1; padding: 14px 12px; font-size: 12.5px; color: var(--dim); }
+  .prbar .pe { display: none; grid-column: 1 / -1; padding: 22px 12px; font-size: 12.5px; color: var(--dim); }
   .prbar.empty .pc { display: none; }
   .prbar.empty .pe { display: block; }
 
@@ -259,7 +261,8 @@
   .khact select { flex: 1; min-width: 0; }
   .bklist { display: flex; flex-direction: column; gap: 6px; }
   .bkrow { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; font-size: 12px; color: var(--dim); }
-  .bkrow span { flex: 1; min-width: 0; }
+  .bkrow .bk-w { flex: 1; min-width: 0; color: var(--text); }
+  .bkrow .bk-n { flex: none; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
   .bkn { display: flex; flex-direction: column; }
   .bknote { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .bknote .note { flex: 1; min-width: 0; }
@@ -281,6 +284,20 @@
   .bkp-b:hover { color: var(--accent); border-color: rgba(var(--accent-rgb), .5); background: rgba(var(--accent-rgb), .08); }
   .bkp-b:active { transform: scale(.93); }
   .bkp-b.ok { color: var(--accent); border-color: var(--accent); }
+  .bkx { margin: 10px 0 2px; padding: 11px 12px; display: flex; flex-direction: column; gap: 9px; border: 1px solid rgba(var(--accent-rgb), .28); border-radius: 14px; background: rgba(var(--accent-rgb), .04); }
+  .bkx [hidden] { display: none !important; }
+  .bkx-h { display: flex; flex-direction: column; gap: 2px; }
+  .bkx-h b { font-size: 13px; font-weight: 600; color: var(--text); }
+  .bkx-h span { font-size: 11.5px; color: var(--dim); }
+  .bkx-st { display: flex; flex-direction: column; gap: 5px; }
+  .bkx-s { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--dim); }
+  .bkx-s i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dim); opacity: .6; }
+  .bkx-s b { font-weight: 500; color: var(--text); }
+  .bkx-s em { margin-inline-start: auto; font-style: normal; unicode-bidi: plaintext; }
+  .bkx-s.ok i { background: var(--accent); opacity: 1; }
+  .bkx-s.bad i { background: #ff8a80; opacity: 1; }
+  .bkx-s.bad em { color: #ff8a80; }
+  .bkx-act { display: flex; gap: 8px; flex-wrap: wrap; }
   @media (prefers-reduced-motion: reduce) { .bkpath, .bki { transition: none; } }
   .prgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .prcard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 6px 8px; border: 1px solid var(--line); border-radius: 14px; cursor: pointer; transition: border-color .15s, opacity .15s; }
@@ -520,7 +537,7 @@
   .pvcard {
     position: relative; width: 258px; height: 354px; transform-origin: 0 0; border-radius: 30px; background: var(--bg);
     border: 1px solid var(--line); box-shadow: 0 0 14px rgba(var(--accent-rgb), .09);
-    display: flex; flex-direction: column; align-items: center; padding: 9px 13px 13px; user-select: none; touch-action: none;
+    display: flex; flex-direction: column; align-items: center; padding: 9px 13px 8px; user-select: none; touch-action: none;
   }
   .pvcard { overflow: hidden; }
   .pvcard * { pointer-events: none; }
@@ -539,7 +556,7 @@
   .pvcard .grip { width: 108px; height: 33px; display: grid; place-items: center; }
   .pvcard .grip img { height: 35px; width: auto; display: block; opacity: .95; -webkit-user-drag: none; }
   .pvcard .tagline { translate: 0 8px; width: 100%; margin-top: -1px; height: 15px; padding: 0 6px; text-align: center; font-size: 11px; line-height: 15px; color: var(--dim); white-space: nowrap; overflow: hidden; }
-  .pvcard .dial { position: relative; width: 184px; height: 184px; margin-top: 3px; }
+  .pvcard .dial { position: relative; width: 184px; height: 184px; margin-top: 11px; flex: none; }
   .pvcard .dial svg { position: absolute; inset: 0; transform: rotate(-90deg); overflow: visible; }
   .pvcard .track { fill: none; stroke: rgba(var(--accent-rgb), .09); stroke-width: 7; }
   .pvcard .bar { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; stroke-dasharray: 465; filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), .5)); }
@@ -556,9 +573,9 @@
   .pvcard .dial.strand .bar { stroke-width: 2.2; }
   .pvcard .dial.strand .num { font-size: calc(74px * var(--nk, 1)); }
   .pvcard .dial.strand .of { top: calc(50% + 41px); }
-  .pvcard .dhikr { margin-top: 2px; padding: 2px 16px; border-radius: 14px; color: var(--text); font-size: 25px; }
-  .pvcard .totrow { align-self: stretch; display: flex; justify-content: center; }
-  .pvcard .total { margin-top: 3px; font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .pvcard .dhikr { margin-top: auto; padding: 3.5px 4px 0.5px; border-radius: 14px; color: var(--text); font-size: 25px; flex: none; max-width: calc(100% + 16px); box-sizing: border-box; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  .pvcard .totrow { align-self: stretch; display: flex; justify-content: center; margin-top: auto; }
+  .pvcard .total { font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .pvcard .ctrl { position: relative; height: 30px; margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; opacity: .8; }
   .pvcard .pvstar { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; display: grid; place-items: center; color: var(--accent); }   /* النجمة ثابتة في النص (الصوت يمين، الهدف والتصفير شمال في أماكنهم) */
   .pvcard .pvstar svg { width: 20px; height: 20px; overflow: visible; opacity: .85; filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), .6)); }
@@ -576,7 +593,7 @@
   .pvcard .pvrng { width: 62px; height: 2px; border-radius: 2px; background: rgba(var(--accent-rgb), .28); position: relative; }
   .pvcard .pvrng i { position: absolute; left: 40%; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px rgba(var(--accent-rgb), .6); }
   .pvcard .pvp { height: 26px; padding: 0 10px; border-radius: 13px; font-size: 12px; color: var(--dim); border: 1px solid var(--line); display: grid; place-items: center; }
-  .pvcard .azstack { position: absolute; right: 10px; top: 121px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+  .pvcard .azstack { position: absolute; right: 10px; top: 129px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
   .pvcard .azdue { position: relative; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(var(--accent-rgb), .35); background: rgba(var(--accent-rgb), .08); color: var(--accent); }
   .pvcard .azdue svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
   .pvcard .xbox { position: absolute; inset: 0; z-index: 2; }
@@ -1053,7 +1070,7 @@
       transform: scaleX(.3); opacity: 0; transition: transform .9s cubic-bezier(.22, .61, .36, 1), opacity .8s ease; }
     .prbar .pc:hover::after { transform: scaleX(1); opacity: .9; transition-duration: .6s, .5s; }
     .prbar .pc .t { transition: transform .9s cubic-bezier(.22, .61, .36, 1), color .8s ease, text-shadow .9s ease; }
-    .prbar .pc:hover .t { transform: scale(1.05); color: var(--accent); text-shadow: 0 0 10px rgba(var(--accent-rgb), .4); transition-duration: .5s; }
+    .prbar .pc:hover .t { transform: scale(1.04); color: var(--accent); text-shadow: 0 0 10px rgba(var(--accent-rgb), .4); transition-duration: .5s; }
     .prbar .pc .n { transition: color .8s ease; }
     .prbar .pc:hover .n { color: var(--accent); transition-duration: .45s; }
 
@@ -1159,3 +1176,113 @@
     #hub.on .tile { animation: tileIn .8s cubic-bezier(.22, .61, .36, 1) backwards; animation-delay: calc(var(--ti, 0) * 70ms + 120ms); }
     @keyframes tileIn { from { opacity: 0; transform: translateY(10px); } }
   }
+
+
+  /* ═════ تعديلات 3.6.10 ═════ */
+  .grp[hidden] { display: none; }                         /* مربع الأذكار الفاضي: display:flex كان بيلغي hidden */
+  .wn-list li { text-align: start; text-justify: none; word-spacing: 0; letter-spacing: 0; font-size: 17px; }
+  .prbar .pc.next { background: radial-gradient(ellipse 90% 80% at 50% 110%, rgba(var(--accent-rgb), .20), rgba(var(--accent-rgb), .08) 65%); }
+  .prbar .pc.next::after { content: ''; position: absolute; bottom: 0; inset-inline: 24%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 8px rgba(var(--accent-rgb), .55); }
+  /* قسم الإصدار في "حول البرنامج" */
+  .verc { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(var(--accent-rgb), .28); background: linear-gradient(135deg, rgba(var(--accent-rgb), .10), rgba(var(--accent-rgb), .02)); }
+  .verc-i { flex: none; width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; border: 1px solid rgba(var(--accent-rgb), .35); background: rgba(var(--accent-rgb), .08); }
+  .verc-i svg { width: 22px; height: 22px; fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .verc .upv { flex: 1; min-width: 0; gap: 2px; font-size: 12.5px; color: var(--dim); }
+  .verc .upv b { font-size: 21px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .verc .upst { flex: none; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: rgba(0, 0, 0, .22); font-size: 12px; white-space: normal; max-width: 52%; line-height: 1.45; }
+  .verc .upst[data-st="none"], .verc .upst[data-st="ready"] { color: var(--accent); border-color: rgba(var(--accent-rgb), .4); }
+  .upbar { margin-top: 2px; }
+  .tgl.upt { margin-top: 2px; padding: 12px 2px 4px; }
+  .upbtns.bot { margin-top: 4px; }
+  .upbtns.bot .pill { flex: 1 1 0; height: 34px; justify-content: center; }
+
+
+/* ═════════ النسخ الاحتياطي: تنسيق جديد (4 بلوكات واضحة: تشغيل ← نسخ محفوظة ← نسخة إضافية ← إجراءات) ═════════ */
+#bkCard .bkbody { gap: 12px; padding-top: 12px; }
+#bkCard .bk-tg { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid rgba(var(--accent-rgb), .28); border-radius: 16px; background: rgba(var(--accent-rgb), .045); cursor: pointer; transition: border-color .2s, background .2s; }
+#bkCard .bk-tg:hover { border-color: rgba(var(--accent-rgb), .5); }
+#bkCard .bk-ti { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: var(--accent); background: rgba(var(--accent-rgb), .1); }
+#bkCard .bk-ti svg, #bkCard .bk-sh svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#bkCard .bk-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+#bkCard .bk-tx b { font-size: 13.5px; font-weight: 600; color: var(--text); }
+#bkCard .bk-tx small { font-size: 11.5px; color: var(--dim); }
+#bkCard .bk-tg input { -webkit-appearance: none; appearance: none; flex: none; position: relative; width: 38px; height: 22px; margin: 0; border-radius: 11px; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); cursor: pointer; transition: background .2s, border-color .2s; }
+#bkCard .bk-tg input::after { content: ''; position: absolute; top: 2px; inset-inline-start: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--dim); transition: transform .22s cubic-bezier(.4, 0, .2, 1), background .2s; }
+#bkCard .bk-tg input:checked { background: rgba(var(--accent-rgb), .22); border-color: rgba(var(--accent-rgb), .6); }
+#bkCard .bk-tg input:checked::after { background: var(--accent); transform: translateX(16px); }
+[dir="rtl"] #bkCard .bk-tg input:checked::after, html[dir="rtl"] #bkCard .bk-tg input:checked::after { transform: translateX(-16px); }
+#bkCard .bk-tg input:focus-visible { outline: 2px solid rgba(var(--accent-rgb), .6); outline-offset: 2px; }
+#bkCard .bkn { padding: 0 2px; }
+#bkCard .bknote .note { font-size: 11.5px; line-height: 1.75; }
+
+#bkCard .bk-sec, #bkCard .bkx { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: rgba(var(--accent-rgb), .02); }
+#bkCard .bk-sh { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; color: var(--text); }
+#bkCard .bk-sh > svg { flex: none; color: var(--accent); }
+#bkCard .bkx-h { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+#bkCard .bkx-h b { font-size: 13px; }
+#bkCard .bkx-h span { font-size: 11.5px; font-weight: 400; color: var(--dim); }
+
+#bkCard .bklist { gap: 7px; }
+#bkCard .bkrow { padding: 8px 11px; gap: 10px; border-radius: 12px; background: rgba(0, 0, 0, .18); }
+#bkCard .bkrow .bk-w { font-size: 12.5px; display: flex; align-items: center; gap: 8px; }
+#bkCard .bkrow:first-child .bk-w::after { content: 'الأحدث'; font-size: 10px; line-height: 1; padding: 3px 7px; border-radius: 8px; color: var(--accent); background: rgba(var(--accent-rgb), .12); }
+#bkCard .bkrow .bk-n { font-size: 11.5px; color: var(--dim); }
+#bkCard .bklist > .hint { padding: 6px 2px; text-align: center; }
+
+#bkCard .bkx-st { padding: 8px 10px; gap: 6px; border-radius: 12px; background: rgba(0, 0, 0, .18); }
+#bkCard .bkx-s { font-size: 12px; }
+#bkCard .bkp-row { gap: 6px; }
+
+#bkCard .bk-acts { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 8px; }
+#bkCard .bk-b3 { display: flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 8px; border-radius: 12px; font-size: 13px; white-space: nowrap; }
+#bkCard .bk-b3 svg { width: 16px; height: 16px; margin: 0; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; vertical-align: 0; }
+#bkCard .bk-b3.pri { color: #0a0f0c; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+#bkCard .bk-b3.pri:hover { filter: brightness(1.08); color: #0a0f0c; }
+#bkCard .hint:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { #bkCard .bk-tg, #bkCard .bk-tg input, #bkCard .bk-tg input::after { transition: none; } }
+
+
+/* ═════ تعديلات 3.6.10 (2): فراغات ما الجديد + النسخ الاحتياطي ═════ */
+.wn-list li > span { flex: 1; min-width: 0; }
+#bkCard .bk-b3.pri { color: var(--accent); background: rgba(var(--accent-rgb), .12); border-color: rgba(var(--accent-rgb), .55); font-weight: 600; }   /* لون التطبيق: نفس ستايل .pill.on */
+#bkCard .bk-b3.pri:hover { color: var(--accent); background: rgba(var(--accent-rgb), .2); border-color: var(--accent); filter: none; }
+#bkCard .bk-tx b { font-size: 15px; }
+#bkCard .bk-tx small { font-size: 12.5px; }
+#bkCard .bknote .note { font-size: 12.5px; }
+#bkCard .bk-sh { font-size: 14.5px; }
+#bkCard .bkx-h b { font-size: 14.5px; }
+#bkCard .bkx-h span { font-size: 12.5px; }
+#bkCard .bkrow { padding: 10px 12px; }
+#bkCard .bkrow .bk-w { font-size: 14px; }
+#bkCard .bkrow .bk-n { font-size: 13px; }
+#bkCard .bkrow:first-child .bk-w::after { font-size: 11px; }
+#bkCard .bklist > .hint, #bkCard .hint { font-size: 12.5px; }
+#bkCard .bkx-s { font-size: 13px; }
+#bkCard .bkp-l { font-size: 13px; }
+#bkCard .bkp-p { font-size: 12px; }
+#bkCard .bk-b3 { font-size: 14px; height: 38px; }
+#bkCard .pill.sm { font-size: 13px; height: 28px; }
+#bkCard .chk, #bkCard .cfmt { font-size: 13.5px; }
+
+
+/* ═════ النسخ الاحتياطي (3): أضغط وأرتب — من غير عناوين زيادة ═════ */
+#bkCard .bkbody { gap: 8px; padding-top: 10px; }
+#bkCard .bk-top { display: flex; align-items: center; gap: 8px; }
+#bkCard .bk-top .bk-tg { flex: 1; min-width: 0; padding: 9px 12px; gap: 11px; border-radius: 14px; }
+#bkCard .bk-ti { width: 32px; height: 32px; border-radius: 10px; }
+#bkCard .bk-top .bki { width: 32px; height: 32px; margin: 0; }
+#bkCard .bkn { padding: 0; }
+#bkCard .bkn .bkp-card { margin-top: 0; gap: 7px; }
+#bkCard .bkn .bkp-card .note { font-size: 12.5px; }
+#bkCard .bklist { gap: 6px; }
+#bkCard .bklist:empty { display: none; }
+#bkCard .bkrow { padding: 8px 12px; border: 1px solid var(--line); background: rgba(var(--accent-rgb), .02); }
+#bkCard .bklist > .hint { padding: 2px 4px; text-align: start; font-size: 12.5px; }
+#bkCard .bkx { gap: 8px; padding: 9px 12px; border-radius: 14px; background: rgba(var(--accent-rgb), .02); }
+#bkCard .bkx-top { display: flex; align-items: center; gap: 10px; }
+#bkCard .bkx-top > svg { flex: none; width: 18px; height: 18px; color: var(--accent); stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#bkCard .bkx-top .bkx-h { flex: 1; min-width: 0; }
+#bkCard .bkx-top .bkx-act { flex: none; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+#bkCard .bkx-st { padding: 6px 10px; gap: 4px; }
+#bkCard .bk-acts { gap: 7px; }
+#bkCard .bk-b3 { height: 36px; }
