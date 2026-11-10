@@ -14,6 +14,8 @@ STAGE="$ROOT/build/stage"
 APPIMAGETOOL="$ROOT/tools/appimagetool"
 FPM="${FPM:-/home/mohamedzaitoon/.cache/electron-builder/fpm/fpm-1.9.3-2.3.1-linux-x86_64/fpm}"
 export LD_LIBRARY_PATH="/tmp/opencode/wzaker/extralibs/x64/usr/lib64:${LD_LIBRARY_PATH:-}"
+export APPIMAGE_EXTRACT_AND_RUN=1
+mkdir -p /tmp/opencode
 
 echo "▶ 1/5 بناء الـ binary (Rust)"
 (cd src-tauri && cargo build --release)
