@@ -9,7 +9,7 @@
 (() => {
   'use strict';
   // نص القرآن (المصحف / التفسير / البسملة) بيفضل بخط المصحف (UthmanicHafs) بس — من غير أي خلط مع خط التطبيق
-  const SKIP = 'script,style,noscript,textarea,input,select,option,svg,canvas,title,head,.fw,[data-nofw],.mpb,.qtext,.bism,.tfq,.msn,.mbi,.qpg';
+  const SKIP = 'script,style,noscript,textarea,input,select,option,svg,canvas,title,head,.fw,[data-nofw],.mpb,.qtext,.bism,.tfq,.msn,.mbi,.qpg,.prbar .t small,.prcard .prt small';   // ص/م جنب أوقات الصلاة بس: بالخط العادي
   const ARABIC = /\p{Script=Arabic}/u;
   // مسافات + رموز لوحدها (• ✓ ...) قبل أول كلمة حقيقية بتفضل زي ما هي
   const LEAD = /^((?:\s*[^\p{L}\p{N}\s]+(?=\s))*\s*)(\S+)/u;

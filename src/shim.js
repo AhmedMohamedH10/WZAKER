@@ -14,6 +14,7 @@
     dc: 'https://discord.com/users/339177356843548673',
     wa: 'https://wa.link/lv4cu4',
     sg: 'https://tally.so/r/QKgVQl',
+    site: 'https://wzaker.site',
     // مطوّر نسخة لينكس — محمد زيتون
     fb2: 'https://www.facebook.com/mohamedzaitoon2',
     dc2: 'https://discord.com/users/mohamedzaitoon2',
@@ -218,7 +219,7 @@
     azDue: '', azRest: '', wirdDue: '',
     prayerInfo: (window.prayerInfoFor ? window.prayerInfoFor(state) : null),
     hook: 'ok', hookErr: '', hookRestarts: 0,
-    appVersion: '3.6.7',
+    appVersion: '3.6.10',
     upd: state.upd || { status: 'idle', version: '', percent: 0, error: '' },
     dailyAz: state.dailyAz || { d: '', m: [], e: [], sl: [], wk: [], mq: [], pr: [], wu: [] },
     khatma: state.khatma || { bits: '', start: '', days: 30, count: 0, today: { d: '', n: 0 } },
@@ -304,6 +305,22 @@
     showInFolder: (p) => { try { window.__TAURI__?.core?.invoke('show_in_folder', { path: p }); } catch (_) {} },
     getLogoData: () => assetDataUrl('assets/logo.png'),
     getBannerData: () => assetDataUrl('assets/shot-banner.png'),
+    whatsNew: () => {
+      const v = '3.6.10';
+      if (state.seenVer === v) return Promise.resolve(null);
+      state.seenVer = v; save();
+      const items = [
+        'إصلاح واجهة المسبحة',
+        'إصلاح المسبحة المصغّرة',
+        'تحسينات على الحركات الانتقالية (الأنيميشن)',
+        'إصلاح مشكلة الحفظ التلقائي',
+        'تحسين واجهة الحفظ التلقائي والنسخ الاحتياطي',
+        'تحسين واجهة مواقيت الصلاة مع إبراز الصلاة القادمة وتحديث الأيقونات',
+        'إضافة زر لحفظ تقدّمك على جهازك',
+        'إعادة تصميم قسم الإصدار والتحديثات في «حول البرنامج»'
+      ];
+      return Promise.resolve({ ver: v, items });
+    },
     settingsWide: (on) => { try { window.__TAURI__?.core?.invoke('set_settings_wide', { on: !!on }); } catch (_) {} },
     minimize: () => { try { window.__TAURI__?.core?.invoke('set_window_mode', { mini: true }); } catch (_) {} },
     hideToTray: () => { try { window.__TAURI__?.window?.getCurrentWindow?.()?.hide?.(); } catch (_) {} },
@@ -662,12 +679,23 @@
         });
       } catch (_) { return Promise.resolve(); }
     },
-    backupNow: () => Promise.resolve(),
-    backupPath: () => Promise.resolve(''),
-    backupOpenDir: () => {},
-    backupCopyPath: () => {},
+    backupNow: () => { try { return window.__TAURI__?.core?.invoke('backup_now', { data: JSON.stringify(state) }); } catch (_) { return Promise.resolve([]); } },
+    backupPath: () => { try { return window.__TAURI__?.core?.invoke('backup_path'); } catch (_) { return Promise.resolve(''); } },
+    backupOpenDir: () => { try { return window.__TAURI__?.core?.invoke('backup_open_dir'); } catch (_) { return Promise.resolve(false); } },
+    backupCopyPath: () => {
+      try {
+        return window.__TAURI__?.core?.invoke('backup_copy_path').then(p => {
+          navigator.clipboard?.writeText(p);
+          return true;
+        }).catch(() => false);
+      } catch (_) { return Promise.resolve(false); }
+    },
+    extInfo: () => { try { return window.__TAURI__?.core?.invoke('ext_info'); } catch (_) { return Promise.resolve(null); } },
+    extChoose: () => { try { return window.__TAURI__?.core?.invoke('ext_choose'); } catch (_) { return Promise.resolve({ ok: false, error: 'تعذّر اختيار المجلد' }); } },
+    extClear: () => { try { return window.__TAURI__?.core?.invoke('ext_clear'); } catch (_) { return Promise.resolve(null); } },
+    extOpen: () => { try { return window.__TAURI__?.core?.invoke('ext_open'); } catch (_) { return Promise.resolve(false); } },
     backupRestore: () => Promise.resolve(),
-    backupExport: () => Promise.resolve(),
+    backupExport: () => { try { return window.__TAURI__?.core?.invoke('backup_export', { data: JSON.stringify(state) }); } catch (_) { return Promise.resolve(''); } },
     backupImport: () => Promise.resolve(),
     backupImportApply: () => Promise.resolve(),
     backupImportCancel: () => {},

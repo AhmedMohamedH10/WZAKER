@@ -2,13 +2,13 @@
 # وذكر (WZAKER) — مثبّت لينكس: يكشف التوزيعة تلقائياً، ينزّل النسخة المناسبة،
 # يتحقق من توقيع GPG، يثبّتها، ويزيل النسخة القديمة (بهدوء) مع نسخة احتياطية للبيانات.
 #
-# الاستخدام:  curl -fsSL https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.7/linux-installer.sh | sudo bash
+# الاستخدام:  curl -fsSL https://github.com/AhmedMohamedH10/WZAKER/releases/download/v3.6.10/linux-installer.sh | sudo bash
 
 set -euo pipefail
 
 REPO="AhmedMohamedH10/WZAKER"
-TAG="v3.6.7"
-VER="3.6.7"
+TAG="v3.6.10"
+VER="3.6.10"
 BASE="https://github.com/$REPO/releases/download/$TAG"
 KEY_FPR="EC5E1EC44ED65B7AFD33F17018A7EB1880C9F89E"
 

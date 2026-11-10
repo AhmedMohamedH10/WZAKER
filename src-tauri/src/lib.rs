@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-const CURRENT_VERSION: &str = "3.6.7";
+const CURRENT_VERSION: &str = "3.6.10";
 const GLOW: f64 = 18.0;                       // هامش التوهج (زي main.js)
 const CARD_FULL: (f64, f64) = (258.0, 354.0);  // كارت المسبحة
 const CARD_MINI: (f64, f64) = (232.0, 48.0);
@@ -407,6 +407,117 @@ fn backup_import(path: String) -> Result<String, String> {
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn backup_path() -> String {
+    backup_dir().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn backup_open_dir() -> bool {
+    let dir = backup_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    open::that(&dir).is_ok()
+}
+
+#[tauri::command]
+fn backup_now(_app: tauri::AppHandle, data: Option<String>) -> Result<Vec<String>, String> {
+    let dir = backup_dir();
+    let _ = std::fs::create_dir_all(&dir);
+    let name = format!("wzaker-backup-{}.json", chrono_like_stamp());
+    let path = dir.join(name);
+    let content = data.unwrap_or_else(|| load_state().unwrap_or_else(|| "{}".to_string()));
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(backup_list())
+}
+
+#[tauri::command]
+fn ext_info() -> serde_json::Value {
+    let st = saved_state();
+    let dir = st.get("extBackupDir").and_then(|x| x.as_str()).unwrap_or("").to_string();
+    let b_dir = backup_dir();
+    let docs_at = std::fs::read_dir(&b_dir).ok().and_then(|mut rd| {
+        rd.find_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().to_string()))
+    });
+    let custom_ok = if !dir.is_empty() {
+        let p = std::path::Path::new(&dir);
+        p.is_dir() && std::fs::metadata(p).map(|m| !m.permissions().readonly()).unwrap_or(false)
+    } else {
+        false
+    };
+    json!({
+        "dir": dir,
+        "docs": { "ok": true, "at": docs_at },
+        "custom": if !dir.is_empty() { Some(json!({ "ok": custom_ok, "at": docs_at })) } else { None }
+    })
+}
+
+#[tauri::command]
+fn ext_choose() -> serde_json::Value {
+    let out = std::process::Command::new("zenity")
+        .args(&["--file-selection", "--directory", "--title=اختر مكان النسخة الإضافية (قرص آخر أو فلاشة أو أي مجلد)"])
+        .output();
+    let path = match out {
+        Ok(o) if o.status.success() => {
+            String::from_utf8_lossy(&o.stdout).trim().to_string()
+        }
+        _ => {
+            let out_k = std::process::Command::new("kdialog")
+                .args(&["--getexistingdirectory"])
+                .output();
+            match out_k {
+                Ok(ok) if ok.status.success() => {
+                    String::from_utf8_lossy(&ok.stdout).trim().to_string()
+                }
+                _ => return json!({ "ok": false, "canceled": true })
+            }
+        }
+    };
+    if path.is_empty() {
+        return json!({ "ok": false, "canceled": true });
+    }
+    let p = std::path::PathBuf::from(&path);
+    let target_dir = if p.file_name().and_then(|s| s.to_str()) == Some("WZAKER-Backup") {
+        p
+    } else {
+        p.join("WZAKER-Backup")
+    };
+    if let Err(e) = std::fs::create_dir_all(&target_dir) {
+        return json!({ "ok": false, "error": format!("تعذّر إنشاء المجلد: {}", e) });
+    }
+    let dir_str = target_dir.to_string_lossy().to_string();
+    let mut st = saved_state();
+    if let Some(obj) = st.as_object_mut() {
+        obj.insert("extBackupDir".to_string(), json!(dir_str));
+        let _ = save_state(json!(obj).to_string());
+    }
+    json!({
+        "ok": true,
+        "info": ext_info()
+    })
+}
+
+#[tauri::command]
+fn ext_clear() -> serde_json::Value {
+    let mut st = saved_state();
+    if let Some(obj) = st.as_object_mut() {
+        obj.insert("extBackupDir".to_string(), json!(""));
+        let _ = save_state(json!(obj).to_string());
+    }
+    ext_info()
+}
+
+#[tauri::command]
+fn ext_open() -> bool {
+    let st = saved_state();
+    if let Some(dir) = st.get("extBackupDir").and_then(|x| x.as_str()) {
+        if !dir.is_empty() {
+            let p = std::path::Path::new(dir);
+            return open::that(p).is_ok();
+        }
+    }
+    false
+}
+
 /// إرسال الأزرار المخصصة واختصارات الأوامر للـ backend (من الواجهة)
 #[tauri::command]
 fn set_keys(
@@ -437,14 +548,29 @@ fn load_state() -> Option<String> {
     std::fs::read_to_string(state_file()).ok()
 }
 
-/// حفظ الحالة في ملف
+/// حفظ الحالة في ملف (كتابة ذرية لمنع تلف الملف + نسخ إضافي للمجلد المختار)
 #[tauri::command]
 fn save_state(json: String) -> Result<(), String> {
     let f = state_file();
     if let Some(parent) = f.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    std::fs::write(&f, json).map_err(|e| e.to_string())
+    let tmp = f.with_extension("tmp");
+    std::fs::write(&tmp, &json).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &f).map_err(|e| e.to_string())?;
+
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&json) {
+        if let Some(ext) = v.get("extBackupDir").and_then(|x| x.as_str()) {
+            if !ext.is_empty() {
+                let ext_path = std::path::PathBuf::from(ext);
+                if ext_path.is_dir() {
+                    let ext_file = ext_path.join("wzaker-state-backup.json");
+                    let _ = std::fs::write(&ext_file, &json);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// تسجيل نص في اللوج (تشخيص)
@@ -641,6 +767,7 @@ fn start_global_scroll(app: &tauri::AppHandle) {
 }
 
 /// وضع النافذة في أسفل يمين الشاشة (زي نسخة ويندوز)
+#[allow(dead_code)]
 fn place_bottom_right(w: &WebviewWindow) {
     let monitor = w
         .current_monitor()
@@ -687,20 +814,21 @@ fn place_bottom_right(w: &WebviewWindow) {
 }
 
 #[derive(Clone, Debug)]
-struct MorphState {
-    gen: u64,
-    to_mini: bool,
-    hold_w: f64,
-    hold_h: f64,
-    target_pos: Option<(f64, f64)>,
+#[allow(dead_code)]
+pub struct MorphState {
+    pub gen: u64,
+    pub to_mini: bool,
+    pub hold_w: f64,
+    pub hold_h: f64,
+    pub target_pos: Option<(f64, f64)>,
 }
 
 #[derive(Clone, Copy, Debug)]
-struct DragState {
-    ox: f64,
-    oy: f64,
-    w: f64,
-    h: f64,
+pub struct DragState {
+    pub ox: f64,
+    pub oy: f64,
+    pub w: f64,
+    pub h: f64,
 }
 
 static MORPH_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -1161,7 +1289,7 @@ pub fn run() {
         }).build())
         .invoke_handler(tauri::generate_handler![quit_app, open_url, show_in_folder, save_image, set_settings_wide, check_update, install_update, trigger_tick, splash_done, splash_phase, startup_done, open_settings, set_window_mode, set_autostart, hide_window,
     set_hit_rects, set_hold, popup_show, popup_get, popup_close, popup_pick, log_msg, capture_key, set_keys, cancel_capture, load_state, save_state,
-    backup_export, backup_list, backup_import, mini_ready, drag_start, drag_move, drag_end])
+    backup_export, backup_list, backup_import, backup_path, backup_open_dir, backup_now, ext_info, ext_choose, ext_clear, ext_open, mini_ready, drag_start, drag_move, drag_end])
         .setup(|app| {
             // Tray icon
             // Global shortcut Ctrl+Alt+W
