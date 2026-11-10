@@ -15,7 +15,7 @@ const app = new Proxy({
   requestSingleInstanceLock: () => true, whenReady: () => new Promise(noop),
   commandLine: { appendSwitch: noop }, on: noop, once: noop, quit: noop, setLoginItemSettings: noop,
 }, { get: (t, k) => (k in t ? t[k] : noop) });
-const electron = new Proxy({ app, screen: { on: noop }, powerMonitor: { on: noop }, Menu: { buildFromTemplate: t => t }, dialog: { showMessageBox: () => Promise.resolve({ response: 1 }), showErrorBox: noop } }, {
+const electron = new Proxy({ app, screen: { on: noop }, powerMonitor: { on: noop }, Menu: { buildFromTemplate: t => t }, dialog: { showMessageBox: () => Promise.resolve({ response: 1 }), showMessageBoxSync: () => 1, showErrorBox: noop } }, {
   get: (t, k) => (k in t ? t[k] : (k === 'ipcMain' ? { on: noop, handle: noop } : chain())),
 });
 
@@ -29,4 +29,5 @@ Module._load = function (request, ...rest) { return request in mocks ? mocks[req
 
 const main = require(path.join(__dirname, '..', 'main.js'));
 main.__uio = mocks['uiohook-napi'].uIOhook;   // الاختبارات بتخلّي start() يفشل منه
+main.__electron = electron; main.__tmp = tmp;   // للاختبارات: نبدّل الـ dialog ونعرف مجلد الاختبار
 module.exports = main;

@@ -1,12 +1,12 @@
 {
   "name": "wzaker",
-  "version": "3.6.7",
+  "version": "3.6.10",
   "description": "WZAKER - سبحة عائمة للأذكار على سطح المكتب بعدّ Global Scroll",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "test": "node --test test/logic.test.js"
+    "test": "node --test test/logic.test.js test/protect.test.js"
   },
   "dependencies": {
     "electron-updater": "^6.3.9",

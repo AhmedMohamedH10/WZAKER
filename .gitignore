@@ -1,34 +1,10 @@
-# Tauri / Rust
-target/
-src-tauri/target/
 node_modules/
 dist/
 dist-*/
-*.AppImage
-*.deb
-*.rpm
-*.pkg.tar.zst
-*.apk
-*.txz
-*.pet
-*.tar
-*.zip
-*.snap
-
-# IDE
-.idea/
-.vscode/
-.claude/
-*.swp
-
-# Logs / temp
 *.log
-*.tmp
-*.bak
-*.orig
+*.zip
 .DS_Store
 Thumbs.db
-
 # Secrets
 .env
 .env.*
@@ -42,7 +18,8 @@ Thumbs.db
 src-tauri/keys/updater.key
 
 # Build/package staging
-build/
+build/stage/
+build/appimage-work/
 
 # Snap
 *.snap
@@ -51,3 +28,7 @@ build/
 packaging/flatpak/build-dir/
 packaging/flatpak/.flatpak-builder/
 *.flatpak
+
+.vscode/
+.idea/
+.claude/
