@@ -7,13 +7,15 @@ cd "$ROOT"
 export JAVA_HOME="${JAVA_HOME:-$HOME/.sdkman/candidates/java/21.0.12+1.1-tem}"
 export PATH="$JAVA_HOME/bin:$HOME/.cargo/bin:$PATH"
 export GNUPGHOME="${GNUPGHOME:-$HOME/.gnupg}"
-VER=3.6.4
+VER=3.6.10
 KEY_ID="${SIGNING_KEY_ID:-EC5E1EC44ED65B7AFD33F17018A7EB1880C9F89E}"
 DIST="$ROOT/dist"
 STAGE="$ROOT/build/stage"
 APPIMAGETOOL="$ROOT/tools/appimagetool"
 FPM="${FPM:-/home/mohamedzaitoon/.cache/electron-builder/fpm/fpm-1.9.3-2.3.1-linux-x86_64/fpm}"
 export LD_LIBRARY_PATH="/tmp/opencode/wzaker/extralibs/x64/usr/lib64:${LD_LIBRARY_PATH:-}"
+export APPIMAGE_EXTRACT_AND_RUN=1
+mkdir -p /tmp/opencode
 
 echo "▶ 1/5 بناء الـ binary (Rust)"
 (cd src-tauri && cargo build --release)

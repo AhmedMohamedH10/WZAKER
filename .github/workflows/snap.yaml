@@ -75,4 +75,4 @@ jobs:
           echo "$SNAPCRAFT_STORE_CREDENTIALS" | snapcraft login --store=admin
 
       - name: الرفع
-        run: snapcraft upload --release "3.6.4" snap/*.snap
+        run: snapcraft upload --release "3.6.7" snap/*.snap

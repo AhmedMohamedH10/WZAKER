@@ -1,5 +1,5 @@
 Name:           wzaker
-Version:        3.6.4
+Version:        3.6.10
 Release:        1
 Summary:        وذكر — سبحة إلكترونية وأذكار وقرآن وأوقات صلاة (Linux)
 License:        MIT
@@ -40,5 +40,9 @@ install -m 644 /home/mohamedzaitoon/Projects/WZAKER/build/stage/usr/share/icons/
 /usr/share/icons/hicolor/256x256/apps/wzaker.png
 
 %changelog
+* Tue Nov 10 2026 محمد زيتون <mohamed-zaitoon@users.noreply.github.com> - 3.6.10-1
+- Linux release 3.6.10 (Tauri + Rust) — matches upstream Windows 3.6.10 — signed with GPG
+* Thu Oct 22 2026 محمد زيتون <mohamed-zaitoon@users.noreply.github.com> - 3.6.7-1
+- Linux release 3.6.7 (Tauri + Rust) — matches upstream Windows 3.6.7 — signed with GPG
 * Mon Oct 20 2026 محمد زيتون <mohamed-zaitoon@users.noreply.github.com> - 3.6.4-1
 - Linux release (Tauri + Rust) — signed with GPG

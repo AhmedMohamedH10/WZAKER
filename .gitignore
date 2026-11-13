@@ -5,6 +5,30 @@ dist-*/
 *.zip
 .DS_Store
 Thumbs.db
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Tauri updater signing private key
+src-tauri/keys/updater.key
+
+# Build/package staging
+build/stage/
+build/appimage-work/
+
+# Snap
+*.snap
+
+# Flatpak build artifacts
+packaging/flatpak/build-dir/
+packaging/flatpak/.flatpak-builder/
+*.flatpak
+
 .vscode/
 .idea/
 .claude/
